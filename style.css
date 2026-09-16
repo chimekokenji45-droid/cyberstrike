@@ -1,0 +1,67 @@
+/* Custom CSS Extensions & Esports Aesthetics */
+
+/* Glassmorphism Cards & Navbars */
+.glass-navbar {
+  background: rgba(12, 17, 29, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.glass-card {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Selected Stake Card Indicator */
+.stake-card.active-stake {
+  border-color: #a855f7 !important;
+  background: rgba(88, 28, 135, 0.35) !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
+}
+
+/* Radar Sweep Keyframe for Matchmaking */
+.radar-sweep {
+  animation: radarRotate 2s linear infinite;
+}
+
+@keyframes radarRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Modal Scale-Up Animation */
+.animate-scaleUp {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+  }

@@ -12,7 +12,7 @@
 
   <title>CYBERSTRIKE // 1v1 Skill Duels</title>
 
-  <!-- Tailwind CSS -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- FontAwesome -->
@@ -21,15 +21,14 @@
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
   >
 
-  <!-- Google Fonts -->
+  <!-- Fonts -->
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet"
   >
 
-  <!-- Supabase JS Client -->
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 
   <style>
 
@@ -52,2544 +51,2817 @@
 >
 
 
-  <!-- ===================================================== -->
-  <!-- MANDATORY LOGIN GATEWAY -->
-  <!-- ===================================================== -->
+<!-- =====================================================
+     LOGIN SCREEN
+===================================================== -->
+
+<div
+  id="authScreen"
+  class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+>
 
   <div
-    id="authScreen"
-    class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+    class="glass-card max-w-md w-full p-6 sm:p-8 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10"
   >
 
-    <div
-      class="glass-card max-w-md w-full p-6 sm:p-8 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 relative"
-    >
+    <!-- LOGO -->
 
-      <!-- LOGO -->
-
-      <div class="flex items-center justify-center space-x-3 mb-6">
-
-        <div
-          class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center font-orbitron font-black text-slate-950 text-base shadow-lg shadow-cyan-500/20"
-        >
-          CS
-        </div>
-
-        <span
-          class="font-orbitron font-black text-2xl tracking-wider text-white"
-        >
-          CYBER<span class="text-cyan-400">STRIKE</span>
-        </span>
-
-      </div>
-
-
-      <div class="text-center mb-6">
-
-        <h3
-          class="font-orbitron text-lg font-bold text-white tracking-wide"
-        >
-          USER ACCESS
-        </h3>
-
-        <p class="text-xs text-slate-400 mt-1">
-          Enter your FaucetPay email address and password to enter
-        </p>
-
-      </div>
-
-
-      <!-- AUTH MESSAGE -->
+    <div class="flex items-center justify-center space-x-3 mb-6">
 
       <div
-        id="authMessage"
-        class="hidden mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-950/50 border border-rose-500/30 text-rose-400"
-      ></div>
-
-
-      <!-- LOGIN FORM -->
-
-      <form
-        onsubmit="handleAuthSubmit(event)"
-        class="space-y-4"
+        class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center font-orbitron font-black text-slate-950 text-base"
       >
-
-        <!-- EMAIL -->
-
-        <div>
-
-          <label
-            class="text-xs font-semibold text-slate-300 block mb-1"
-          >
-            FaucetPay Email Address
-          </label>
-
-          <div class="relative">
-
-            <i
-              class="fa-solid fa-envelope absolute left-3.5 top-3 text-slate-500 text-xs"
-            ></i>
-
-            <input
-              type="email"
-              id="authEmail"
-              required
-              autocomplete="email"
-              placeholder="user@faucetpay.email"
-              class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-cyan-500 transition"
-            >
-
-          </div>
-
-        </div>
-
-
-        <!-- PASSWORD -->
-
-        <div>
-
-          <label
-            class="text-xs font-semibold text-slate-300 block mb-1"
-          >
-            Password
-          </label>
-
-          <div class="relative">
-
-            <i
-              class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"
-            ></i>
-
-            <input
-              type="password"
-              id="authPassword"
-              required
-              minlength="6"
-              autocomplete="current-password"
-              placeholder="••••••••"
-              class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-cyan-500 transition"
-            >
-
-          </div>
-
-        </div>
-
-
-        <!-- LOGIN BUTTON -->
-
-        <button
-          type="submit"
-          id="authSubmitBtn"
-          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-emerald-400 font-orbitron font-bold text-slate-950 text-xs rounded-xl shadow-lg shadow-cyan-500/20 hover:brightness-110 transition"
-        >
-          LOG IN
-        </button>
-
-      </form>
-
-
-      <div
-        class="mt-6 pt-4 border-t border-slate-800/80 text-center text-xs text-slate-400"
-      >
-
-        <span>
-          Don't have a FaucetPay account?
-        </span>
-
-        <a
-          href="https://faucetpay.io"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-cyan-400 font-bold hover:underline"
-        >
-          Get one on FaucetPay.io
-        </a>
-
+        CS
       </div>
+
+      <span
+        class="font-orbitron font-black text-2xl tracking-wider text-white"
+      >
+        CYBER<span class="text-cyan-400">STRIKE</span>
+      </span>
 
     </div>
 
-  </div>
 
-
-
-  <!-- ===================================================== -->
-  <!-- MAIN APPLICATION -->
-  <!-- ===================================================== -->
-
-  <div
-    id="appContainer"
-    class="hidden min-h-screen flex flex-col justify-between"
-  >
-
-
-    <!-- ================================================= -->
-    <!-- HEADER -->
-    <!-- ================================================= -->
-
-    <header
-      class="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40 w-full"
-    >
-
-      <div
-        class="max-w-7xl mx-auto px-2.5 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-4"
-      >
-
-        <!-- LOGO -->
-
-        <div class="flex items-center space-x-2 shrink-0">
-
-          <div
-            class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center font-orbitron font-black text-slate-950 text-xs sm:text-lg shadow-lg shadow-cyan-500/20"
-          >
-            CS
-          </div>
-
-          <span
-            class="font-orbitron font-black text-xs sm:text-xl tracking-wider text-white"
-          >
-            CYBER<span class="text-cyan-400">STRIKE</span>
-          </span>
-
-        </div>
-
-
-        <!-- BALANCE + ACTIONS -->
-
-        <div
-          class="flex items-center space-x-1 sm:space-x-3 shrink-0"
-        >
-
-          <div
-            class="bg-slate-900 border border-slate-800 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl flex items-center space-x-1 sm:space-x-2"
-          >
-
-            <i
-              class="fa-solid fa-wallet text-cyan-400 text-[10px] sm:text-xs"
-            ></i>
-
-            <span
-              class="text-[10px] text-slate-400 font-bold uppercase hidden md:inline"
-            >
-              Vault:
-            </span>
-
-            <span
-              class="font-orbitron font-bold text-[10px] sm:text-sm text-emerald-400"
-            >
-              $<span id="userBalanceDisplay">0.00</span>
-
-              <span
-                class="text-[8px] sm:text-[10px] text-slate-400"
-              >
-                USDT
-              </span>
-
-            </span>
-
-          </div>
-
-
-          <button
-            onclick="openModal('depositModal')"
-            class="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-orbitron font-bold text-[10px] sm:text-xs rounded-lg sm:rounded-xl shadow-md hover:brightness-110 transition flex items-center space-x-1 whitespace-nowrap"
-          >
-
-            <i class="fa-solid fa-plus text-[8px] sm:text-[10px]"></i>
-
-            <span>
-              DEPOSIT
-            </span>
-
-          </button>
-
-
-          <button
-            onclick="openModal('withdrawModal')"
-            class="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 font-orbitron font-bold text-[10px] sm:text-xs rounded-lg sm:rounded-xl transition whitespace-nowrap"
-          >
-            CASHOUT
-          </button>
-
-
-          <button
-            onclick="logout()"
-            title="Logout"
-            class="p-1 sm:p-2 text-slate-400 hover:text-rose-400 transition"
-          >
-
-            <i
-              class="fa-solid fa-right-from-bracket text-xs sm:text-base"
-            ></i>
-
-          </button>
-
-        </div>
-
-      </div>
-
-    </header>
-
-
-
-    <!-- ================================================= -->
-    <!-- MAIN DASHBOARD -->
-    <!-- ================================================= -->
-
-    <main
-      class="max-w-7xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 flex-grow"
-    >
-
-
-      <!-- LEFT SIDE -->
-
-      <section
-        class="lg:col-span-2 space-y-4 sm:space-y-6"
-      >
-
-
-        <!-- GAME MODE -->
-
-        <div
-          class="glass-card p-3.5 sm:p-5 rounded-2xl border border-slate-800"
-        >
-
-          <h3
-            class="font-orbitron text-xs sm:text-sm font-bold text-white mb-3 flex items-center space-x-2"
-          >
-
-            <i class="fa-solid fa-gamepad text-cyan-400"></i>
-
-            <span>
-              SELECT 1V1 DUEL MODE
-            </span>
-
-          </h3>
-
-
-          <div
-            class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3"
-          >
-
-            <div
-              onclick="selectGameMode('target_shooter')"
-              id="mode-target_shooter"
-              class="game-mode-card cursor-pointer p-3 rounded-xl border border-cyan-500 bg-cyan-950/30 transition"
-            >
-
-              <div
-                class="flex items-center space-x-2 mb-1"
-              >
-
-                <i
-                  class="fa-solid fa-crosshair text-cyan-400 text-xs"
-                ></i>
-
-                <span
-                  class="font-orbitron text-xs font-bold text-white"
-                >
-                  Target Strike
-                </span>
-
-              </div>
-
-              <p class="text-[10px] text-slate-400">
-                Fast reflex target clearing duel.
-              </p>
-
-            </div>
-
-
-            <div
-              onclick="selectGameMode('reflex_pulse')"
-              id="mode-reflex_pulse"
-              class="game-mode-card cursor-pointer p-3 rounded-xl border border-slate-800 bg-slate-900/60 transition"
-            >
-
-              <div
-                class="flex items-center space-x-2 mb-1"
-              >
-
-                <i
-                  class="fa-solid fa-bolt text-amber-400 text-xs"
-                ></i>
-
-                <span
-                  class="font-orbitron text-xs font-bold text-white"
-                >
-                  Reflex Pulse
-                </span>
-
-              </div>
-
-              <p class="text-[10px] text-slate-400">
-                Tap instantly on signal flash.
-              </p>
-
-            </div>
-
-
-            <div
-              onclick="selectGameMode('cyber_pong')"
-              id="mode-cyber_pong"
-              class="game-mode-card cursor-pointer p-3 rounded-xl border border-slate-800 bg-slate-900/60 transition"
-            >
-
-              <div
-                class="flex items-center space-x-2 mb-1"
-              >
-
-                <i
-                  class="fa-solid fa-table-tennis-paddle-ball text-purple-400 text-xs"
-                ></i>
-
-                <span
-                  class="font-orbitron text-xs font-bold text-white"
-                >
-                  Cyber Pong
-                </span>
-
-              </div>
-
-              <p class="text-[10px] text-slate-400">
-                Physics duel. First to 3 goals wins.
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <!-- MATCH ARENA -->
-
-        <div
-          class="glass-card p-3.5 sm:p-6 rounded-2xl border border-slate-800 relative"
-        >
-
-          <div
-            class="flex items-center justify-between mb-3 sm:mb-4"
-          >
-
-            <div>
-
-              <span
-                class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest block"
-              >
-                Match Arena
-              </span>
-
-              <h2
-                id="currentModeTitle"
-                class="font-orbitron text-sm sm:text-lg font-bold text-white"
-              >
-                Target Strike 1v1
-              </h2>
-
-            </div>
-
-
-            <div class="text-right">
-
-              <span
-                class="text-[9px] sm:text-[10px] text-slate-400 block"
-              >
-                Stake / Winner Pot
-              </span>
-
-              <span
-                id="stakeDisplayHeader"
-                class="font-orbitron font-bold text-cyan-400 text-xs sm:text-sm"
-              >
-                $0.50 /
-                <span class="text-emerald-400">
-                  $0.80 USDT
-                </span>
-              </span>
-
-            </div>
-
-          </div>
-
-
-          <!-- STAKE SELECTION -->
-
-          <div class="mb-4">
-
-            <label
-              class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2"
-            >
-              Choose Bet Amount per Player:
-            </label>
-
-
-            <div class="grid grid-cols-3 gap-2">
-
-              <button
-                onclick="selectStakeTier(0.5)"
-                id="stakeTier-0.5"
-                class="stake-tier-btn border-cyan-500 bg-cyan-950/40 text-cyan-400 border py-2 px-2 rounded-xl flex flex-col items-center justify-center transition"
-              >
-
-                <span
-                  class="font-orbitron font-bold text-xs sm:text-sm"
-                >
-                  0.5 USDT
-                </span>
-
-                <span class="text-[8px] text-slate-400">
-                  Pot: $0.80 USDT
-                </span>
-
-              </button>
-
-
-              <button
-                onclick="selectStakeTier(1.0)"
-                id="stakeTier-1.0"
-                class="stake-tier-btn border-slate-800 bg-slate-900 text-slate-300 border py-2 px-2 rounded-xl flex flex-col items-center justify-center transition hover:border-slate-700"
-              >
-
-                <span
-                  class="font-orbitron font-bold text-xs sm:text-sm"
-                >
-                  1 USDT
-                </span>
-
-                <span class="text-[8px] text-slate-400">
-                  Pot: $1.60 USDT
-                </span>
-
-              </button>
-
-
-              <button
-                onclick="selectStakeTier(5.0)"
-                id="stakeTier-5.0"
-                class="stake-tier-btn border-slate-800 bg-slate-900 text-slate-300 border py-2 px-2 rounded-xl flex flex-col items-center justify-center transition hover:border-slate-700"
-              >
-
-                <span
-                  class="font-orbitron font-bold text-xs sm:text-sm"
-                >
-                  5 USDT
-                </span>
-
-                <span class="text-[8px] text-slate-400">
-                  Pot: $8.00 USDT
-                </span>
-
-              </button>
-
-            </div>
-
-          </div>
-
-
-          <!-- CANVAS -->
-
-          <div
-            class="relative aspect-video w-full bg-slate-950 rounded-xl border border-slate-800 overflow-hidden flex items-center justify-center"
-          >
-
-            <canvas
-              id="gameCanvas"
-              width="640"
-              height="360"
-              class="w-full h-full object-contain"
-            ></canvas>
-
-
-            <!-- CANVAS OVERLAY -->
-
-            <div
-              id="canvasOverlay"
-              class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-3 sm:p-4 text-center"
-            >
-
-              <i
-                class="fa-solid fa-shield-halved text-3xl sm:text-4xl text-cyan-400 mb-2 sm:mb-3 animate-pulse"
-              ></i>
-
-              <h3
-                class="font-orbitron text-sm sm:text-lg font-bold text-white mb-1"
-              >
-                READY FOR MATCHMAKING?
-              </h3>
-
-              <p
-                id="matchOverlayDesc"
-                class="text-[10px] sm:text-xs text-slate-400 max-w-xs mb-3 sm:mb-4"
-              >
-                Entry Stake:
-                <strong>$0.50 USDT</strong>.
-                Winner takes
-                <strong>$0.80 USDT</strong>
-                (20% platform rake).
-              </p>
-
-              <button
-                onclick="startMatchmaking()"
-                class="px-5 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-orbitron font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-cyan-500/20 hover:scale-105 transition"
-              >
-                FIND OPPONENT
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-            <!-- ================================================= -->
-      <!-- RIGHT SIDE -->
-      <!-- ================================================= -->
-
-      <section class="space-y-4 sm:space-y-6">
-
-
-        <!-- 7-DAY WEEKLY SPRINT -->
-
-        <div
-          class="glass-card p-4 sm:p-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/20 to-slate-900/90"
-        >
-
-          <div
-            class="flex items-center justify-between mb-3"
-          >
-
-            <div class="flex items-center space-x-2">
-
-              <i
-                class="fa-solid fa-stopwatch text-cyan-400 text-sm"
-              ></i>
-
-              <h3
-                class="font-orbitron text-xs font-bold text-white"
-              >
-                7-Day Weekly Sprint
-              </h3>
-
-            </div>
-
-
-            <div
-              class="bg-slate-950 border border-slate-800 px-2 py-0.5 rounded text-[10px] font-orbitron text-amber-400"
-              id="sprintCountdown"
-            >
-              6d 23h 59m
-            </div>
-
-          </div>
-
-
-          <div class="space-y-1 my-3">
-
-            <div class="flex justify-between text-[10px]">
-
-              <span class="text-slate-400">
-                Weekly Progress
-              </span>
-
-              <span
-                class="font-orbitron text-cyan-400 font-bold"
-              >
-
-                <span id="sprintWinsDisplay">
-                  0
-                </span>
-
-                / 100 Wins
-
-              </span>
-
-            </div>
-
-
-            <div
-              class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800"
-            >
-
-              <div
-                id="sprintProgressBar"
-                class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400"
-                style="width: 0%"
-              ></div>
-
-            </div>
-
-          </div>
-
-
-          <div
-            class="flex items-center justify-between pt-2 border-t border-slate-800"
-          >
-
-            <div>
-
-              <span
-                class="text-[10px] text-slate-400 block"
-              >
-                Reward
-              </span>
-
-              <span
-                class="font-orbitron font-bold text-emerald-400 text-xs"
-              >
-                +$10.00 USDT
-              </span>
-
-            </div>
-
-
-            <button
-              id="claimSprintBtn"
-              onclick="claimSprintReward()"
-              class="px-3 py-1.5 bg-slate-800 text-slate-500 text-[10px] font-bold rounded-lg cursor-not-allowed"
-              disabled
-            >
-              LOCKED
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <!-- LIFETIME MILESTONES -->
-
-        <div
-          class="glass-card p-4 rounded-2xl border border-slate-800"
-        >
-
-          <h3
-            class="font-orbitron text-xs font-bold text-white mb-3 flex items-center space-x-2"
-          >
-
-            <i
-              class="fa-solid fa-trophy text-amber-400"
-            ></i>
-
-            <span>
-              Lifetime Milestones
-            </span>
-
-          </h3>
-
-
-          <div class="space-y-2">
-
-
-            <!-- 100 WINS -->
-
-            <div
-              class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs"
-            >
-
-              <div>
-
-                <div class="font-bold text-white">
-                  100 Wins
-                </div>
-
-                <div
-                  class="text-[10px] text-emerald-400 font-bold"
-                >
-                  $10.00 USDT Reward
-                </div>
-
-              </div>
-
-
-              <button
-                id="claim100Btn"
-                onclick="claimMilestone(100, 10.00)"
-                class="px-2.5 py-1 bg-slate-800 text-slate-500 text-[10px] font-bold rounded-lg"
-                disabled
-              >
-                Locked
-              </button>
-
-            </div>
-
-
-            <!-- 1000 WINS -->
-
-            <div
-              class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs"
-            >
-
-              <div>
-
-                <div class="font-bold text-white">
-                  1,000 Wins
-                </div>
-
-                <div
-                  class="text-[10px] text-emerald-400 font-bold"
-                >
-                  $100.00 USDT Reward
-                </div>
-
-              </div>
-
-
-              <button
-                id="claim1000Btn"
-                onclick="claimMilestone(1000, 100.00)"
-                class="px-2.5 py-1 bg-slate-800 text-slate-500 text-[10px] font-bold rounded-lg"
-                disabled
-              >
-                Locked
-              </button>
-
-            </div>
-
-
-            <!-- 10000 WINS -->
-
-            <div
-              class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs"
-            >
-
-              <div>
-
-                <div class="font-bold text-white">
-                  10,000 Wins
-                </div>
-
-                <div
-                  class="text-[10px] text-emerald-400 font-bold"
-                >
-                  $1,000.00 USDT Reward
-                </div>
-
-              </div>
-
-
-              <button
-                id="claim10000Btn"
-                onclick="claimMilestone(10000, 1000.00)"
-                class="px-2.5 py-1 bg-slate-800 text-slate-500 text-[10px] font-bold rounded-lg"
-                disabled
-              >
-                Locked
-              </button>
-
-            </div>
-
-
-          </div>
-
-        </div>
-
-
-      </section>
-
-
-    </main>
-
-
-
-    <!-- ================================================= -->
-    <!-- FOOTER -->
-    <!-- ================================================= -->
-
-    <footer
-      class="border-t border-slate-800/80 bg-slate-950 py-3 text-center text-[10px] text-slate-500"
-    >
-
-      CYBERSTRIKE &copy; 2026.
-      Powered by Supabase &amp; FaucetPay.
-
-    </footer>
-
-
-                </div>
-                  <!-- ===================================================== -->
-  <!-- DEPOSIT MODAL -->
-  <!-- ===================================================== -->
-
-  <div
-    id="depositModal"
-    class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center z-50 p-4"
-  >
-
-    <div
-      class="glass-card max-w-md w-full p-6 rounded-2xl border border-slate-700 relative"
-    >
-
-      <button
-        onclick="closeModal('depositModal')"
-        class="absolute top-4 right-4 text-slate-400 hover:text-white"
-      >
-
-        <i class="fa-solid fa-xmark text-lg"></i>
-
-      </button>
-
+    <div class="text-center mb-6">
 
       <h3
-        class="font-orbitron text-base font-bold text-white mb-4 flex items-center space-x-2"
+        class="font-orbitron text-lg font-bold text-white tracking-wide"
       >
-
-        <i class="fa-solid fa-wallet text-cyan-400"></i>
-
-        <span>
-          FaucetPay Live Checkout
-        </span>
-
+        USER ACCESS
       </h3>
 
-
-      <form
-        action="https://faucetpay.io/merchant/webpay"
-        method="POST"
-        target="_blank"
-        class="space-y-4"
-      >
-
-        <input
-          type="hidden"
-          name="merchant_username"
-          value="YOUR_FAUCETPAY_USERNAME"
-        >
-
-        <input
-          type="hidden"
-          name="item_name"
-          value="CYBERSTRIKE Deposit"
-        >
-
-        <input
-          type="hidden"
-          name="currency1"
-          value="USDT"
-        >
-
-        <input
-          type="hidden"
-          name="custom"
-          id="faucetPayUserId"
-          value=""
-        >
-
-
-        <div>
-
-          <label
-            class="text-xs text-slate-300 block mb-1"
-          >
-            Amount ($USD)
-          </label>
-
-          <input
-            type="number"
-            name="amount1"
-            value="1.00"
-            min="0.50"
-            step="0.50"
-            oninput="syncFaucetPayAmount(this.value)"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-orbitron text-sm"
-          >
-
-        </div>
-
-
-        <button
-          type="submit"
-          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg"
-        >
-
-          PAY WITH FAUCETPAY
-          (
-          <span id="fpPayBtnAmount">
-            $1.00
-          </span>
-          )
-
-        </button>
-
-      </form>
+      <p class="text-xs text-slate-400 mt-1">
+        Enter your registered email and password
+      </p>
 
     </div>
 
-  </div>
 
-
-
-  <!-- ===================================================== -->
-  <!-- CASHOUT MODAL -->
-  <!-- ===================================================== -->
-
-  <div
-    id="withdrawModal"
-    class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center z-50 p-4"
-  >
+    <!-- AUTH MESSAGE -->
 
     <div
-      class="glass-card max-w-md w-full p-6 rounded-2xl border border-slate-700 relative"
+      id="authMessage"
+      class="hidden mb-4 p-3 rounded-xl text-xs font-semibold"
+    ></div>
+
+
+    <!-- LOGIN FORM -->
+
+    <form
+      id="loginForm"
+      class="space-y-4"
     >
 
-      <button
-        onclick="closeModal('withdrawModal')"
-        class="absolute top-4 right-4 text-slate-400 hover:text-white"
-      >
+      <!-- EMAIL -->
 
-        <i class="fa-solid fa-xmark text-lg"></i>
+      <div>
 
-      </button>
+        <label
+          class="text-xs font-semibold text-slate-300 block mb-1"
+        >
+          Email Address
+        </label>
 
+        <div class="relative">
 
-      <h3
-        class="font-orbitron text-base font-bold text-white mb-4"
-      >
-        Instant FaucetPay Cashout
-      </h3>
-
-
-      <div class="space-y-4">
-
-
-        <div>
-
-          <label
-            class="text-xs text-slate-300 block mb-1"
-          >
-            Destination FaucetPay Email
-          </label>
+          <i
+            class="fa-solid fa-envelope absolute left-3.5 top-3 text-slate-500 text-xs"
+          ></i>
 
           <input
             type="email"
-            id="withdrawEmail"
-            readonly
-            class="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2 text-slate-400 text-xs font-mono"
+            id="authEmail"
+            required
+            autocomplete="email"
+            placeholder="your@email.com"
+            class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-cyan-500"
           >
 
         </div>
-
-
-        <div>
-
-          <label
-            class="text-xs text-slate-300 block mb-1"
-          >
-            Amount ($USD)
-          </label>
-
-          <input
-            type="number"
-            id="withdrawAmount"
-            value="0.50"
-            min="0.50"
-            step="0.50"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-orbitron text-sm"
-          >
-
-        </div>
-
-
-        <button
-          onclick="alert('Cashout request submitted!')"
-          class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg"
-        >
-          CONFIRM INSTANT WITHDRAWAL
-        </button>
 
       </div>
+
+
+      <!-- PASSWORD -->
+
+      <div>
+
+        <label
+          class="text-xs font-semibold text-slate-300 block mb-1"
+        >
+          Password
+        </label>
+
+        <div class="relative">
+
+          <i
+            class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"
+          ></i>
+
+          <input
+            type="password"
+            id="authPassword"
+            required
+            minlength="6"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-cyan-500"
+          >
+
+        </div>
+
+      </div>
+
+
+      <!-- LOGIN BUTTON -->
+
+      <button
+        type="submit"
+        id="authSubmitBtn"
+        class="w-full py-3 bg-gradient-to-r from-cyan-500 to-emerald-400 font-orbitron font-bold text-slate-950 text-xs rounded-xl shadow-lg shadow-cyan-500/20"
+      >
+        LOG IN
+      </button>
+
+    </form>
+
+
+    <div
+      class="mt-6 pt-4 border-t border-slate-800/80 text-center text-xs text-slate-400"
+    >
+
+      <span>
+        Authentication powered by Supabase
+      </span>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- =====================================================
+     MAIN APPLICATION
+===================================================== -->
+
+<div
+  id="appContainer"
+  class="hidden min-h-screen flex flex-col justify-between"
+>
+
+
+<!-- HEADER -->
+
+<header
+  class="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40 w-full"
+>
+
+  <div
+    class="max-w-7xl mx-auto px-2.5 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-4"
+  >
+
+    <div class="flex items-center space-x-2 shrink-0">
+
+      <div
+        class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center font-orbitron font-black text-slate-950 text-xs sm:text-lg"
+      >
+        CS
+      </div>
+
+      <span
+        class="font-orbitron font-black text-xs sm:text-xl tracking-wider text-white"
+      >
+        CYBER<span class="text-cyan-400">STRIKE</span>
+      </span>
+
+    </div>
+
+
+    <div class="flex items-center space-x-1 sm:space-x-3 shrink-0">
+
+      <div
+        class="bg-slate-900 border border-slate-800 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl"
+      >
+
+        <span
+          class="font-orbitron font-bold text-[10px] sm:text-sm text-emerald-400"
+        >
+          $<span id="userBalanceDisplay">0.00</span>
+          <span class="text-[8px] sm:text-[10px] text-slate-400">
+            USDT
+          </span>
+        </span>
+
+      </div>
+
+
+      <button
+        onclick="openModal('depositModal')"
+        class="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-orbitron font-bold text-[10px] sm:text-xs rounded-lg sm:rounded-xl"
+      >
+        DEPOSIT
+      </button>
+
+
+      <button
+        onclick="openModal('withdrawModal')"
+        class="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-900 border border-slate-700 text-slate-200 font-orbitron font-bold text-[10px] sm:text-xs rounded-lg sm:rounded-xl"
+      >
+        CASHOUT
+      </button>
+
+
+      <button
+        onclick="logout()"
+        class="p-1 sm:p-2 text-slate-400 hover:text-rose-400"
+      >
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+
+    </div>
+
+  </div>
+
+</header>
+
+
+<!-- =====================================================
+     MAIN
+===================================================== -->
+
+<main
+  class="max-w-7xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 flex-grow"
+>
+
+
+<section class="lg:col-span-2 space-y-4 sm:space-y-6">
+
+
+<!-- GAME MODES -->
+
+<div
+  class="glass-card p-3.5 sm:p-5 rounded-2xl border border-slate-800"
+>
+
+  <h3
+    class="font-orbitron text-xs sm:text-sm font-bold text-white mb-3"
+  >
+    SELECT 1V1 DUEL MODE
+  </h3>
+
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+
+
+    <div
+      onclick="selectGameMode('target_shooter')"
+      id="mode-target_shooter"
+      class="game-mode-card cursor-pointer p-3 rounded-xl border border-cyan-500 bg-cyan-950/30"
+    >
+
+      <div class="font-orbitron text-xs font-bold text-white">
+        Target Strike
+      </div>
+
+      <p class="text-[10px] text-slate-400">
+        Fast reflex target clearing duel.
+      </p>
+
+    </div>
+
+
+    <div
+      onclick="selectGameMode('reflex_pulse')"
+      id="mode-reflex_pulse"
+      class="game-mode-card cursor-pointer p-3 rounded-xl border border-slate-800 bg-slate-900/60"
+    >
+
+      <div class="font-orbitron text-xs font-bold text-white">
+        Reflex Pulse
+      </div>
+
+      <p class="text-[10px] text-slate-400">
+        Tap instantly on signal flash.
+      </p>
+
+    </div>
+
+
+    <div
+      onclick="selectGameMode('cyber_pong')"
+      id="mode-cyber_pong"
+      class="game-mode-card cursor-pointer p-3 rounded-xl border border-slate-800 bg-slate-900/60"
+    >
+
+      <div class="font-orbitron text-xs font-bold text-white">
+        Cyber Pong
+      </div>
+
+      <p class="text-[10px] text-slate-400">
+        First to 3 goals wins.
+      </p>
+
+    </div>
+
+
+  </div>
+
+</div>
+
+
+<!-- ARENA -->
+
+<div
+  class="glass-card p-3.5 sm:p-6 rounded-2xl border border-slate-800"
+>
+
+  <div class="flex items-center justify-between mb-4">
+
+    <div>
+
+      <span class="text-[9px] text-slate-500 uppercase">
+        Match Arena
+      </span>
+
+      <h2
+        id="currentModeTitle"
+        class="font-orbitron text-sm sm:text-lg font-bold text-white"
+      >
+        Target Strike 1v1
+      </h2>
+
+    </div>
+
+
+    <div class="text-right">
+
+      <span class="text-[9px] text-slate-400 block">
+        Stake / Winner Pot
+      </span>
+
+      <span
+        id="stakeDisplayHeader"
+        class="font-orbitron font-bold text-cyan-400 text-xs sm:text-sm"
+      >
+        $0.50 /
+        <span class="text-emerald-400">
+          $0.80 USDT
+        </span>
+      </span>
 
     </div>
 
   </div>
 
 
+  <!-- STAKES -->
 
-  <!-- ===================================================== -->
-  <!-- JAVASCRIPT -->
-  <!-- ===================================================== -->
+  <div class="mb-4">
 
-  <script>
-
-
-    /* =====================================================
-       SUPABASE CONFIGURATION
-    ===================================================== */
-
-    const SUPABASE_URL =
-      'https://btugwhcoypxtlgmsxqci.supabase.co';
-
-    const SUPABASE_ANON_KEY =
-      'sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h';
+    <label
+      class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2"
+    >
+      Choose Bet Amount per Player:
+    </label>
 
 
-    let supabase = null;
+    <div class="grid grid-cols-3 gap-2">
 
+
+      <button
+        onclick="selectStakeTier(0.5)"
+        id="stakeTier-0.5"
+        class="stake-tier-btn border-cyan-500 bg-cyan-950/40 text-cyan-400 border py-2 px-2 rounded-xl"
+      >
+        <span class="font-orbitron font-bold text-xs">
+          0.5 USDT
+        </span>
+      </button>
+
+
+      <button
+        onclick="selectStakeTier(1.0)"
+        id="stakeTier-1.0"
+        class="stake-tier-btn border-slate-800 bg-slate-900 text-slate-300 border py-2 px-2 rounded-xl"
+      >
+        <span class="font-orbitron font-bold text-xs">
+          1 USDT
+        </span>
+      </button>
+
+
+      <button
+        onclick="selectStakeTier(5.0)"
+        id="stakeTier-5.0"
+        class="stake-tier-btn border-slate-800 bg-slate-900 text-slate-300 border py-2 px-2 rounded-xl"
+      >
+        <span class="font-orbitron font-bold text-xs">
+          5 USDT
+        </span>
+      </button>
+
+
+    </div>
+
+  </div>
+
+
+  <!-- CANVAS -->
+
+  <div
+    class="relative aspect-video w-full bg-slate-950 rounded-xl border border-slate-800 overflow-hidden"
+  >
+
+    <canvas
+      id="gameCanvas"
+      width="640"
+      height="360"
+      class="w-full h-full object-contain"
+    ></canvas>
+
+
+    <div
+      id="canvasOverlay"
+      class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center"
+    >
+
+      <i
+        class="fa-solid fa-shield-halved text-4xl text-cyan-400 mb-3"
+      ></i>
+
+      <h3
+        class="font-orbitron text-sm sm:text-lg font-bold text-white"
+      >
+        READY FOR MATCHMAKING?
+      </h3>
+
+      <p
+        id="matchOverlayDesc"
+        class="text-[10px] sm:text-xs text-slate-400 max-w-xs mb-4"
+      >
+        Entry Stake:
+        <strong>$0.50 USDT</strong>.
+        Winner takes
+        <strong>$0.80 USDT</strong>.
+      </p>
+
+      <button
+        onclick="startMatchmaking()"
+        class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-orbitron font-black text-xs rounded-xl"
+      >
+        FIND OPPONENT
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+</section>
+
+
+<!-- RIGHT COLUMN -->
+
+<section class="space-y-4 sm:space-y-6">
+
+
+<div
+  class="glass-card p-4 sm:p-5 rounded-2xl border border-cyan-500/30"
+>
+
+  <div class="flex items-center justify-between mb-3">
+
+    <h3 class="font-orbitron text-xs font-bold">
+      7-Day Weekly Sprint
+    </h3>
+
+    <span
+      id="sprintCountdown"
+      class="text-[10px] text-amber-400"
+    >
+      6d 23h 59m
+    </span>
+
+  </div>
+
+
+  <div class="flex justify-between text-[10px]">
+
+    <span class="text-slate-400">
+      Weekly Progress
+    </span>
+
+    <span class="font-orbitron text-cyan-400">
+      <span id="sprintWinsDisplay">0</span> / 100 Wins
+    </span>
+
+  </div>
+
+
+  <div
+    class="w-full h-2 bg-slate-950 rounded-full overflow-hidden mt-2"
+  >
+
+    <div
+      id="sprintProgressBar"
+      class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400"
+      style="width:0%"
+    ></div>
+
+  </div>
+
+
+  <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-800">
+
+    <span class="text-xs text-emerald-400">
+      +$10.00 USDT
+    </span>
+
+    <button
+      id="claimSprintBtn"
+      disabled
+      class="px-3 py-1.5 bg-slate-800 text-slate-500 text-[10px] rounded-lg"
+    >
+      LOCKED
+    </button>
+
+  </div>
+
+</div>
+
+
+<!-- MILESTONES -->
+
+<div
+  class="glass-card p-4 rounded-2xl border border-slate-800"
+>
+
+  <h3 class="font-orbitron text-xs font-bold text-white mb-3">
+    Lifetime Milestones
+  </h3>
+
+
+  <div class="space-y-2">
+
+
+    <div
+      class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between"
+    >
+
+      <div>
+
+        <div class="font-bold text-white text-xs">
+          100 Wins
+        </div>
+
+        <div class="text-[10px] text-emerald-400">
+          $10.00 USDT
+        </div>
+
+      </div>
+
+      <button
+        id="claim100Btn"
+        disabled
+        class="px-2.5 py-1 bg-slate-800 text-slate-500 text-[10px] rounded-lg"
+      >
+        Locked
+      </button>
+
+    </div>
+
+
+    <div
+      class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between"
+    >
+
+      <div>
+
+        <div class="font-bold text-white text-xs">
+          1,000 Wins
+        </div>
+
+        <div class="text-[10px] text-emerald-400">
+          $100.00 USDT
+        </div>
+
+      </div>
+
+      <button
+        id="claim1000Btn"
+        disabled
+        class="px-2.5 py-1 bg-slate-800 text-slate-500 text-[10px] rounded-lg"
+      >
+        Locked
+      </button>
+
+    </div>
+
+
+    <div
+      class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between"
+    >
+
+      <div>
+
+        <div class="font-bold text-white text-xs">
+          10,000 Wins
+        </div>
+
+        <div class="text-[10px] text-emerald-400">
+          $1,000.00 USDT
+        </div>
+
+      </div>
+
+      <button
+        id="claim10000Btn"
+        disabled
+        class="px-2.5 py-1 bg-slate-800 text-slate-500 text-[10px] rounded-lg"
+      >
+        Locked
+      </button>
+
+    </div>
+
+
+  </div>
+
+</div>
+
+
+</section>
+
+</main>
+
+
+<footer
+  class="border-t border-slate-800/80 bg-slate-950 py-3 text-center text-[10px] text-slate-500"
+>
+  CYBERSTRIKE &copy; 2026. Powered by Supabase & FaucetPay.
+</footer>
+
+
+          </div>
+          <!-- =====================================================
+     DEPOSIT MODAL
+===================================================== -->
+
+<div
+  id="depositModal"
+  class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center z-50 p-4"
+>
+
+  <div
+    class="glass-card max-w-md w-full p-6 rounded-2xl border border-slate-700 relative"
+  >
+
+    <button
+      onclick="closeModal('depositModal')"
+      class="absolute top-4 right-4 text-slate-400 hover:text-white"
+    >
+      <i class="fa-solid fa-xmark text-lg"></i>
+    </button>
+
+
+    <h3
+      class="font-orbitron text-base font-bold text-white mb-4"
+    >
+      <i class="fa-solid fa-wallet text-cyan-400 mr-2"></i>
+      FaucetPay Live Checkout
+    </h3>
+
+
+    <form
+      action="https://faucetpay.io/merchant/webpay"
+      method="POST"
+      target="_blank"
+      class="space-y-4"
+    >
+
+      <input
+        type="hidden"
+        name="merchant_username"
+        value="YOUR_FAUCETPAY_USERNAME"
+      >
+
+      <input
+        type="hidden"
+        name="item_name"
+        value="CYBERSTRIKE Deposit"
+      >
+
+      <input
+        type="hidden"
+        name="currency1"
+        value="USDT"
+      >
+
+      <input
+        type="hidden"
+        name="custom"
+        id="faucetPayUserId"
+        value=""
+      >
+
+
+      <div>
+
+        <label
+          class="text-xs text-slate-300 block mb-1"
+        >
+          Amount ($USD)
+        </label>
+
+        <input
+          type="number"
+          name="amount1"
+          value="1.00"
+          min="0.50"
+          step="0.50"
+          oninput="syncFaucetPayAmount(this.value)"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-orbitron text-sm"
+        >
+
+      </div>
+
+
+      <button
+        type="submit"
+        class="w-full py-3 bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg"
+      >
+
+        PAY WITH FAUCETPAY
+        (<span id="fpPayBtnAmount">$1.00</span>)
+
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     WITHDRAW MODAL
+===================================================== -->
+
+<div
+  id="withdrawModal"
+  class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center z-50 p-4"
+>
+
+  <div
+    class="glass-card max-w-md w-full p-6 rounded-2xl border border-slate-700 relative"
+  >
+
+    <button
+      onclick="closeModal('withdrawModal')"
+      class="absolute top-4 right-4 text-slate-400 hover:text-white"
+    >
+      <i class="fa-solid fa-xmark text-lg"></i>
+    </button>
+
+
+    <h3
+      class="font-orbitron text-base font-bold text-white mb-4"
+    >
+      Instant FaucetPay Cashout
+    </h3>
+
+
+    <div class="space-y-4">
+
+
+      <div>
+
+        <label
+          class="text-xs text-slate-300 block mb-1"
+        >
+          Destination FaucetPay Email
+        </label>
+
+        <input
+          type="email"
+          id="withdrawEmail"
+          readonly
+          class="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2 text-slate-400 text-xs font-mono"
+        >
+
+      </div>
+
+
+      <div>
+
+        <label
+          class="text-xs text-slate-300 block mb-1"
+        >
+          Amount ($USD)
+        </label>
+
+        <input
+          type="number"
+          id="withdrawAmount"
+          value="0.50"
+          min="0.50"
+          step="0.50"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-orbitron text-sm"
+        >
+
+      </div>
+
+
+      <button
+        onclick="confirmWithdrawal()"
+        id="withdrawConfirmBtn"
+        class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg"
+      >
+        CONFIRM INSTANT WITHDRAWAL
+      </button>
+
+
+      <div
+        id="withdrawMessage"
+        class="hidden p-3 rounded-xl text-xs font-semibold"
+      ></div>
+
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+
+<script>
+
+/* =====================================================
+   SUPABASE CONFIGURATION
+===================================================== */
+
+const SUPABASE_URL =
+  "https://btugwhcoypxtlgmsxqci.supabase.co";
+
+const SUPABASE_ANON_KEY =
+  "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
+
+
+/* =====================================================
+   SUPABASE CLIENT
+===================================================== */
+
+let supabaseClient = null;
+
+try {
+
+  if (
+    !window.supabase ||
+    !window.supabase.createClient
+  ) {
+
+    throw new Error(
+      "Supabase JavaScript library did not load."
+    );
+
+  }
+
+
+  supabaseClient =
+    window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+
+} catch (error) {
+
+  console.error(
+    "Supabase initialization error:",
+    error
+  );
+
+}
+
+
+
+/* =====================================================
+   GLOBAL VARIABLES
+===================================================== */
+
+let currentUser = null;
+
+let currentStake = 0.50;
+
+let selectedGameMode =
+  "target_shooter";
+
+
+
+/* =====================================================
+   SHOW LOGIN SCREEN
+===================================================== */
+
+function showAuthGate() {
+
+  currentUser = null;
+
+
+  const authScreen =
+    document.getElementById("authScreen");
+
+  const appContainer =
+    document.getElementById("appContainer");
+
+
+  if (authScreen) {
+
+    authScreen.classList.remove("hidden");
+
+  }
+
+
+  if (appContainer) {
+
+    appContainer.classList.add("hidden");
+
+  }
+
+}
+
+
+
+/* =====================================================
+   SHOW APPLICATION
+===================================================== */
+
+function hideAuthGate() {
+
+  const authScreen =
+    document.getElementById("authScreen");
+
+  const appContainer =
+    document.getElementById("appContainer");
+
+
+  if (authScreen) {
+
+    authScreen.classList.add("hidden");
+
+  }
+
+
+  if (appContainer) {
+
+    appContainer.classList.remove("hidden");
+
+  }
+
+}
+
+
+
+/* =====================================================
+   AUTH MESSAGE
+===================================================== */
+
+function showAuthMessage(
+  message,
+  type = "error"
+) {
+
+  const box =
+    document.getElementById("authMessage");
+
+
+  if (!box) return;
+
+
+  box.textContent = message;
+
+  box.classList.remove(
+    "hidden",
+    "bg-rose-950/50",
+    "border-rose-500/30",
+    "text-rose-400",
+    "bg-emerald-950/50",
+    "border-emerald-500/30",
+    "text-emerald-400"
+  );
+
+
+  if (type === "success") {
+
+    box.classList.add(
+      "bg-emerald-950/50",
+      "border",
+      "border-emerald-500/30",
+      "text-emerald-400"
+    );
+
+  } else {
+
+    box.classList.add(
+      "bg-rose-950/50",
+      "border",
+      "border-rose-500/30",
+      "text-rose-400"
+    );
+
+  }
+
+}
+
+
+
+/* =====================================================
+   INITIAL PAGE LOAD
+===================================================== */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async function () {
+
+    console.log(
+      "CYBERSTRIKE starting..."
+    );
+
+
+    if (!supabaseClient) {
+
+      showAuthMessage(
+        "Supabase could not be initialized."
+      );
+
+      return;
+
+    }
+
+
+    showAuthGate();
+
+
+    /*
+       CHECK EXISTING SUPABASE SESSION
+    */
 
     try {
 
-      if (
-        !window.supabase ||
-        !window.supabase.createClient
-      ) {
+      const {
+        data,
+        error
+      } =
+        await supabaseClient.auth.getSession();
 
-        throw new Error(
-          'Supabase JavaScript library failed to load.'
+
+      if (error) {
+
+        console.error(
+          "getSession error:",
+          error
         );
+
+        showAuthMessage(
+          error.message
+        );
+
+        return;
 
       }
 
 
-      supabase =
-        window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_ANON_KEY
+      const session =
+        data?.session;
+
+
+      if (
+        session &&
+        session.user
+      ) {
+
+        console.log(
+          "Existing session found:",
+          session.user.email
         );
+
+
+        await loadUserProfile(
+          session.user
+        );
+
+      } else {
+
+        console.log(
+          "No active session."
+        );
+
+        showAuthGate();
+
+      }
 
 
     } catch (error) {
 
       console.error(
-        'Supabase initialization error:',
+        "Startup error:",
         error
       );
 
-      alert(
-        'Supabase initialization error: ' +
-        error.message
-      );
+      showAuthGate();
 
     }
 
 
 
-    /* =====================================================
-       APPLICATION STATE
-    ===================================================== */
+    /*
+       LISTEN FOR AUTH CHANGES
+    */
 
-    let currentUser = null;
+    supabaseClient.auth.onAuthStateChange(
+      async function (
+        event,
+        session
+      ) {
 
-    let currentStake = 0.50;
-
-    let selectedGameMode =
-      'target_shooter';
-
-    let profileLoading = false;
+        console.log(
+          "Auth event:",
+          event
+        );
 
 
+        if (
+          session &&
+          session.user
+        ) {
 
-    /* =====================================================
-       PAGE INITIALIZATION
-    ===================================================== */
-
-    document.addEventListener(
-      'DOMContentLoaded',
-      async () => {
-
-        if (!supabase) {
-
-          showAuthMessage(
-            'Supabase could not be initialized.'
+          await loadUserProfile(
+            session.user
           );
 
-          return;
-
-        }
-
-
-        try {
-
-          const {
-            data,
-            error
-          } =
-            await supabase.auth.getSession();
-
-
-          if (error) {
-
-            console.error(
-              'Session error:',
-              error
-            );
-
-            showAuthGate();
-
-            return;
-
-          }
-
-
-          if (
-            data &&
-            data.session &&
-            data.session.user
-          ) {
-
-            console.log(
-              'Existing Supabase session found.'
-            );
-
-            await loadUserProfile(
-              data.session.user
-            );
-
-          } else {
-
-            console.log(
-              'No active Supabase session.'
-            );
-
-            showAuthGate();
-
-          }
-
-
-        } catch (error) {
-
-          console.error(
-            'Session initialization error:',
-            error
-          );
+        } else {
 
           showAuthGate();
 
         }
 
+      }
+    );
 
-        /*
-         * Listen for future authentication changes.
-         */
-
-        supabase.auth.onAuthStateChange(
-          async (event, session) => {
-
-            console.log(
-              'Auth state changed:',
-              event
-            );
+  }
+);
 
 
-            if (
-              session &&
-              session.user
-            ) {
 
-              await loadUserProfile(
-                session.user
-              );
+/* =====================================================
+   LOGIN
+===================================================== */
 
-            } else {
+async function handleLogin() {
 
-              showAuthGate();
+  const emailInput =
+    document.getElementById(
+      "authEmail"
+    );
 
-            }
+  const passwordInput =
+    document.getElementById(
+      "authPassword"
+    );
 
-          }
+  const submitBtn =
+    document.getElementById(
+      "authSubmitBtn"
+    );
+
+
+  if (
+    !emailInput ||
+    !passwordInput
+  ) {
+
+    showAuthMessage(
+      "Login form could not be found."
+    );
+
+    return;
+
+  }
+
+
+  const email =
+    emailInput.value
+      .trim()
+      .toLowerCase();
+
+  const password =
+    passwordInput.value;
+
+
+  if (!email) {
+
+    showAuthMessage(
+      "Please enter your email address."
+    );
+
+    return;
+
+  }
+
+
+  if (!password) {
+
+    showAuthMessage(
+      "Please enter your password."
+    );
+
+    return;
+
+  }
+
+
+  if (password.length < 6) {
+
+    showAuthMessage(
+      "Password must contain at least 6 characters."
+    );
+
+    return;
+
+  }
+
+
+  if (submitBtn) {
+
+    submitBtn.disabled = true;
+
+    submitBtn.textContent =
+      "AUTHENTICATING...";
+
+  }
+
+
+  showAuthMessage(
+    "Checking your login...",
+    "success"
+  );
+
+
+  try {
+
+    /*
+       IMPORTANT:
+
+       We ONLY perform login here.
+
+       We DO NOT automatically call signUp()
+       when login fails.
+    */
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.auth
+        .signInWithPassword({
+
+          email: email,
+
+          password: password
+
+        });
+
+
+    if (error) {
+
+      console.error(
+        "Supabase login error:",
+        error
+      );
+
+      throw error;
+
+    }
+
+
+    if (
+      !data ||
+      !data.user
+    ) {
+
+      throw new Error(
+        "Supabase did not return a user."
+      );
+
+    }
+
+
+    console.log(
+      "Login successful:",
+      data.user.email
+    );
+
+
+    showAuthMessage(
+      "Login successful. Loading your account...",
+      "success"
+    );
+
+
+    await loadUserProfile(
+      data.user
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "LOGIN FAILED:",
+      error
+    );
+
+
+    let message =
+      error?.message ||
+      "Login failed.";
+
+
+    if (
+      message
+        .toLowerCase()
+        .includes("invalid login credentials")
+    ) {
+
+      message =
+        "Incorrect email or password.";
+
+    }
+
+
+    showAuthMessage(
+      message,
+      "error"
+    );
+
+
+  } finally {
+
+    if (submitBtn) {
+
+      submitBtn.disabled = false;
+
+      submitBtn.textContent =
+        "LOG IN";
+
+    }
+
+  }
+
+}
+
+
+
+/* =====================================================
+   CONNECT FORM TO LOGIN
+===================================================== */
+
+const loginForm =
+  document.getElementById(
+    "loginForm"
+  );
+
+
+if (loginForm) {
+
+  loginForm.addEventListener(
+    "submit",
+    function (event) {
+
+      event.preventDefault();
+
+      handleLogin();
+
+    }
+  );
+
+}
+  /* =====================================================
+   LOAD USER PROFILE
+===================================================== */
+
+async function loadUserProfile(authUser) {
+
+  if (!authUser || !authUser.id) {
+
+    console.error(
+      "No authenticated user supplied."
+    );
+
+    showAuthGate();
+
+    return;
+
+  }
+
+
+  console.log(
+    "Loading profile for:",
+    authUser.id
+  );
+
+
+  try {
+
+    let profile = null;
+
+
+    /*
+       LOOK FOR EXISTING PROFILE
+    */
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient
+        .from("profiles")
+        .select(
+          "id, faucetpay_email, balance, wins"
+        )
+        .eq(
+          "id",
+          authUser.id
+        )
+        .maybeSingle();
+
+
+    if (error) {
+
+      console.error(
+        "Profile lookup error:",
+        error
+      );
+
+      /*
+         Do not silently pretend the profile
+         exists when Supabase returned an error.
+      */
+
+      throw error;
+
+    }
+
+
+    /*
+       EXISTING PROFILE FOUND
+    */
+
+    if (data) {
+
+      profile = data;
+
+      console.log(
+        "Existing profile found:",
+        profile
+      );
+
+    }
+
+
+    /*
+       PROFILE DOES NOT EXIST
+       CREATE IT USING THE AUTH USER ID
+    */
+
+    else {
+
+      console.log(
+        "No profile found. Creating profile..."
+      );
+
+
+      const faucetPayEmail =
+        authUser.email ||
+        authUser.user_metadata?.faucetpay_email ||
+        "";
+
+
+      const {
+        data: newProfile,
+        error: createError
+      } =
+        await supabaseClient
+          .from("profiles")
+          .insert({
+
+            id: authUser.id,
+
+            faucetpay_email:
+              faucetPayEmail,
+
+            balance: 0,
+
+            wins: 0
+
+          })
+          .select(
+            "id, faucetpay_email, balance, wins"
+          )
+          .single();
+
+
+      if (createError) {
+
+        console.error(
+          "Profile creation error:",
+          createError
+        );
+
+        throw createError;
+
+      }
+
+
+      profile = newProfile;
+
+
+      console.log(
+        "New profile created:",
+        profile
+      );
+
+    }
+
+
+
+    /*
+       CREATE LOCAL USER OBJECT
+    */
+
+    currentUser = {
+
+      id:
+        authUser.id,
+
+      email:
+        profile?.faucetpay_email ||
+        authUser.email ||
+        "",
+
+      balance:
+        Number(
+          profile?.balance || 0
+        ),
+
+      wins:
+        Number(
+          profile?.wins || 0
+        )
+
+    };
+
+
+    console.log(
+      "Current user:",
+      currentUser
+    );
+
+
+
+    /*
+       UPDATE BALANCE DISPLAY
+    */
+
+    const balanceDisplay =
+      document.getElementById(
+        "userBalanceDisplay"
+      );
+
+
+    if (balanceDisplay) {
+
+      balanceDisplay.textContent =
+        currentUser.balance.toFixed(2);
+
+    }
+
+
+
+    /*
+       UPDATE WITHDRAW EMAIL
+    */
+
+    const withdrawEmail =
+      document.getElementById(
+        "withdrawEmail"
+      );
+
+
+    if (withdrawEmail) {
+
+      withdrawEmail.value =
+        currentUser.email;
+
+    }
+
+
+
+    /*
+       UPDATE FAUCETPAY USER ID
+    */
+
+    const faucetPayUserId =
+      document.getElementById(
+        "faucetPayUserId"
+      );
+
+
+    if (faucetPayUserId) {
+
+      faucetPayUserId.value =
+        currentUser.id;
+
+    }
+
+
+
+    /*
+       UPDATE MILESTONE INFORMATION
+    */
+
+    updateMilestoneUI();
+
+
+
+    /*
+       FINALLY SHOW APPLICATION
+    */
+
+    hideAuthGate();
+
+
+    console.log(
+      "CYBERSTRIKE account loaded successfully."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "LOAD PROFILE FAILED:",
+      error
+    );
+
+
+    currentUser = null;
+
+
+    showAuthMessage(
+      "Your login worked, but your profile could not be loaded. " +
+      (error?.message || "")
+    );
+
+
+    showAuthGate();
+
+  }
+
+}
+
+
+
+/* =====================================================
+   UPDATE USER BALANCE
+===================================================== */
+
+async function updateUserBalance(
+  newBalance
+) {
+
+  if (!currentUser) {
+
+    console.error(
+      "No logged-in user."
+    );
+
+    return false;
+
+  }
+
+
+  const balance =
+    Number(newBalance);
+
+
+  if (
+    !Number.isFinite(balance) ||
+    balance < 0
+  ) {
+
+    console.error(
+      "Invalid balance:",
+      newBalance
+    );
+
+    return false;
+
+  }
+
+
+  try {
+
+    const {
+      error
+    } =
+      await supabaseClient
+        .from("profiles")
+        .update({
+
+          balance: balance
+
+        })
+        .eq(
+          "id",
+          currentUser.id
+        );
+
+
+    if (error) {
+
+      console.error(
+        "Balance update error:",
+        error
+      );
+
+      throw error;
+
+    }
+
+
+    currentUser.balance =
+      balance;
+
+
+    const balanceDisplay =
+      document.getElementById(
+        "userBalanceDisplay"
+      );
+
+
+    if (balanceDisplay) {
+
+      balanceDisplay.textContent =
+        balance.toFixed(2);
+
+    }
+
+
+    console.log(
+      "Balance saved:",
+      balance
+    );
+
+
+    return true;
+
+
+  } catch (error) {
+
+    console.error(
+      "UPDATE BALANCE FAILED:",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+async function logout() {
+
+  try {
+
+    if (!supabaseClient) {
+
+      showAuthGate();
+
+      return;
+
+    }
+
+
+    const {
+      error
+    } =
+      await supabaseClient.auth.signOut();
+
+
+    if (error) {
+
+      console.error(
+        "Logout error:",
+        error
+      );
+
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      "Logout exception:",
+      error
+    );
+
+  }
+
+
+  currentUser = null;
+
+  showAuthGate();
+
+}
+
+
+
+/* =====================================================
+   SELECT STAKE
+===================================================== */
+
+function selectStakeTier(
+  amount
+) {
+
+  currentStake =
+    Number(amount);
+
+
+  if (
+    !Number.isFinite(currentStake)
+  ) {
+
+    currentStake = 0.50;
+
+  }
+
+
+  const pot =
+    currentStake * 2 * 0.80;
+
+
+  const stakeHeader =
+    document.getElementById(
+      "stakeDisplayHeader"
+    );
+
+
+  const overlayDesc =
+    document.getElementById(
+      "matchOverlayDesc"
+    );
+
+
+  if (stakeHeader) {
+
+    stakeHeader.innerHTML =
+      `$${currentStake.toFixed(2)} / ` +
+      `<span class="text-emerald-400">` +
+      `$${pot.toFixed(2)} USDT` +
+      `</span>`;
+
+  }
+
+
+  if (overlayDesc) {
+
+    overlayDesc.innerHTML =
+      `Entry Stake: ` +
+      `<strong>$${currentStake.toFixed(2)} USDT</strong>. ` +
+      `Winner takes ` +
+      `<strong>$${pot.toFixed(2)} USDT</strong> ` +
+      `(20% platform rake).`;
+
+  }
+
+
+  const tiers =
+    [0.5, 1.0, 5.0];
+
+
+  tiers.forEach(
+    function (tier) {
+
+      const id =
+        `stakeTier-${tier.toFixed(1)}`;
+
+
+      const button =
+        document.getElementById(id);
+
+
+      if (!button) return;
+
+
+      if (
+        tier === currentStake
+      ) {
+
+        button.className =
+          "stake-tier-btn " +
+          "border-cyan-500 " +
+          "bg-cyan-950/40 " +
+          "text-cyan-400 border " +
+          "py-2 px-2 rounded-xl " +
+          "flex flex-col items-center " +
+          "justify-center transition";
+
+      } else {
+
+        button.className =
+          "stake-tier-btn " +
+          "border-slate-800 " +
+          "bg-slate-900 " +
+          "text-slate-300 border " +
+          "py-2 px-2 rounded-xl " +
+          "flex flex-col items-center " +
+          "justify-center transition " +
+          "hover:border-slate-700";
+
+      }
+
+    }
+  );
+
+}
+
+
+
+/* =====================================================
+   SELECT GAME MODE
+===================================================== */
+
+function selectGameMode(
+  mode
+) {
+
+  selectedGameMode =
+    mode;
+
+
+  const titles = {
+
+    target_shooter:
+      "Target Strike 1v1",
+
+    reflex_pulse:
+      "Reflex Pulse 1v1",
+
+    cyber_pong:
+      "Cyber Pong 1v1"
+
+  };
+
+
+  const modeTitle =
+    document.getElementById(
+      "currentModeTitle"
+    );
+
+
+  if (modeTitle) {
+
+    modeTitle.textContent =
+      titles[mode] ||
+      "1v1 Duel";
+
+  }
+
+
+  document
+    .querySelectorAll(
+      ".game-mode-card"
+    )
+    .forEach(
+      function (card) {
+
+        card.classList.remove(
+          "border-cyan-500",
+          "bg-cyan-950/30"
+        );
+
+        card.classList.add(
+          "border-slate-800",
+          "bg-slate-900/60"
         );
 
       }
     );
 
 
+  const activeCard =
+    document.getElementById(
+      `mode-${mode}`
+    );
 
-    /* =====================================================
-       SHOW AUTH MESSAGE
-    ===================================================== */
 
-    function showAuthMessage(message) {
+  if (activeCard) {
 
-      const msgBox =
-        document.getElementById(
-          'authMessage'
-        );
+    activeCard.classList.remove(
+      "border-slate-800",
+      "bg-slate-900/60"
+    );
 
+    activeCard.classList.add(
+      "border-cyan-500",
+      "bg-cyan-950/30"
+    );
 
-      if (!msgBox) {
-        return;
-      }
+  }
 
+}
 
-      msgBox.textContent =
-        message || 'Authentication error.';
 
 
-      msgBox.classList.remove(
-        'hidden'
-      );
+/* =====================================================
+   MILESTONE UI
+===================================================== */
 
-    }
+function updateMilestoneUI() {
 
+  if (!currentUser) return;
 
 
-    /* =====================================================
-       HIDE AUTH MESSAGE
-    ===================================================== */
+  const wins =
+    Number(
+      currentUser.wins || 0
+    );
 
-    function hideAuthMessage() {
 
-      const msgBox =
-        document.getElementById(
-          'authMessage'
-        );
+  const winsDisplay =
+    document.getElementById(
+      "sprintWinsDisplay"
+    );
 
 
-      if (!msgBox) {
-        return;
-      }
+  const progressBar =
+    document.getElementById(
+      "sprintProgressBar"
+    );
 
 
-      msgBox.textContent = '';
+  if (winsDisplay) {
 
-      msgBox.classList.add(
-        'hidden'
-      );
+    winsDisplay.textContent =
+      wins;
 
-    }
+  }
 
 
+  if (progressBar) {
 
-    /* =====================================================
-       SHOW LOGIN SCREEN
-    ===================================================== */
-
-    function showAuthGate() {
-
-      currentUser = null;
-
-      const authScreen =
-        document.getElementById(
-          'authScreen'
-        );
-
-      const appContainer =
-        document.getElementById(
-          'appContainer'
-        );
-
-
-      if (authScreen) {
-
-        authScreen.classList.remove(
-          'hidden'
-        );
-
-      }
-
-
-      if (appContainer) {
-
-        appContainer.classList.add(
-          'hidden'
-        );
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       HIDE LOGIN SCREEN
-    ===================================================== */
-
-    function hideAuthGate() {
-
-      const authScreen =
-        document.getElementById(
-          'authScreen'
-        );
-
-      const appContainer =
-        document.getElementById(
-          'appContainer'
-        );
-
-
-      if (authScreen) {
-
-        authScreen.classList.add(
-          'hidden'
-        );
-
-      }
-
-
-      if (appContainer) {
-
-        appContainer.classList.remove(
-          'hidden'
-        );
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       LOGIN
-    ===================================================== */
-
-    async function handleAuthSubmit(event) {
-
-      event.preventDefault();
-
-
-      const emailInput =
-        document.getElementById(
-          'authEmail'
-        );
-
-      const passwordInput =
-        document.getElementById(
-          'authPassword'
-        );
-
-      const submitBtn =
-        document.getElementById(
-          'authSubmitBtn'
-        );
-
-
-      if (
-        !emailInput ||
-        !passwordInput ||
-        !submitBtn
-      ) {
-
-        console.error(
-          'Login form elements are missing.'
-        );
-
-        return;
-
-      }
-
-
-      const email =
-        emailInput.value
-          .trim()
-          .toLowerCase();
-
-
-      const password =
-        passwordInput.value;
-
-
-      hideAuthMessage();
-
-
-      if (!email) {
-
-        showAuthMessage(
-          'Please enter your email address.'
-        );
-
-        return;
-
-      }
-
-
-      if (
-        !password ||
-        password.length < 6
-      ) {
-
-        showAuthMessage(
-          'Password must be at least 6 characters.'
-        );
-
-        return;
-
-      }
-
-
-      submitBtn.disabled = true;
-
-      submitBtn.textContent =
-        'AUTHENTICATING...';
-
-
-      try {
-
-        console.log(
-          'Attempting Supabase login for:',
-          email
-        );
-
-
-        const {
-          data,
-          error
-        } =
-          await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-          });
-
-
-        if (error) {
-
-          console.error(
-            'Supabase login error:',
-            error
-          );
-
-          throw new Error(
-            error.message ||
-            'Invalid email or password.'
-          );
-
-        }
-
-
-        if (
-          !data ||
-          !data.user
-        ) {
-
-          throw new Error(
-            'Login succeeded but no user was returned.'
-          );
-
-        }
-
-
-        console.log(
-          'Supabase login successful:',
-          data.user.id
-        );
-
-
-        /*
-         * IMPORTANT:
-         *
-         * We DO NOT call signUp() here.
-         *
-         * The existing Supabase Auth account
-         * is used directly.
-         *
-         * The auth listener will load the profile.
-         */
-
-
-      } catch (error) {
-
-        console.error(
-          'LOGIN FAILED:',
-          error
-        );
-
-
-        showAuthMessage(
-          error.message ||
-          'Login failed. Please check your email and password.'
-        );
-
-
-      } finally {
-
-        submitBtn.disabled = false;
-
-        submitBtn.textContent =
-          'LOG IN';
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       LOAD USER PROFILE
-    ===================================================== */
-
-    async function loadUserProfile(authUser) {
-
-      if (!authUser) {
-
-        showAuthGate();
-
-        return;
-
-      }
-
-
-      /*
-       * Prevent two simultaneous profile loads.
-       */
-
-      if (profileLoading) {
-
-        console.log(
-          'Profile load already in progress.'
-        );
-
-        return;
-
-      }
-
-
-      profileLoading = true;
-
-
-      try {
-
-        console.log(
-          'Loading profile for:',
-          authUser.id
-        );
-
-
-        let profile = null;
-
-
-        /* ===============================================
-           FIND EXISTING PROFILE
-        =============================================== */
-
-        const {
-          data,
-          error
-        } =
-          await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authUser.id)
-            .maybeSingle();
-
-
-        if (error) {
-
-          console.error(
-            'Profile lookup error:',
-            error
-          );
-
-          throw error;
-
-        }
-
-
-        profile = data;
-
-
-        /* ===============================================
-           CREATE PROFILE IF MISSING
-        =============================================== */
-
-        if (!profile) {
-
-          console.log(
-            'No profile found.'
-          );
-
-          console.log(
-            'Creating new profile...'
-          );
-
-
-          const profileEmail =
-            authUser.email ||
-            authUser.user_metadata?.faucetpay_email ||
-            '';
-
-
-          const {
-            data: newProfile,
-            error: createError
-          } =
-            await supabase
-              .from('profiles')
-              .insert({
-                id: authUser.id,
-                faucetpay_email:
-                  profileEmail,
-                balance: 0,
-                wins: 0
-              })
-              .select()
-              .single();
-
-
-          if (createError) {
-
-            console.error(
-              'Profile creation error:',
-              createError
-            );
-
-            throw createError;
-
-          }
-
-
-          profile = newProfile;
-
-
-          console.log(
-            'Profile created successfully.'
-          );
-
-        }
-
-
-        /* ===============================================
-           BUILD CURRENT USER
-        =============================================== */
-
-        currentUser = {
-
-          id:
-            authUser.id,
-
-          email:
-            profile.faucetpay_email ||
-            authUser.email ||
-            '',
-
-          balance:
-            parseFloat(
-              profile.balance || 0
-            ),
-
-          wins:
-            parseInt(
-              profile.wins || 0,
-              10
-            )
-
-        };
-
-
-        console.log(
-          'Current user loaded:',
-          currentUser
-        );
-
-
-        /* ===============================================
-           UPDATE UI
-        =============================================== */
-
-        const balDisplay =
-          document.getElementById(
-            'userBalanceDisplay'
-          );
-
-
-        const withdrawEmail =
-          document.getElementById(
-            'withdrawEmail'
-          );
-
-
-        const fpUserId =
-          document.getElementById(
-            'faucetPayUserId'
-          );
-
-
-        if (balDisplay) {
-
-          balDisplay.textContent =
-            currentUser.balance.toFixed(2);
-
-        }
-
-
-        if (withdrawEmail) {
-
-          withdrawEmail.value =
-            currentUser.email;
-
-        }
-
-
-        if (fpUserId) {
-
-          fpUserId.value =
-            currentUser.email;
-
-        }
-
-
-        updateMilestoneUI();
-
-
-        hideAuthMessage();
-
-        hideAuthGate();
-
-
-        console.log(
-          'Dashboard opened successfully.'
-        );
-
-
-      } catch (error) {
-
-        console.error(
-          'PROFILE LOAD FAILED:',
-          error
-        );
-
-
-        currentUser = null;
-
-
-        showAuthMessage(
-          'Login succeeded, but your profile could not be loaded: ' +
-          (
-            error.message ||
-            'Unknown error'
-          )
-        );
-
-
-        showAuthGate();
-
-
-      } finally {
-
-        profileLoading = false;
-
-      }
-
-    }
-        /* =====================================================
-       UPDATE BALANCE
-    ===================================================== */
-
-    async function updateUserBalance(newBalance) {
-
-      if (!currentUser) {
-
-        console.error(
-          'Cannot update balance: no current user.'
-        );
-
-        return false;
-
-      }
-
-
-      try {
-
-        const {
-          error
-        } =
-          await supabase
-            .from('profiles')
-            .update({
-              balance: newBalance,
-              updated_at: new Date().toISOString()
-            })
-            .eq(
-              'id',
-              currentUser.id
-            );
-
-
-        if (error) {
-
-          console.error(
-            'Balance update error:',
-            error
-          );
-
-          throw error;
-
-        }
-
-
-        currentUser.balance =
-          parseFloat(newBalance);
-
-
-        const balDisplay =
-          document.getElementById(
-            'userBalanceDisplay'
-          );
-
-
-        if (balDisplay) {
-
-          balDisplay.textContent =
-            currentUser.balance.toFixed(2);
-
-        }
-
-
-        console.log(
-          'Balance updated:',
-          currentUser.balance
-        );
-
-
-        return true;
-
-
-      } catch (error) {
-
-        console.error(
-          'Balance update failed:',
-          error
-        );
-
-        alert(
-          'Could not update your balance: ' +
-          (
-            error.message ||
-            'Unknown error'
-          )
-        );
-
-
-        return false;
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       LOGOUT
-    ===================================================== */
-
-    async function logout() {
-
-      try {
-
-        const {
-          error
-        } =
-          await supabase.auth.signOut();
-
-
-        if (error) {
-
-          console.error(
-            'Logout error:',
-            error
-          );
-
-        }
-
-
-        currentUser = null;
-
-        showAuthGate();
-
-
-      } catch (error) {
-
-        console.error(
-          'Logout exception:',
-          error
-        );
-
-        showAuthGate();
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       STAKE SELECTION
-    ===================================================== */
-
-    function selectStakeTier(amount) {
-
-      currentStake =
-        parseFloat(amount);
-
-
-      const pot =
-        (
-          currentStake *
-          2 *
-          0.8
-        ).toFixed(2);
-
-
-      const stakeHeader =
-        document.getElementById(
-          'stakeDisplayHeader'
-        );
-
-
-      const overlayDesc =
-        document.getElementById(
-          'matchOverlayDesc'
-        );
-
-
-      if (stakeHeader) {
-
-        stakeHeader.innerHTML =
-          `$${currentStake.toFixed(2)} / ` +
-          `<span class="text-emerald-400">` +
-          `$${pot} USDT` +
-          `</span>`;
-
-      }
-
-
-      if (overlayDesc) {
-
-        overlayDesc.innerHTML =
-          `Entry Stake: ` +
-          `<strong>$${currentStake.toFixed(2)} USDT</strong>. ` +
-          `Winner takes ` +
-          `<strong>$${pot} USDT</strong> ` +
-          `(20% platform rake).`;
-
-      }
-
-
-      const tiers =
-        [0.5, 1.0, 5.0];
-
-
-      tiers.forEach(
-        tier => {
-
-          const btn =
-            document.getElementById(
-              `stakeTier-${tier.toFixed(1)}`
-            );
-
-
-          if (!btn) {
-            return;
-          }
-
-
-          if (
-            tier === currentStake
-          ) {
-
-            btn.className =
-              "stake-tier-btn border-cyan-500 bg-cyan-950/40 text-cyan-400 border py-2 px-2 rounded-xl flex flex-col items-center justify-center transition";
-
-          } else {
-
-            btn.className =
-              "stake-tier-btn border-slate-800 bg-slate-900 text-slate-300 border py-2 px-2 rounded-xl flex flex-col items-center justify-center transition hover:border-slate-700";
-
-          }
-
-        }
-      );
-
-    }
-
-
-
-    /* =====================================================
-       START MATCHMAKING
-    ===================================================== */
-
-    async function startMatchmaking() {
-
-      if (!currentUser) {
-
-        showAuthGate();
-
-        return;
-
-      }
-
-
-      if (
-        currentUser.balance <
-        currentStake
-      ) {
-
-        alert(
-          'Insufficient balance. Please deposit via FaucetPay.'
-        );
-
-        openModal(
-          'depositModal'
-        );
-
-        return;
-
-      }
-
-
-      const newBalance =
-        currentUser.balance -
-        currentStake;
-
-
-      const success =
-        await updateUserBalance(
-          newBalance
-        );
-
-
-      if (!success) {
-
-        return;
-
-      }
-
-
-      const canvasOverlay =
-        document.getElementById(
-          'canvasOverlay'
-        );
-
-
-      if (canvasOverlay) {
-
-        canvasOverlay.classList.add(
-          'hidden'
-        );
-
-      }
-
-
-      console.log(
-        `Match Started! Stake: $${currentStake}`
-      );
-
-    }
-
-
-
-    /* =====================================================
-       SELECT GAME MODE
-    ===================================================== */
-
-    function selectGameMode(mode) {
-
-      selectedGameMode =
-        mode;
-
-
-      const titles = {
-
-        target_shooter:
-          'Target Strike 1v1',
-
-        reflex_pulse:
-          'Reflex Pulse 1v1',
-
-        cyber_pong:
-          'Cyber Pong 1v1'
-
-      };
-
-
-      const modeTitle =
-        document.getElementById(
-          'currentModeTitle'
-        );
-
-
-      if (modeTitle) {
-
-        modeTitle.textContent =
-          titles[mode] ||
-          '1v1 Duel';
-
-      }
-
-
-      document
-        .querySelectorAll(
-          '.game-mode-card'
-        )
-        .forEach(
-          card => {
-
-            card.classList.remove(
-              'border-cyan-500',
-              'bg-cyan-950/30'
-            );
-
-
-            card.classList.add(
-              'border-slate-800',
-              'bg-slate-900/60'
-            );
-
-          }
-        );
-
-
-      const activeCard =
-        document.getElementById(
-          `mode-${mode}`
-        );
-
-
-      if (activeCard) {
-
-        activeCard.classList.remove(
-          'border-slate-800',
-          'bg-slate-900/60'
-        );
-
-
-        activeCard.classList.add(
-          'border-cyan-500',
-          'bg-cyan-950/30'
-        );
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       MILESTONE UI
-    ===================================================== */
-
-    function updateMilestoneUI() {
-
-      if (!currentUser) {
-        return;
-      }
-
-
-      const winsDisplay =
-        document.getElementById(
-          'sprintWinsDisplay'
-        );
-
-
-      const progressBar =
-        document.getElementById(
-          'sprintProgressBar'
-        );
-
-
-      if (winsDisplay) {
-
-        winsDisplay.textContent =
-          currentUser.wins;
-
-      }
-
-
-      if (progressBar) {
-
-        const progressPercent =
-          Math.min(
-            (
-              currentUser.wins /
-              100
-            ) *
-            100,
-            100
-          );
-
-
-        progressBar.style.width =
-          `${progressPercent}%`;
-
-      }
-
-
-      updateMilestoneButton(
-        'claim100Btn',
+    const percentage =
+      Math.min(
+        (wins / 100) * 100,
         100
       );
 
 
-      updateMilestoneButton(
-        'claim1000Btn',
-        1000
-      );
+    progressBar.style.width =
+      `${percentage}%`;
 
+  }
 
-      updateMilestoneButton(
-        'claim10000Btn',
-        10000
-      );
 
-    }
-
-
-
-    /* =====================================================
-       MILESTONE BUTTON STATE
-    ===================================================== */
-
-    function updateMilestoneButton(
-      buttonId,
-      requiredWins
-    ) {
-
-      const button =
-        document.getElementById(
-          buttonId
-        );
-
-
-      if (!button || !currentUser) {
-        return;
-      }
-
-
-      if (
-        currentUser.wins >=
-        requiredWins
-      ) {
-
-        button.disabled = false;
-
-        button.textContent =
-          'CLAIM';
-
-
-        button.classList.remove(
-          'bg-slate-800',
-          'text-slate-500'
-        );
-
-
-        button.classList.add(
-          'bg-emerald-500',
-          'text-slate-950'
-        );
-
-
-      } else {
-
-        button.disabled = true;
-
-        button.textContent =
-          'Locked';
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       CLAIM SPRINT REWARD
-    ===================================================== */
-
-    async function claimSprintReward() {
-
-      alert(
-        'Sprint reward system will be connected to the game backend.'
-      );
-
-    }
-
-
-
-    /* =====================================================
-       CLAIM MILESTONE
-    ===================================================== */
-
-    async function claimMilestone(
-      requiredWins,
-      reward
-    ) {
-
-      if (!currentUser) {
-
-        showAuthGate();
-
-        return;
-
-      }
-
-
-      if (
-        currentUser.wins <
-        requiredWins
-      ) {
-
-        alert(
-          `You need ${requiredWins} wins.`
-        );
-
-        return;
-
-      }
-
-
-      const newBalance =
-        currentUser.balance +
-        reward;
-
-
-      const success =
-        await updateUserBalance(
-          newBalance
-        );
-
-
-      if (!success) {
-        return;
-      }
-
-
-      alert(
-        `Congratulations! ${reward.toFixed(2)} USDT has been added to your balance.`
-      );
-
-    }
-
-
-
-    /* =====================================================
-       OPEN MODAL
-    ===================================================== */
-
-    function openModal(modalId) {
-
-      const modal =
-        document.getElementById(
-          modalId
-        );
-
-
-      if (!modal) {
-        return;
-      }
-
-
-      modal.classList.remove(
-        'hidden'
-      );
-
-
-      modal.classList.add(
-        'flex'
-      );
-
-    }
-
-
-
-    /* =====================================================
-       CLOSE MODAL
-    ===================================================== */
-
-    function closeModal(modalId) {
-
-      const modal =
-        document.getElementById(
-          modalId
-        );
-
-
-      if (!modal) {
-        return;
-      }
-
-
-      modal.classList.add(
-        'hidden'
-      );
-
-
-      modal.classList.remove(
-        'flex'
-      );
-
-    }
-
-
-
-    /* =====================================================
-       FAUCETPAY AMOUNT DISPLAY
-    ===================================================== */
-
-    function syncFaucetPayAmount(
-      value
-    ) {
-
-      const num =
-        parseFloat(value) || 0;
-
-
-      const payBtnAmount =
-        document.getElementById(
-          'fpPayBtnAmount'
-        );
-
-
-      if (payBtnAmount) {
-
-        payBtnAmount.textContent =
-          `$${num.toFixed(2)}`;
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-       CLOSE MODALS WHEN CLICKING OUTSIDE
-    ===================================================== */
-
-    document.addEventListener(
-      'click',
-      event => {
-
-        const depositModal =
-          document.getElementById(
-            'depositModal'
-          );
-
-
-        const withdrawModal =
-          document.getElementById(
-            'withdrawModal'
-          );
-
-
-        if (
-          depositModal &&
-          event.target ===
-          depositModal
-        ) {
-
-          closeModal(
-            'depositModal'
-          );
-
-        }
-
-
-        if (
-          withdrawModal &&
-          event.target ===
-          withdrawModal
-        ) {
-
-          closeModal(
-            'withdrawModal'
-          );
-
-        }
-
-      }
+  const claim100Btn =
+    document.getElementById(
+      "claim100Btn"
     );
 
 
+  const claim1000Btn =
+    document.getElementById(
+      "claim1000Btn"
+    );
 
-  </script>
+
+  const claim10000Btn =
+    document.getElementById(
+      "claim10000Btn"
+    );
+
+
+  if (
+    claim100Btn &&
+    wins >= 100
+  ) {
+
+    claim100Btn.disabled =
+      false;
+
+    claim100Btn.textContent =
+      "CLAIM";
+
+    claim100Btn.classList.remove(
+      "cursor-not-allowed",
+      "text-slate-500"
+    );
+
+    claim100Btn.classList.add(
+      "text-emerald-400"
+    );
+
+  }
+
+
+  if (
+    claim1000Btn &&
+    wins >= 1000
+  ) {
+
+    claim1000Btn.disabled =
+      false;
+
+    claim1000Btn.textContent =
+      "CLAIM";
+
+    claim1000Btn.classList.remove(
+      "cursor-not-allowed",
+      "text-slate-500"
+    );
+
+    claim1000Btn.classList.add(
+      "text-emerald-400"
+    );
+
+  }
+
+
+  if (
+    claim10000Btn &&
+    wins >= 10000
+  ) {
+
+    claim10000Btn.disabled =
+      false;
+
+    claim10000Btn.textContent =
+      "CLAIM";
+
+    claim10000Btn.classList.remove(
+      "cursor-not-allowed",
+      "text-slate-500"
+    );
+
+    claim10000Btn.classList.add(
+      "text-emerald-400"
+    );
+
+  }
+
+}
+
+
+
+/* =====================================================
+   MODALS
+===================================================== */
+
+function openModal(
+  modalId
+) {
+
+  const modal =
+    document.getElementById(
+      modalId
+    );
+
+
+  if (!modal) return;
+
+
+  modal.classList.remove(
+    "hidden"
+  );
+
+
+  modal.classList.add(
+    "flex"
+  );
+
+}
+
+
+
+function closeModal(
+  modalId
+) {
+
+  const modal =
+    document.getElementById(
+      modalId
+    );
+
+
+  if (!modal) return;
+
+
+  modal.classList.add(
+    "hidden"
+  );
+
+
+  modal.classList.remove(
+    "flex"
+  );
+
+}
+
+
+
+/* =====================================================
+   FAUCETPAY AMOUNT DISPLAY
+===================================================== */
+
+function syncFaucetPayAmount(
+  value
+) {
+
+  const amount =
+    Number(value) || 0;
+
+
+  const display =
+    document.getElementById(
+      "fpPayBtnAmount"
+    );
+
+
+  if (display) {
+
+    display.textContent =
+      `$${amount.toFixed(2)}`;
+
+  }
+
+  }
+  /* =====================================================
+   AUTH FORM SUBMIT
+===================================================== */
+
+async function handleAuthSubmit(event) {
+
+  if (event) {
+    event.preventDefault();
+  }
+
+  await handleLogin();
+
+}
+
+
+
+/* =====================================================
+   START MATCHMAKING
+===================================================== */
+
+async function startMatchmaking() {
+
+  if (!currentUser) {
+
+    showAuthGate();
+
+    return;
+
+  }
+
+
+  const balance =
+    Number(currentUser.balance || 0);
+
+
+  if (balance < currentStake) {
+
+    alert(
+      "Insufficient balance. Please deposit via FaucetPay."
+    );
+
+    openModal("depositModal");
+
+    return;
+
+  }
+
+
+  const newBalance =
+    balance - currentStake;
+
+
+  const saved =
+    await updateUserBalance(
+      newBalance
+    );
+
+
+  if (!saved) {
+
+    alert(
+      "The stake could not be saved. " +
+      "Your balance was not changed."
+    );
+
+    return;
+
+  }
+
+
+  const canvasOverlay =
+    document.getElementById(
+      "canvasOverlay"
+    );
+
+
+  if (canvasOverlay) {
+
+    canvasOverlay.classList.add(
+      "hidden"
+    );
+
+  }
+
+
+  console.log(
+    "Match started:",
+    selectedGameMode,
+    currentStake
+  );
+
+}
+
+
+
+/* =====================================================
+   CLAIM SPRINT REWARD
+===================================================== */
+
+async function claimSprintReward() {
+
+  if (!currentUser) {
+
+    showAuthGate();
+
+    return;
+
+  }
+
+
+  if (
+    Number(currentUser.wins || 0) < 100
+  ) {
+
+    alert(
+      "You need 100 wins to claim this reward."
+    );
+
+    return;
+
+  }
+
+
+  alert(
+    "Sprint reward processing will be connected to the secure backend."
+  );
+
+}
+
+
+
+/* =====================================================
+   CLAIM LIFETIME MILESTONE
+===================================================== */
+
+async function claimMilestone(
+  requiredWins,
+  reward
+) {
+
+  if (!currentUser) {
+
+    showAuthGate();
+
+    return;
+
+  }
+
+
+  const wins =
+    Number(currentUser.wins || 0);
+
+
+  if (wins < requiredWins) {
+
+    alert(
+      `You need ${requiredWins} wins to claim this reward.`
+    );
+
+    return;
+
+  }
+
+
+  alert(
+    `Milestone reward of ${Number(reward).toFixed(2)} USDT is ready for backend integration.`
+  );
+
+}
+
+
+
+/* =====================================================
+   WITHDRAWAL
+===================================================== */
+
+async function confirmWithdrawal() {
+
+  if (!currentUser) {
+
+    showAuthGate();
+
+    return;
+
+  }
+
+
+  const amountInput =
+    document.getElementById(
+      "withdrawAmount"
+    );
+
+
+  const messageBox =
+    document.getElementById(
+      "withdrawMessage"
+    );
+
+
+  const button =
+    document.getElementById(
+      "withdrawConfirmBtn"
+    );
+
+
+  const amount =
+    Number(
+      amountInput?.value || 0
+    );
+
+
+  const balance =
+    Number(
+      currentUser.balance || 0
+    );
+
+
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0
+  ) {
+
+    showWithdrawalMessage(
+      "Please enter a valid withdrawal amount.",
+      false
+    );
+
+    return;
+
+  }
+
+
+  if (amount < 0.50) {
+
+    showWithdrawalMessage(
+      "Minimum withdrawal is 0.50 USDT.",
+      false
+    );
+
+    return;
+
+  }
+
+
+  if (amount > balance) {
+
+    showWithdrawalMessage(
+      "Insufficient balance.",
+      false
+    );
+
+    return;
+
+  }
+
+
+  if (button) {
+
+    button.disabled =
+      true;
+
+    button.textContent =
+      "PROCESSING...";
+
+  }
+
+
+  try {
+
+    /*
+       IMPORTANT:
+
+       This frontend demo does NOT directly
+       send money from FaucetPay.
+
+       A secure Supabase Edge Function should
+       process the actual withdrawal.
+    */
+
+    const newBalance =
+      balance - amount;
+
+
+    const saved =
+      await updateUserBalance(
+        newBalance
+      );
+
+
+    if (!saved) {
+
+      throw new Error(
+        "Could not save the new balance."
+      );
+
+    }
+
+
+    showWithdrawalMessage(
+      "Withdrawal request recorded successfully.",
+      true
+    );
+
+
+    setTimeout(
+      function () {
+
+        closeModal(
+          "withdrawModal"
+        );
+
+      },
+      1800
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Withdrawal error:",
+      error
+    );
+
+
+    showWithdrawalMessage(
+      error?.message ||
+      "Withdrawal failed.",
+      false
+    );
+
+
+  } finally {
+
+    if (button) {
+
+      button.disabled =
+        false;
+
+      button.textContent =
+        "CONFIRM INSTANT WITHDRAWAL";
+
+    }
+
+  }
+
+}
+
+
+
+/* =====================================================
+   WITHDRAWAL MESSAGE
+===================================================== */
+
+function showWithdrawalMessage(
+  message,
+  success
+) {
+
+  const box =
+    document.getElementById(
+      "withdrawMessage"
+    );
+
+
+  if (!box) {
+
+    alert(message);
+
+    return;
+
+  }
+
+
+  box.textContent =
+    message;
+
+
+  box.classList.remove(
+    "hidden",
+    "bg-rose-950/50",
+    "border-rose-500/30",
+    "text-rose-400",
+    "bg-emerald-950/50",
+    "border-emerald-500/30",
+    "text-emerald-400"
+  );
+
+
+  box.classList.add(
+    "border"
+  );
+
+
+  if (success) {
+
+    box.classList.add(
+      "bg-emerald-950/50",
+      "border-emerald-500/30",
+      "text-emerald-400"
+    );
+
+  } else {
+
+    box.classList.add(
+      "bg-rose-950/50",
+      "border-rose-500/30",
+      "text-rose-400"
+    );
+
+  }
+
+}
+
+
+
+/* =====================================================
+   CLOSE MODAL WHEN CLICKING OUTSIDE
+===================================================== */
+
+document.addEventListener(
+  "click",
+  function (event) {
+
+    const depositModal =
+      document.getElementById(
+        "depositModal"
+      );
+
+    const withdrawModal =
+      document.getElementById(
+        "withdrawModal"
+      );
+
+
+    if (
+      depositModal &&
+      event.target === depositModal
+    ) {
+
+      closeModal(
+        "depositModal"
+      );
+
+    }
+
+
+    if (
+      withdrawModal &&
+      event.target === withdrawModal
+    ) {
+
+      closeModal(
+        "withdrawModal"
+      );
+
+    }
+
+  }
+);
+
+
+
+/* =====================================================
+   ESC KEY CLOSES MODALS
+===================================================== */
+
+document.addEventListener(
+  "keydown",
+  function (event) {
+
+    if (
+      event.key !== "Escape"
+    ) {
+
+      return;
+
+    }
+
+
+    closeModal(
+      "depositModal"
+    );
+
+
+    closeModal(
+      "withdrawModal"
+    );
+
+  }
+);
+
+
+
+/* =====================================================
+   INITIAL UI
+===================================================== */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  function () {
+
+    selectStakeTier(
+      0.50
+    );
+
+
+    selectGameMode(
+      "target_shooter"
+    );
+
+  }
+);
+
+
+
+/* =====================================================
+   DEBUG INFORMATION
+===================================================== */
+
+console.log(
+  "================================="
+);
+
+console.log(
+  "CYBERSTRIKE AUTH SYSTEM LOADED"
+);
+
+console.log(
+  "Supabase URL:",
+  SUPABASE_URL
+);
+
+console.log(
+  "Supabase client:",
+  !!supabaseClient
+);
+
+console.log(
+  "================================="
+);
+
+</script>
 
 </body>
-
 </html>

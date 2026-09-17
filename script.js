@@ -91,6 +91,8 @@ async function handleAuthSubmit(event) {
     }
 
   } catch (err) {
+    console.error("Auth Error:", err);
+    alert("Error: " + err.message); // Forces a pop-up alert on your phone with the exact error
     msgBox.textContent = err.message;
     msgBox.classList.remove('hidden');
   } finally {
@@ -98,6 +100,7 @@ async function handleAuthSubmit(event) {
     submitBtn.textContent = 'LOG IN';
   }
 }
+
 // ==========================================
 // 4. PROFILE & BALANCE MANAGEMENT
 // ==========================================
@@ -247,5 +250,4 @@ function closeModal(modalId) {
 function syncFaucetPayAmount(val) {
   const num = parseFloat(val) || 0;
   document.getElementById('fpPayBtnAmount').textContent = `$${num.toFixed(2)}`;
-        }
-      
+}

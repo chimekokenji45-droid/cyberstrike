@@ -3,23 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JS Click Test</title>
+  <title>Supabase Connection Test</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-4">
 
   <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 text-center max-w-sm w-full shadow-2xl">
-    <h1 class="text-lg font-bold mb-2">JavaScript Test</h1>
-    <p class="text-xs text-slate-400 mb-6">Tap the button below to test if tap events are firing on your mobile browser.</p>
+    <h1 class="text-lg font-bold mb-2">Supabase SDK Test</h1>
+    <p class="text-xs text-slate-400 mb-6">Tap below to test if your Supabase project connects correctly.</p>
     
-    <button onclick="testClick()" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg">
-      TAP TO TEST
+    <button onclick="testSupabase()" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg">
+      TEST SUPABASE CONNECTION
     </button>
   </div>
 
   <script>
-    function testClick() {
-      alert("Click event works perfectly!");
+    const SUPABASE_URL = 'https://btugwhcoypxtlgmsxqci.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h';
+
+    async function testSupabase() {
+      try {
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Try fetching public profiles or checking session
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        alert("Supabase connected successfully! Session check passed.");
+      } catch (err) {
+        alert("Supabase Error: " + (err.message || JSON.stringify(err)));
+      }
     }
   </script>
 

@@ -77,6 +77,7 @@ async function handleLogin() {
 
   try {
     if (supabaseClient) {
+      // Attempt to log in only
       const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: emailInput,
         password: passwordInput
@@ -97,20 +98,24 @@ async function handleLogin() {
         state.wins = profile.wins || 0;
       }
     } else {
+      // Fallback if Supabase is offline
       await new Promise(res => setTimeout(res, 800));
       state.user = { id: "usr_" + Math.random().toString(36).substr(2, 9), email: emailInput };
       state.balance = 0.00; // Reset fallback balance to 0.00
     }
 
+    // Success: Hide Auth Gate and Show App
     document.getElementById("authGate").classList.add("hidden");
     document.getElementById("appContainer").classList.remove("hidden");
     document.getElementById("depositUserId").value = state.user.id;
     document.getElementById("withdrawEmail").value = state.user.email;
 
     updateUI();
+    
   } catch (err) {
     showAuthError(err.message || "Failed to log in. Check credentials.");
-  } font-['Orbitron'] {
+  } finally {
+    // Correctly restores button state (no crash!)
     loginBtn.innerText = "LOGIN / ENTER ARENA";
     loginBtn.disabled = false;
   }
@@ -490,5 +495,4 @@ function startSprintTimer() {
 
   updateTimer();
   setInterval(updateTimer, 1000);
-  }
-             
+}

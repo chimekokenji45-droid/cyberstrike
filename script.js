@@ -1,530 +1,384 @@
-/* ==========================================================================
-   CYBERSTRIKE | 1v1 Arena Core Script (Penalty Shootout Only)
-   ========================================================================== */
-
-// --- 1. SUPABASE INITIALIZATION ---
+// ------------------------------------------
+// 1. CONFIGURATION
+// ------------------------------------------
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
+const FAUCETPAY_MERCHANT_USERNAME = "YOUR_FAUCETPAY_USERNAME";
 
-let supabaseClient = null;
-if (typeof supabase !== 'undefined' && SUPABASE_URL.indexOf("your-supabase") === -1) {
-  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// --- 2. GLOBAL STATE ---
-const state = {
-  user: null,
-  balance: 0.00, // Default starting balance strictly at 0.00 USDT
-  wins: 0,
-  currentStake: 0.50,
-  isMatchmaking: false,
-  isPlaying: false,
-  claimedMilestones: [],
-  sprintEndTime: Date.now() + (5 * 24 * 60 * 60 * 1000) + (18 * 60 * 60 * 1000)
-};
+let currentUser = null;
+let currentBalance = 0.00;
+let currentStake = 0.50;
+let sprintWins = 0;
+let isMatchmaking = false;
+let gameState = "IDLE";
 
-// Stake configurations with 20% rake deduction calculated
-const STAKE_CONFIGS = {
-  0.50: { stake: 0.50, payout: 0.80 },
-  1.00: { stake: 1.00, payout: 1.60 },
-  5.00: { stake: 5.00, payout: 8.00 }
-};
+// ------------------------------------------
+// 2. AUTHENTICATION & INITIALIZATION
+// ------------------------------------------
+window.addEventListener("DOMContentLoaded", async () => {
+  initCanvas();
+  selectStakeTier(0.50);
+  startSprintCountdown();
 
-// Canvas Engine References
-let canvas, ctx;
-let animationFrameId = null;
-let gameObject = null;
-
-// --- 3. INITIALIZATION & EVENT LISTENERS ---
-document.addEventListener("DOMContentLoaded", () => {
-  canvas = document.getElementById("gameCanvas");
-  if (canvas) {
-    ctx = canvas.getContext("2d");
-    // Canvas Click Listener
-    canvas.addEventListener("click", handleCanvasClick);
-    // Render Initial Canvas Standby
-    drawCanvasStandby();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    showApp();
   }
-
-  // Setup Deposit Amount Input Listener
-  const depositInput = document.getElementById("depositAmount");
-  if (depositInput) {
-    depositInput.addEventListener("input", (e) => {
-      const val = parseFloat(e.target.value) || 0;
-      document.getElementById("depositAmountDisplay").innerText = `${val.toFixed(2)} USDT`;
-    });
-  }
-
-  // Setup Sprint Countdown
-  startSprintTimer();
 });
 
-// --- 4. AUTHENTICATION HANDLERS ---
 async function handleLogin() {
-  const emailInput = document.getElementById("loginEmail").value.trim();
-  const passwordInput = document.getElementById("loginPassword").value;
-  const authMsg = document.getElementById("authMessage");
-  const loginBtn = document.getElementById("loginButton");
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+  const authMessage = document.getElementById("authMessage");
 
-  if (!emailInput || !passwordInput) {
-    showAuthError("Please fill in all required fields.");
+  if (!email || !password) {
+    showAuthError("Please enter both email and password.");
     return;
   }
 
-  authMsg.classList.add("hidden");
-  loginBtn.innerText = "AUTHENTICATING...";
-  loginBtn.disabled = true;
+  authMessage.classList.add("hidden");
 
-  try {
-    if (supabaseClient) {
-      // Attempt to log in only
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: emailInput,
-        password: passwordInput
-      });
+  let { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) throw error;
-      state.user = data.user;
-
-      // Fetch user profile stats
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('balance, wins')
-        .eq('id', state.user.id)
-        .single();
-
-      if (profile) {
-        state.balance = parseFloat(profile.balance) || 0.00;
-        state.wins = profile.wins || 0;
-      }
-    } else {
-      // Fallback if Supabase is offline
-      await new Promise(res => setTimeout(res, 800));
-      state.user = { id: "usr_" + Math.random().toString(36).substr(2, 9), email: emailInput };
-      state.balance = 0.00; 
+  if (error) {
+    const signup = await supabase.auth.signUp({ email, password });
+    if (signup.error) {
+      showAuthError(signup.error.message);
+      return;
     }
-
-    // Success: Hide Auth Gate and Show App
-    document.getElementById("authGate").classList.add("hidden");
-    document.getElementById("appContainer").classList.remove("hidden");
-    document.getElementById("depositUserId").value = state.user.id;
-    document.getElementById("withdrawEmail").value = state.user.email;
-
-    updateUI();
-    
-  } catch (err) {
-    showAuthError(err.message || "Failed to log in. Check credentials.");
-  } finally {
-    loginBtn.innerText = "LOGIN / ENTER ARENA";
-    loginBtn.disabled = false;
-  }
-}
-
-function showAuthError(message) {
-  const authMsg = document.getElementById("authMessage");
-  if (!authMsg) return;
-  authMsg.innerText = message;
-  authMsg.classList.remove("hidden");
-}
-
-function logout() {
-  state.user = null;
-  document.getElementById("appContainer").classList.add("hidden");
-  document.getElementById("authGate").classList.remove("hidden");
-}
-
-// --- 4.1 FAUCETPAY DEPOSIT HANDLER ---
-function initiateFaucetPayDeposit() {
-  const amount = parseFloat(document.getElementById("depositAmount").value);
-  
-  if (!amount || amount <= 0) {
-    showCyberAlert("INVALID AMOUNT", "Please enter a valid deposit amount.");
-    return;
+    currentUser = signup.data.user;
+  } else {
+    currentUser = data.user;
   }
 
-  // REPLACE WITH YOUR ACTUAL FAUCETPAY USERNAME / MERCHANT CODE
-  const merchantUsername = "YOUR_MERCHANT_USERNAME"; 
-  
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "https://faucetpay.io/merchant/webcoins";
-
-  const fields = {
-    merchant_username: merchantUsername,
-    item_description: "CyberStrike Arena Deposit",
-    amount1: amount.toFixed(2),
-    currency1: "USDT",
-    custom: state.user ? state.user.id : "", 
-    success_url: window.location.origin + "?payment=success",
-    cancel_url: window.location.origin + "?payment=cancel"
-  };
-
-  for (const key in fields) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = key;
-    input.value = fields[key];
-    form.appendChild(input);
-  }
-
-  document.body.appendChild(form);
-  form.submit();
+  showApp();
 }
 
-// --- 5. UI & STATE UPDATERS ---
+function showAuthError(msg) {
+  const authMessage = document.getElementById("authMessage");
+  authMessage.textContent = msg;
+  authMessage.classList.remove("hidden");
+}
+
+async function showApp() {
+  document.getElementById("authGate").classList.add("hidden");
+  document.getElementById("appContainer").classList.remove("hidden");
+  document.getElementById("depositUserId").value = currentUser.id;
+  document.getElementById("withdrawEmail").value = currentUser.email;
+
+  await fetchUserData();
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+  window.location.reload();
+}
+
+// ------------------------------------------
+// 3. USER DATA & BALANCES
+// ------------------------------------------
+async function fetchUserData() {
+  if (!currentUser) return;
+
+  let { data: profile, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", currentUser.id)
+    .single();
+
+  if (error || !profile) {
+    const { data: newProfile } = await supabase
+      .from("profiles")
+      .insert([{ id: currentUser.id, balance: 0.00, sprint_wins: 0 }])
+      .select()
+      .single();
+    profile = newProfile;
+  }
+
+  currentBalance = profile?.balance || 0.00;
+  sprintWins = profile?.sprint_wins || 0;
+
+  updateUI();
+}
+
 function updateUI() {
-  document.getElementById("userBalanceDisplay").innerText = state.balance.toFixed(2);
-  document.getElementById("withdrawBalanceDisplay").innerText = `${state.balance.toFixed(2)} USDT`;
+  document.getElementById("userBalanceDisplay").textContent = currentBalance.toFixed(2);
+  document.getElementById("withdrawBalanceDisplay").textContent = `${currentBalance.toFixed(2)} USDT`;
+  document.getElementById("sprintWinsDisplay").textContent = sprintWins;
 
-  // Stake Selection Buttons
-  document.querySelectorAll(".stake-tier-btn").forEach(btn => btn.classList.remove("active"));
-  const activeStakeBtn = document.getElementById(`stakeTier-${state.currentStake.toFixed(1)}`);
-  if (activeStakeBtn) activeStakeBtn.classList.add("active");
-
-  // Header Stake Display
-  const currentConfig = STAKE_CONFIGS[state.currentStake];
-
-  // Overlay Description
-  const overlayDesc = document.getElementById("matchOverlayDesc");
-  if (overlayDesc) {
-    overlayDesc.innerHTML = 
-      `Entry Stake: <strong class="text-cyan-400">$${currentConfig.stake.toFixed(2)} USDT</strong>. ` +
-      `Winner takes <strong class="text-emerald-400">$${currentConfig.payout.toFixed(2)} USDT</strong> (20% rake).`;
-  }
-
-  updateSprintSection();
+  updateSprintMilestones();
 }
 
+// ------------------------------------------
+// 4. STAKE SELECTION & MATCHMAKING
+// ------------------------------------------
 function selectStakeTier(amount) {
-  if (state.isPlaying || state.isMatchmaking) return;
-  state.currentStake = amount;
-  updateUI();
-}
+  currentStake = amount;
 
-// --- 6. MODAL & ALERT CONTROLLERS ---
-function openModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.remove("hidden");
-}
+  [0.5, 1.0, 5.0].forEach(tier => {
+    const btn = document.getElementById(`stakeTier-${tier.toFixed(1)}`);
+    if (btn) {
+      btn.classList.remove("border-cyan-500", "bg-cyan-500/10");
+      btn.classList.add("border-slate-800", "bg-slate-900/50");
+    }
+  });
 
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.add("hidden");
-}
-
-function showCyberAlert(title, message, iconClass = "fa-triangle-exclamation") {
-  document.getElementById("cyberAlertTitle").innerText = title;
-  document.getElementById("cyberAlertMessage").innerText = message;
-  document.getElementById("cyberAlertIcon").className = `fa-solid ${iconClass}`;
-  openModal("cyberAlertModal");
-}
-
-function confirmWithdrawal() {
-  const amount = parseFloat(document.getElementById("withdrawAmount").value);
-  if (!amount || amount < 0.50) {
-    showCyberAlert("INVALID CASHOUT", "Minimum withdrawal amount is 0.50 USDT.");
-    return;
-  }
-  if (amount > state.balance) {
-    showCyberAlert("INSUFFICIENT BALANCE", "You cannot withdraw more than your current balance.");
-    return;
+  const activeBtn = document.getElementById(`stakeTier-${amount.toFixed(1)}`);
+  if (activeBtn) {
+    activeBtn.classList.add("border-cyan-500", "bg-cyan-500/10");
+    activeBtn.classList.remove("border-slate-800", "bg-slate-900/50");
   }
 
-  state.balance -= amount;
-  updateUI();
-  closeModal("withdrawModal");
-  showCyberAlert("CASHOUT SUCCESSFUL", `${amount.toFixed(2)} USDT sent to your FaucetPay account!`, "fa-circle-check");
-  document.getElementById("withdrawAmount").value = "";
+  const netWin = (amount * 2 * 0.8).toFixed(2);
+  document.getElementById("matchOverlayDesc").textContent = 
+    `Entry Stake: $${amount.toFixed(2)} USDT. Winner takes $${netWin} USDT (20% rake).`;
 }
 
-// --- 7. MATCHMAKING & ARENA ENGINE ---
 function startMatchmaking() {
-  if (state.balance < state.currentStake) {
-    showCyberAlert(
-      "INSUFFICIENT BALANCE",
-      `You need at least $${state.currentStake.toFixed(2)} USDT to enter this match.`
-    );
+  if (currentBalance < currentStake) {
+    showCyberAlert("INSUFFICIENT BALANCE", `You need at least $${currentStake.toFixed(2)} USDT to enter this match.`);
     return;
   }
 
-  state.balance -= state.currentStake;
-  state.isMatchmaking = true;
+  isMatchmaking = true;
+  document.getElementById("canvasOverlay").classList.add("hidden");
+
+  currentBalance -= currentStake;
   updateUI();
 
-  const overlay = document.getElementById("canvasOverlay");
-  overlay.innerHTML = `
-    <div class="w-16 h-16 rounded-full border-4 border-cyan-500 border-t-transparent animate-spin flex items-center justify-center"></div>
-    <h3 class="font-['Orbitron'] font-bold text-xl text-cyan-400 tracking-wider">SEARCHING OPPONENT...</h3>
-    <p class="text-xs text-slate-400">Matching skill rating & stake ($${state.currentStake.toFixed(2)} USDT)</p>
-  `;
-
-  setTimeout(() => {
-    overlay.innerHTML = `
-      <div class="text-emerald-400 text-4xl animate-bounce"><i class="fa-solid fa-check-circle"></i></div>
-      <h3 class="font-['Orbitron'] font-bold text-2xl text-slate-100 tracking-wider">OPPONENT FOUND</h3>
-      <p class="text-xs text-emerald-400 font-bold uppercase">Preparing Penalty Shootout Arena...</p>
-    `;
-
-    setTimeout(() => {
-      overlay.classList.add("hidden");
-      state.isMatchmaking = false;
-      state.isPlaying = true;
-      initPenaltyGame();
-    }, 1200);
-  }, 2000);
+  resetGameRound();
 }
 
-// --- 8. PENALTY SHOOTOUT GAME LOGIC ---
-function initPenaltyGame() {
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
+// ------------------------------------------
+// 5. CANVAS GAME ENGINE
+// ------------------------------------------
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-  gameObject = {
-    goalKeeperX: canvas.width / 2,
-    goalKeeperDir: 1,
-    goalKeeperSpeed: 8,
-    ballX: canvas.width / 2,
-    ballY: canvas.height - 80,
-    ballTargetX: canvas.width / 2,
-    ballTargetY: 150,
-    ballRadius: 18,
-    reticleX: canvas.width / 2,
-    reticleDir: 1,
-    reticleSpeed: 12,
-    state: 'aiming'
-  };
+let ball = { x: 300, y: 380, radius: 14, targetX: 300, targetY: 380, moving: false };
+let keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
 
-  runGameLoop();
+function initCanvas() {
+  canvas.addEventListener("click", handleCanvasClick);
+  requestAnimationFrame(gameLoop);
 }
 
-function updatePenaltyGame() {
-  if (!gameObject) return;
+function resetGameRound() {
+  gameState = "IDLE";
+  ball = { x: 300, y: 380, radius: 14, targetX: 300, targetY: 380, moving: false };
+  keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
+}
 
-  gameObject.goalKeeperX += gameObject.goalKeeperSpeed * gameObject.goalKeeperDir;
-  if (gameObject.goalKeeperX > canvas.width / 2 + 260 || gameObject.goalKeeperX < canvas.width / 2 - 260) {
-    gameObject.goalKeeperDir *= -1;
-  }
+function handleCanvasClick(e) {
+  if (gameState !== "IDLE" || !isMatchmaking) return;
 
-  if (gameObject.state === 'aiming') {
-    gameObject.reticleX += gameObject.reticleSpeed * gameObject.reticleDir;
-    if (gameObject.reticleX > canvas.width / 2 + 280 || gameObject.reticleX < canvas.width / 2 - 280) {
-      gameObject.reticleDir *= -1;
-    }
-  } else if (gameObject.state === 'shooting') {
-    const dx = gameObject.ballTargetX - gameObject.ballX;
-    const dy = gameObject.ballTargetY - gameObject.ballY;
-    gameObject.ballX += dx * 0.12;
-    gameObject.ballY += dy * 0.12;
-    gameObject.ballRadius = Math.max(10, gameObject.ballRadius - 0.25);
+  const rect = canvas.getBoundingClientRect();
+  const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-    if (Math.abs(gameObject.ballY - gameObject.ballTargetY) < 15) {
-      const distToKeeper = Math.abs(gameObject.ballX - gameObject.goalKeeperX);
-      if (distToKeeper < 70) {
-        finishMatch(false, "SAVED BY GOALKEEPER!");
-      } else {
-        finishMatch(true, "GOAL! CYBER STRIKE!");
-      }
-    }
+  if (clickY < 250) {
+    gameState = "SHOOTING";
+    ball.targetX = Math.max(120, Math.min(480, clickX));
+    ball.targetY = Math.max(100, Math.min(220, clickY));
+    ball.moving = true;
+
+    const options = [150, 260, 370];
+    keeper.targetX = options[Math.floor(Math.random() * options.length)];
   }
 }
 
-function renderPenaltyGame() {
-  ctx.fillStyle = "#020617";
+function gameLoop() {
+  ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const goalLeft = canvas.width / 2 - 300;
-  const goalRight = canvas.width / 2 + 300;
-  const goalTop = 100;
-  const goalBottom = 320;
+  // Field markings
+  ctx.strokeStyle = "#1e293b";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(50, 50, 500, 350);
 
-  ctx.strokeStyle = "#06b6d4";
+  // Goal frame
+  ctx.strokeStyle = "#38bdf8";
   ctx.lineWidth = 6;
-  ctx.strokeRect(goalLeft, goalTop, 600, 220);
+  ctx.strokeRect(120, 90, 360, 130);
 
-  ctx.strokeStyle = "rgba(6, 182, 212, 0.15)";
+  // Goal net grid
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.15)";
   ctx.lineWidth = 1;
-  for (let x = goalLeft; x <= goalRight; x += 30) {
-    ctx.beginPath();
-    ctx.moveTo(x, goalTop);
-    ctx.lineTo(x, goalBottom);
-    ctx.stroke();
+  for (let x = 120; x <= 480; x += 20) {
+    ctx.beginPath(); ctx.moveTo(x, 90); ctx.lineTo(x, 220); ctx.stroke();
   }
-  for (let y = goalTop; y <= goalBottom; y += 20) {
-    ctx.beginPath();
-    ctx.moveTo(goalLeft, y);
-    ctx.lineTo(goalRight, y);
-    ctx.stroke();
+  for (let y = 90; y <= 220; y += 15) {
+    ctx.beginPath(); ctx.moveTo(120, y); ctx.lineTo(480, y); ctx.stroke();
   }
 
+  // Goalkeeper movement
+  if (gameState === "SHOOTING") {
+    keeper.x += (keeper.targetX - keeper.x) * 0.15;
+  }
   ctx.fillStyle = "#f43f5e";
-  ctx.shadowColor = "#f43f5e";
-  ctx.shadowBlur = 15;
-  ctx.fillRect(gameObject.goalKeeperX - 35, goalBottom - 70, 70, 70);
-  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.roundRect(keeper.x, keeper.y, keeper.width, keeper.height, 8);
+  ctx.fill();
 
-  if (gameObject.state === 'aiming') {
-    ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(gameObject.reticleX, gameObject.ballTargetY, 24, 0, Math.PI * 2);
-    ctx.stroke();
+  // Ball animation
+  if (ball.moving) {
+    ball.x += (ball.targetX - ball.x) * 0.12;
+    ball.y += (ball.targetY - ball.y) * 0.12;
 
-    ctx.fillStyle = "#10b981";
-    ctx.beginPath();
-    ctx.arc(gameObject.reticleX, gameObject.ballTargetY, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 18px Orbitron";
-    ctx.textAlign = "center";
-    ctx.fillText("CLICK CANVAS TO STRIKE", canvas.width / 2, canvas.height - 20);
+    if (Math.abs(ball.y - ball.targetY) < 2) {
+      ball.moving = false;
+      evaluateShootout();
+    }
   }
 
   ctx.fillStyle = "#38bdf8";
-  ctx.shadowColor = "#38bdf8";
-  ctx.shadowBlur = 15;
   ctx.beginPath();
-  ctx.arc(gameObject.ballX, gameObject.ballY, gameObject.ballRadius, 0, Math.PI * 2);
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowBlur = 0;
+
+  requestAnimationFrame(gameLoop);
 }
 
-function runGameLoop() {
-  if (!state.isPlaying) return;
+async function evaluateShootout() {
+  gameState = "RESULT";
+  const saved = ball.x >= keeper.x && ball.x <= (keeper.x + keeper.width) && ball.y <= (keeper.y + 40);
 
-  updatePenaltyGame();
-  renderPenaltyGame();
-
-  animationFrameId = requestAnimationFrame(runGameLoop);
-}
-
-function handleCanvasClick() {
-  if (!state.isPlaying || !gameObject) return;
-
-  if (gameObject.state === 'aiming') {
-    gameObject.ballTargetX = gameObject.reticleX;
-    gameObject.state = 'shooting';
-  }
-}
-
-function finishMatch(isWin, resultMsg) {
-  state.isPlaying = false;
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-
-  const payout = STAKE_CONFIGS[state.currentStake].payout;
-
-  if (isWin) {
-    state.balance += payout;
-    state.wins += 1;
-  }
-
-  updateUI();
-
-  const overlay = document.getElementById("canvasOverlay");
-  overlay.classList.remove("hidden");
-  overlay.innerHTML = `
-    <div class="w-16 h-16 rounded-2xl ${isWin ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-rose-500/10 border-rose-500/40 text-rose-400'} border flex items-center justify-center text-3xl shadow-lg">
-      <i class="fa-solid ${isWin ? 'fa-trophy' : 'fa-xmark'}"></i>
-    </div>
-    <div>
-      <h3 class="font-['Orbitron'] font-black text-2xl ${isWin ? 'text-emerald-400' : 'text-rose-400'} tracking-wider">${isWin ? 'VICTORY' : 'DEFEAT'}</h3>
-      <p class="text-xs sm:text-sm text-slate-300 mt-1">${resultMsg}</p>
-      <p class="text-xs font-bold font-['Orbitron'] ${isWin ? 'text-emerald-400' : 'text-slate-500'} mt-1">
-        ${isWin ? `+$${payout.toFixed(2)} USDT ADDED TO BALANCE` : `-$${state.currentStake.toFixed(2)} USDT`}
-      </p>
-    </div>
-    <button onclick="startMatchmaking()" class="mt-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg flex items-center gap-2">
-      <i class="fa-solid fa-rotate-right"></i> PLAY AGAIN
-    </button>
-  `;
-}
-
-function drawCanvasStandby() {
-  if (!ctx) return;
-  ctx.fillStyle = "#020617";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-// --- 9. WEEKLY SPRINT MILESTONES & TIMER ---
-function updateSprintSection() {
-  document.getElementById("sprintWinsDisplay").innerText = state.wins;
-
-  let nextRewardText = "MAX REWARDS REACHED";
-  let maxWins = 1000;
-  if (state.wins < 20) {
-    nextRewardText = "NEXT REWARD: 2.00 USDT";
-    maxWins = 20;
-  } else if (state.wins < 50) {
-    nextRewardText = "NEXT REWARD: 5.00 USDT";
-    maxWins = 50;
-  } else if (state.wins < 100) {
-    nextRewardText = "NEXT REWARD: 10.00 USDT";
-    maxWins = 100;
-  } else if (state.wins < 1000) {
-    nextRewardText = "NEXT REWARD: 100.00 USDT";
-    maxWins = 1000;
-  }
-
-  document.getElementById("nextRewardLabel").innerText = nextRewardText;
-
-  const progressPct = Math.min(100, (state.wins / maxWins) * 100);
-  document.getElementById("sprintProgressBar").style.width = `${progressPct}%`;
-
-  checkMilestoneBtn("claim20Btn", 20);
-  checkMilestoneBtn("claim50Btn", 50);
-  checkMilestoneBtn("claim100Btn", 100);
-  checkMilestoneBtn("claim1000Btn", 1000);
-}
-
-function checkMilestoneBtn(btnId, requiredWins) {
-  const btn = document.getElementById(btnId);
-  if (!btn) return;
-
-  if (state.claimedMilestones.includes(requiredWins)) {
-    btn.innerText = "CLAIMED";
-    btn.disabled = true;
-    btn.className = "px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-600 cursor-not-allowed";
-  } else if (state.wins >= requiredWins) {
-    btn.innerText = "CLAIM";
-    btn.disabled = false;
-    btn.className = "px-3 py-1.5 rounded-lg border border-emerald-500/50 bg-emerald-500/20 text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/30 transition cursor-pointer animate-pulse";
-  } else {
-    btn.innerText = "LOCKED";
-    btn.disabled = true;
-    btn.className = "px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed";
-  }
-}
-
-function claimMilestone(winsReq, amount) {
-  if (state.wins < winsReq || state.claimedMilestones.includes(winsReq)) return;
-
-  state.claimedMilestones.push(winsReq);
-  state.balance += amount;
-  updateUI();
-  showCyberAlert("REWARD CLAIMED!", `You have claimed +$${amount.toFixed(2)} USDT bonus for reaching ${winsReq} wins!`, "fa-gift");
-}
-
-function startSprintTimer() {
-  const updateTimer = () => {
-    const timerElement = document.getElementById("sprintCountdown");
-    if (!timerElement) return;
-
-    const now = Date.now();
-    const diff = state.sprintEndTime - now;
-
-    if (diff <= 0) {
-      timerElement.innerText = "00d 00h 00m 00s";
-      return;
+  setTimeout(async () => {
+    isMatchmaking = false;
+    if (!saved) {
+      const prize = currentStake * 2 * 0.8;
+      currentBalance += prize;
+      sprintWins += 1;
+      showCyberAlert("GOAL! YOU WIN", `You won $${prize.toFixed(2)} USDT!`);
+    } else {
+      showCyberAlert("SAVED!", "The goalkeeper blocked your shot. Better luck next match!");
     }
 
-    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const m = Math.floor((diff / (1000 * 60)) % 60);
-    const s = Math.floor((diff / 1000) % 60);
+    await supabase.from("profiles").update({ 
+      balance: currentBalance, 
+      sprint_wins: sprintWins 
+    }).eq("id", currentUser.id);
 
-    timerElement.innerText = 
-      `${String(d).padStart(2, '0')}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
-  };
+    updateUI();
+    document.getElementById("canvasOverlay").classList.remove("hidden");
+  }, 500);
+}
+
+// ------------------------------------------
+// 6. WEEKLY SPRINT & MILESTONE RENDERING
+// ------------------------------------------
+function updateSprintMilestones() {
+  const milestones = [
+    { wins: 20, reward: 2.00, btnId: "claim20Btn" },
+    { wins: 50, reward: 5.00, btnId: "claim50Btn" },
+    { wins: 100, reward: 10.00, btnId: "claim100Btn" },
+    { wins: 1000, reward: 100.00, btnId: "claim1000Btn" }
+  ];
+
+  let currentTarget = 20;
+
+  milestones.forEach(m => {
+    const btn = document.getElementById(m.btnId);
+    if (!btn) return;
+
+    if (sprintWins >= m.wins) {
+      btn.disabled = false;
+      btn.className = "milestone-btn p-2 rounded-xl border border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold cursor-pointer transition shadow-lg shadow-emerald-500/10 flex flex-col items-center justify-center animate-pulse";
+      btn.innerHTML = `<span class="text-[10px] font-['Orbitron']">CLAIM NOW</span><span class="font-['Orbitron'] font-bold text-xs mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
+    } else {
+      btn.disabled = true;
+      btn.className = "milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center";
+      btn.innerHTML = `<span class="text-[10px] text-slate-400 font-['Orbitron']">${m.wins} WINS</span><span class="font-['Orbitron'] font-bold text-xs text-slate-300 mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
+
+      if (sprintWins < m.wins && currentTarget === 20) {
+        currentTarget = m.wins;
+      }
+    }
+  });
+
+  const currentMilestone = milestones.find(m => m.wins === currentTarget);
+  if (currentMilestone) {
+    document.getElementById("nextRewardLabel").textContent = `NEXT REWARD: ${currentMilestone.reward.toFixed(2)} USDT`;
+  }
+
+  const progressPercent = Math.min(100, (sprintWins / currentTarget) * 100);
+  document.getElementById("sprintProgressBar").style.width = `${progressPercent}%`;
+}
+
+async function claimMilestone(wins, reward) {
+  if (sprintWins < wins) return;
+
+  currentBalance += reward;
+  showCyberAlert("REWARD CLAIMED!", `You added $${reward.toFixed(2)} USDT to your balance.`);
+
+  await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
+  updateUI();
+}
+
+function startSprintCountdown() {
+  function updateTimer() {
+    const now = new Date();
+    const endOfWeek = new Date();
+    endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+    endOfWeek.setHours(23, 59, 59, 0);
+
+    const diff = endOfWeek - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const mins = Math.floor((diff / 1000 / 60) % 60);
+    const secs = Math.floor((diff / 1000) % 60);
+
+    document.getElementById("sprintCountdown").textContent = 
+      `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+  }
 
   updateTimer();
   setInterval(updateTimer, 1000);
 }
+
+// ------------------------------------------
+// 7. MODALS & PAYMENT GATEWAY
+// ------------------------------------------
+function openModal(id) {
+  document.getElementById(id).classList.remove("hidden");
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add("hidden");
+}
+
+function initiateFaucetPayDeposit() {
+  const amount = parseFloat(document.getElementById("depositAmount").value);
+  if (!amount || amount < 0.5) {
+    showCyberAlert("INVALID AMOUNT", "Minimum deposit is 0.50 USDT.");
+    return;
+  }
+
+  const checkoutUrl = `https://faucetpay.io/merchant/webpay?merchant_username=${FAUCETPAY_MERCHANT_USERNAME}&item_name=Cyberstrike+Deposit&currency1=USDT&amount1=${amount}&custom=${currentUser.id}`;
+  window.open(checkoutUrl, "_blank");
+}
+
+async function confirmWithdrawal() {
+  const amount = parseFloat(document.getElementById("withdrawAmount").value);
+  if (!amount || amount > currentBalance || amount < 0.5) {
+    showCyberAlert("INVALID WITHDRAWAL", "Check your balance and ensure the amount is at least 0.50 USDT.");
+    return;
+  }
+
+  currentBalance -= amount;
+  await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
+
+  closeModal("withdrawModal");
+  updateUI();
+  showCyberAlert("WITHDRAWAL SUBMITTED", `Your request to withdraw $${amount.toFixed(2)} USDT has been queued.`);
+}
+
+function showCyberAlert(title, message) {
+  document.getElementById("cyberAlertTitle").textContent = title;
+  document.getElementById("cyberAlertMessage").textContent = message;
+  openModal("cyberAlertModal");
+}
+   

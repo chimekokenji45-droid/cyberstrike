@@ -126,16 +126,29 @@
           <span>Wins: <strong class="text-slate-200" id="sprintWinsDisplay">0</strong></span>
           <span id="nextRewardLabel" class="text-emerald-400 font-semibold">NEXT REWARD: 2.00 USDT</span>
         </div>
-        <div class="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
-          <div id="sprintProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 w-0 transition-all duration-300"></div>
+        <div class="w-full h-2.5 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+          <div id="sprintProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 w-0 transition-all duration-500"></div>
         </div>
       </div>
 
-      <div class="grid grid-cols-4 gap-2 pt-1">
-        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">20 WINS</button>
-        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">50 WINS</button>
-        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">100 WINS</button>
-        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">1000 WINS</button>
+      <!-- Milestone Cards Container -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+          <span class="text-[10px] text-slate-400 font-['Orbitron']">20 WINS</span>
+          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$2.00 USDT</span>
+        </button>
+        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+          <span class="text-[10px] text-slate-400 font-['Orbitron']">50 WINS</span>
+          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$5.00 USDT</span>
+        </button>
+        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+          <span class="text-[10px] text-slate-400 font-['Orbitron']">100 WINS</span>
+          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$10.00 USDT</span>
+        </button>
+        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+          <span class="text-[10px] text-slate-400 font-['Orbitron']">1000 WINS</span>
+          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$100.00 USDT</span>
+        </button>
       </div>
     </div>
   </div>
@@ -173,7 +186,6 @@
           <p>Clicking proceed will redirect you securely to FaucetPay to complete your <span id="depositAmountDisplay">1.00 USDT</span> deposit.</p>
         </div>
 
-        <!-- FaucetPay Gateway Button -->
         <button onclick="initiateFaucetPayDeposit()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
           PROCEED TO PAYMENT GATEWAY
         </button>
@@ -228,7 +240,7 @@
     </div>
   </div>
 
-  <!-- Main Application Logic Script -->
   <script src="script.js"></script>
 </body>
-</html>
+            </html>
+      

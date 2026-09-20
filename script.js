@@ -3,8 +3,8 @@
    ========================================================================== */
 
 // --- 1. SUPABASE INITIALIZATION ---
-const SUPABASE_URL = "https://your-supabase-project.supabase.co";
-const SUPABASE_ANON_KEY = "your-supabase-anon-key";
+const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
 
 let supabaseClient = null;
 if (typeof supabase !== 'undefined' && SUPABASE_URL.indexOf("your-supabase") === -1) {

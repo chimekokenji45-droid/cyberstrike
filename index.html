@@ -133,19 +133,19 @@
 
       <!-- Milestone Cards Container -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
           <span class="text-[10px] text-slate-400 font-['Orbitron']">20 WINS</span>
           <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$2.00 USDT</span>
         </button>
-        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
           <span class="text-[10px] text-slate-400 font-['Orbitron']">50 WINS</span>
           <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$5.00 USDT</span>
         </button>
-        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
           <span class="text-[10px] text-slate-400 font-['Orbitron']">100 WINS</span>
           <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$10.00 USDT</span>
         </button>
-        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)" class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col items-center justify-center transition">
+        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
           <span class="text-[10px] text-slate-400 font-['Orbitron']">1000 WINS</span>
           <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$100.00 USDT</span>
         </button>
@@ -173,7 +173,7 @@
       <div class="space-y-4">
         <div>
           <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">AMOUNT (USDT)</label>
-          <input type="number" id="depositAmount" value="1.00" min="0.50" step="0.10" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-['Orbitron'] focus:border-cyan-500 focus:outline-none">
+          <input type="number" id="depositAmount" value="1.00" min="0.50" step="0.10" oninput="updateDepositDisplay()" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-['Orbitron'] focus:border-cyan-500 focus:outline-none">
         </div>
 
         <div>
@@ -242,5 +242,5 @@
 
   <script src="script.js"></script>
 </body>
-            </html>
-      
+        </html>
+            

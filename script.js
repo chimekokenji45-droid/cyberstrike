@@ -11,6 +11,7 @@ let currentUser = null;
 let currentBalance = 0.00;
 let currentStake = 0.50;
 let sprintWins = 0;
+let claimedMilestones = [];
 let isMatchmaking = false;
 let gameState = "IDLE";
 
@@ -27,19 +28,29 @@ window.addEventListener("DOMContentLoaded", async () => {
     currentUser = session.user;
     showApp();
   }
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
+      currentUser = session.user;
+      showApp();
+    } else {
+      currentUser = null;
+      document.getElementById("authGate").classList.remove("hidden");
+      document.getElementById("appContainer").classList.add("hidden");
+    }
+  });
 });
 
 async function handleLogin() {
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
-  const authMessage = document.getElementById("authMessage");
 
   if (!email || !password) {
     showAuthError("Please enter both email and password.");
     return;
   }
 
-  authMessage.classList.add("hidden");
+  hideAuthError();
 
   let { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -61,6 +72,10 @@ function showAuthError(msg) {
   const authMessage = document.getElementById("authMessage");
   authMessage.textContent = msg;
   authMessage.classList.remove("hidden");
+}
+
+function hideAuthError() {
+  document.getElementById("authMessage").classList.add("hidden");
 }
 
 async function showApp() {
@@ -92,7 +107,7 @@ async function fetchUserData() {
   if (error || !profile) {
     const { data: newProfile } = await supabase
       .from("profiles")
-      .insert([{ id: currentUser.id, balance: 0.00, sprint_wins: 0 }])
+      .insert([{ id: currentUser.id, balance: 0.00, sprint_wins: 0, claimed_milestones: [] }])
       .select()
       .single();
     profile = newProfile;
@@ -100,6 +115,7 @@ async function fetchUserData() {
 
   currentBalance = profile?.balance || 0.00;
   sprintWins = profile?.sprint_wins || 0;
+  claimedMilestones = profile?.claimed_milestones || [];
 
   updateUI();
 }
@@ -137,7 +153,7 @@ function selectStakeTier(amount) {
     `Entry Stake: $${amount.toFixed(2)} USDT. Winner takes $${netWin} USDT (20% rake).`;
 }
 
-function startMatchmaking() {
+async function startMatchmaking() {
   if (currentBalance < currentStake) {
     showCyberAlert("INSUFFICIENT BALANCE", `You need at least $${currentStake.toFixed(2)} USDT to enter this match.`);
     return;
@@ -146,8 +162,11 @@ function startMatchmaking() {
   isMatchmaking = true;
   document.getElementById("canvasOverlay").classList.add("hidden");
 
+  // Immediate balance deduction to prevent match-abandonment exploits
   currentBalance -= currentStake;
   updateUI();
+  
+  await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
 
   resetGameRound();
 }
@@ -162,7 +181,13 @@ let ball = { x: 300, y: 380, radius: 14, targetX: 300, targetY: 380, moving: fal
 let keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
 
 function initCanvas() {
-  canvas.addEventListener("click", handleCanvasClick);
+  canvas.addEventListener("click", handleInput);
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    handleInput(touch);
+  }, { passive: false });
+
   requestAnimationFrame(gameLoop);
 }
 
@@ -172,7 +197,7 @@ function resetGameRound() {
   keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
 }
 
-function handleCanvasClick(e) {
+function handleInput(e) {
   if (gameState !== "IDLE" || !isMatchmaking) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -220,7 +245,11 @@ function gameLoop() {
   }
   ctx.fillStyle = "#f43f5e";
   ctx.beginPath();
-  ctx.roundRect(keeper.x, keeper.y, keeper.width, keeper.height, 8);
+  if (ctx.roundRect) {
+    ctx.roundRect(keeper.x, keeper.y, keeper.width, keeper.height, 8);
+  } else {
+    ctx.rect(keeper.x, keeper.y, keeper.width, keeper.height);
+  }
   ctx.fill();
 
   // Ball animation
@@ -284,7 +313,13 @@ function updateSprintMilestones() {
     const btn = document.getElementById(m.btnId);
     if (!btn) return;
 
-    if (sprintWins >= m.wins) {
+    const isClaimed = claimedMilestones.includes(m.wins);
+
+    if (isClaimed) {
+      btn.disabled = true;
+      btn.className = "milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/40 opacity-50 cursor-not-allowed flex flex-col items-center justify-center";
+      btn.innerHTML = `<span class="text-[10px] text-slate-500 font-['Orbitron']">CLAIMED</span><span class="font-['Orbitron'] font-bold text-xs text-slate-500 mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
+    } else if (sprintWins >= m.wins) {
       btn.disabled = false;
       btn.className = "milestone-btn p-2 rounded-xl border border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold cursor-pointer transition shadow-lg shadow-emerald-500/10 flex flex-col items-center justify-center animate-pulse";
       btn.innerHTML = `<span class="text-[10px] font-['Orbitron']">CLAIM NOW</span><span class="font-['Orbitron'] font-bold text-xs mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
@@ -309,12 +344,18 @@ function updateSprintMilestones() {
 }
 
 async function claimMilestone(wins, reward) {
-  if (sprintWins < wins) return;
+  if (sprintWins < wins || claimedMilestones.includes(wins)) return;
 
+  claimedMilestones.push(wins);
   currentBalance += reward;
+
   showCyberAlert("REWARD CLAIMED!", `You added $${reward.toFixed(2)} USDT to your balance.`);
 
-  await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
+  await supabase.from("profiles").update({ 
+    balance: currentBalance,
+    claimed_milestones: claimedMilestones
+  }).eq("id", currentUser.id);
+
   updateUI();
 }
 
@@ -369,7 +410,11 @@ async function confirmWithdrawal() {
   }
 
   currentBalance -= amount;
+  
   await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
+  await supabase.from("withdrawals").insert([
+    { user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }
+  ]);
 
   closeModal("withdrawModal");
   updateUI();
@@ -380,5 +425,5 @@ function showCyberAlert(title, message) {
   document.getElementById("cyberAlertTitle").textContent = title;
   document.getElementById("cyberAlertMessage").textContent = message;
   openModal("cyberAlertModal");
-}
-   
+    }
+    

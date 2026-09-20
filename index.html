@@ -1,235 +1,741 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CYBERSTRIKE | 1v1 Arena</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;600;800;900&display=swap" rel="stylesheet">
-  <!-- Supabase Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="Nexus Faucet - Earn small USDT rewards every 30 minutes."
+  >
+
+  <meta
+    name="robots"
+    content="index, follow"
+  >
+
+  <title>Nexus Faucet — USDT Faucet</title>
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+
 </head>
-<body class="bg-slate-950 text-slate-100 font-['Inter'] antialiased min-h-screen flex flex-col">
 
-  <!-- AUTH GATE -->
-  <div id="authGate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-4">
-    <div class="w-full max-w-md p-8 bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 rounded-2xl shadow-2xl space-y-6">
-      <div class="text-center space-y-2">
-        <div class="inline-flex w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 items-center justify-center text-cyan-400 text-2xl shadow-lg">
-          <i class="fa-solid fa-gamepad"></i>
-        </div>
-        <h1 class="font-['Orbitron'] font-black text-2xl text-slate-100 tracking-wider">CYBERSTRIKE</h1>
-        <p class="text-xs text-slate-400">1v1 Penalty Shootout Arena</p>
-      </div>
 
-      <div id="authMessage" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs text-center font-medium"></div>
+<body>
 
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">EMAIL ADDRESS</label>
-          <input type="email" id="loginEmail" placeholder="player@domain.com" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-cyan-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">PASSWORD</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-cyan-500 focus:outline-none">
-        </div>
+  <!-- ================= HEADER ================= -->
 
-        <button id="loginButton" onclick="handleLogin()" class="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
-          LOGIN / ENTER ARENA
-        </button>
-      </div>
+  <header class="site-header">
+
+    <div class="header-content">
+
+      <a
+        href="#home"
+        class="logo"
+      >
+        Nexus Faucet
+      </a>
+
+      <nav class="navigation">
+
+        <a href="#home">
+          Home
+        </a>
+
+        <a href="#registerSection">
+          Register
+        </a>
+
+        <a href="#loginSection">
+          Login
+        </a>
+
+        <a
+          href="#accountSection"
+          id="dashboardLink"
+          style="display: none;"
+        >
+          Dashboard
+        </a>
+
+      </nav>
+
     </div>
-  </div>
 
-  <!-- MAIN APP CONTAINER -->
-  <div id="appContainer" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full p-4 space-y-4">
-    <!-- Header -->
-    <header class="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl backdrop-blur-md">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-          <i class="fa-solid fa-bolt"></i>
+  </header>
+
+
+  <!-- ================= MAIN ================= -->
+
+  <main id="home">
+
+
+    <!-- ================= HERO ================= -->
+
+    <section class="hero-section">
+
+      <div class="hero-content">
+
+        <h1>
+          Earn Free USDT
+        </h1>
+
+        <p>
+          Claim small USDT rewards every 30 minutes
+          and earn even more by referring friends.
+        </p>
+
+        <div class="hero-buttons">
+
+          <a
+            href="#registerSection"
+            class="primary-button"
+          >
+            Get Started
+          </a>
+
+          <a
+            href="#loginSection"
+            class="secondary-button"
+          >
+            Login
+          </a>
+
         </div>
-        <div>
-          <h2 class="font-['Orbitron'] font-bold text-sm tracking-wider text-slate-100">CYBERSTRIKE</h2>
-          <p class="text-[10px] text-emerald-400 font-bold uppercase">Live Arena</p>
-        </div>
+
       </div>
 
-      <div class="flex items-center gap-2">
-        <div class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-wallet text-cyan-400 text-xs"></i>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-100">$<span id="userBalanceDisplay">0.00</span></span>
+    </section>
+
+
+    <!-- ================= FEATURES ================= -->
+
+    <section class="features-section">
+
+      <div class="section-heading">
+
+        <h2>
+          Why Use Nexus Faucet?
+        </h2>
+
+        <p>
+          Start earning USDT with simple faucet claims.
+        </p>
+
+      </div>
+
+
+      <div class="features-grid">
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            💰
+          </div>
+
+          <h3>
+            Earn USDT
+          </h3>
+
+          <p>
+            Claim free USDT rewards every 30 minutes.
+          </p>
+
         </div>
-        <button onclick="openModal('depositModal')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 font-['Orbitron'] font-bold text-xs hover:bg-cyan-500/30 transition">
-          DEPOSIT
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            ⏱️
+          </div>
+
+          <h3>
+            Easy Claims
+          </h3>
+
+          <p>
+            Come back after the cooldown and claim again.
+          </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            👥
+          </div>
+
+          <h3>
+            Referrals
+          </h3>
+
+          <p>
+            Invite friends and earn 20% referral commission.
+          </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            🏆
+          </div>
+
+          <h3>
+            Achievements
+          </h3>
+
+          <p>
+            Reach milestones and unlock additional bonuses.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= REGISTER ================= -->
+
+    <section
+      id="registerSection"
+      class="auth-section"
+    >
+
+      <div class="auth-card">
+
+        <h2>
+          Create Your Account
+        </h2>
+
+        <p>
+          Register to start earning USDT.
+        </p>
+
+
+        <form id="registerForm">
+
+          <div class="input-group">
+
+            <label for="registerEmail">
+              Email Address
+            </label>
+
+            <input
+              type="email"
+              id="registerEmail"
+              placeholder="Enter your email"
+              autocomplete="email"
+              required
+            >
+
+          </div>
+
+
+          <div class="input-group">
+
+            <label for="registerPassword">
+              Password
+            </label>
+
+            <input
+              type="password"
+              id="registerPassword"
+              placeholder="Create a password"
+              autocomplete="new-password"
+              required
+            >
+
+          </div>
+
+
+          <div class="input-group">
+
+            <label for="registerReferral">
+              Referral Code
+              <span>(Optional)</span>
+            </label>
+
+            <input
+              type="text"
+              id="registerReferral"
+              placeholder="Enter referral code"
+            >
+
+          </div>
+
+
+          <button
+            type="submit"
+            id="registerButton"
+            class="auth-button"
+          >
+            REGISTER
+          </button>
+
+        </form>
+
+
+        <p class="auth-switch">
+
+          Already have an account?
+
+          <a href="#loginSection">
+            Login here
+          </a>
+
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= LOGIN ================= -->
+
+    <section
+      id="loginSection"
+      class="auth-section"
+    >
+
+      <div class="auth-card">
+
+        <h2>
+          Welcome Back
+        </h2>
+
+        <p>
+          Login to your Nexus Faucet account.
+        </p>
+
+
+        <form id="loginForm">
+
+          <div class="input-group">
+
+            <label for="loginEmail">
+              Email Address
+            </label>
+
+            <input
+              type="email"
+              id="loginEmail"
+              placeholder="Enter your email"
+              autocomplete="email"
+              required
+            >
+
+          </div>
+
+
+          <div class="input-group">
+
+            <label for="loginPassword">
+              Password
+            </label>
+
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            >
+
+          </div>
+
+
+          <button
+            type="submit"
+            id="loginButton"
+            class="auth-button"
+          >
+            LOGIN
+          </button>
+
+        </form>
+
+
+        <p class="auth-switch">
+
+          Don't have an account?
+
+          <a href="#registerSection">
+            Register here
+          </a>
+
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= HOW IT WORKS ================= -->
+
+    <section class="how-section">
+
+      <div class="section-heading">
+
+        <h2>
+          How It Works
+        </h2>
+
+      </div>
+
+
+      <div class="steps-grid">
+
+        <div class="step-card">
+
+          <div class="step-number">
+            1
+          </div>
+
+          <h3>
+            Register
+          </h3>
+
+          <p>
+            Create your free Nexus Faucet account.
+          </p>
+
+        </div>
+
+
+        <div class="step-card">
+
+          <div class="step-number">
+            2
+          </div>
+
+          <h3>
+            Claim
+          </h3>
+
+          <p>
+            Claim your USDT reward when the timer is ready.
+          </p>
+
+        </div>
+
+
+        <div class="step-card">
+
+          <div class="step-number">
+            3
+          </div>
+
+          <h3>
+            Withdraw
+          </h3>
+
+          <p>
+            Reach the minimum withdrawal amount and request your payout.
+          </p>
+
+        </div>
+
+
+        <div class="step-card">
+
+          <div class="step-number">
+            4
+          </div>
+
+          <h3>
+            Refer
+          </h3>
+
+          <p>
+            Invite friends and earn referral commissions.
+          </p>
+
+        </div>
+
+      </div>
+
+              </section>
+              <!-- =========================================================
+     NEXUS FAUCET
+     INDEX.HTML
+     PART 2 OF 2
+========================================================= -->
+
+    <!-- ================= ACCOUNT SECTION ================= -->
+
+    <section
+      id="accountSection"
+      class="account-section"
+      style="display: none;"
+    >
+
+      <div class="account-header">
+
+        <div>
+          <h2>My Account</h2>
+
+          <p>
+            Welcome back,
+            <strong id="accountEmail"></strong>
+          </p>
+        </div>
+
+        <button
+          type="button"
+          id="logoutButton"
+          class="logout-button"
+        >
+          Logout
         </button>
-        <button onclick="openModal('withdrawModal')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-['Orbitron'] font-bold text-xs hover:bg-slate-700 transition">
+
+      </div>
+
+
+      <!-- ================= BALANCE ================= -->
+
+      <div class="balance-card">
+
+        <h3>Your Balance</h3>
+
+        <div
+          id="balance"
+          class="balance"
+        >
+          0.00000000 USDT
+        </div>
+
+      </div>
+
+
+      <!-- ================= CLAIM ================= -->
+
+      <div class="claim-card">
+
+        <h3>USDT Faucet</h3>
+
+        <p>
+          Claim your free USDT reward every 30 minutes.
+        </p>
+
+        <button
+          type="button"
+          id="claimButton"
+          class="claim-button"
+        >
+          CLAIM NOW
+        </button>
+
+        <div
+          id="countdown"
+          class="countdown"
+        >
+          READY TO CLAIM
+        </div>
+
+      </div>
+
+
+      <!-- ================= WITHDRAW ================= -->
+
+      <div class="withdraw-card">
+
+        <h3>Withdraw USDT</h3>
+
+        <p>
+          Minimum withdrawal:
+          <strong>0.00050000 USDT</strong>
+        </p>
+
+        <div class="input-group">
+
+          <label for="withdrawAmount">
+            Withdrawal Amount
+          </label>
+
+          <input
+            type="number"
+            id="withdrawAmount"
+            placeholder="0.00050000"
+            min="0.00050000"
+            step="0.00000001"
+          >
+
+        </div>
+
+
+        <div class="input-group">
+
+          <label for="faucetEmail">
+            FaucetPay Email
+          </label>
+
+          <input
+            type="email"
+            id="faucetEmail"
+            placeholder="Your FaucetPay email"
+          >
+
+        </div>
+
+
+        <button
+          type="button"
+          id="withdrawButton"
+          class="withdraw-button"
+        >
           WITHDRAW
         </button>
-        <button onclick="logout()" class="p-2 text-slate-400 hover:text-rose-400 transition" title="Logout">
-          <i class="fa-solid fa-right-from-bracket"></i>
-        </button>
-      </div>
-    </header>
 
-    <!-- Stake Tiers -->
-    <div class="grid grid-cols-3 gap-2">
-      <button id="stakeTier-0.5" onclick="selectStakeTier(0.5)" class="stake-tier-btn p-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/50 transition text-center">
-        <p class="text-[10px] text-slate-400 font-['Orbitron']">STAKE</p>
-        <p class="font-['Orbitron'] font-bold text-sm text-slate-100 mt-0.5">$0.50</p>
-      </button>
-      <button id="stakeTier-1.0" onclick="selectStakeTier(1.0)" class="stake-tier-btn p-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/50 transition text-center">
-        <p class="text-[10px] text-slate-400 font-['Orbitron']">STAKE</p>
-        <p class="font-['Orbitron'] font-bold text-sm text-slate-100 mt-0.5">$1.00</p>
-      </button>
-      <button id="stakeTier-5.0" onclick="selectStakeTier(5.0)" class="stake-tier-btn p-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/50 transition text-center">
-        <p class="text-[10px] text-slate-400 font-['Orbitron']">STAKE</p>
-        <p class="font-['Orbitron'] font-bold text-sm text-slate-100 mt-0.5">$5.00</p>
-      </button>
-    </div>
-
-    <!-- Game Arena Container -->
-    <div class="relative w-full aspect-[4/3] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center justify-center">
-      <canvas id="gameCanvas" width="600" height="450" class="w-full h-full object-cover cursor-pointer"></canvas>
-
-      <!-- Canvas Overlay / Matchmaking Screen -->
-      <div id="canvasOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
-        <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-2xl shadow-lg">
-          <i class="fa-solid fa-futbol"></i>
-        </div>
-        <div>
-          <h3 class="font-['Orbitron'] font-extrabold text-xl text-slate-100 tracking-wider">PENALTY SHOOTOUT</h3>
-          <p id="matchOverlayDesc" class="text-xs text-slate-400 mt-1 max-w-xs">Select your stake and enter matchmaking to duel an opponent.</p>
-        </div>
-        <button onclick="startMatchmaking()" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg flex items-center gap-2">
-          <i class="fa-solid fa-play"></i> FIND MATCH
-        </button>
-      </div>
-    </div>
-
-    <!-- Weekly Sprint Section -->
-    <div class="p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl backdrop-blur-md space-y-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-trophy text-amber-400"></i>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-100">WEEKLY SPRINT</span>
-        </div>
-        <span id="sprintCountdown" class="text-xs font-mono text-cyan-400">00d 00h 00m 00s</span>
       </div>
 
-      <div class="space-y-1.5">
-        <div class="flex justify-between text-xs text-slate-400">
-          <span>Wins: <strong class="text-slate-200" id="sprintWinsDisplay">0</strong></span>
-          <span id="nextRewardLabel" class="text-emerald-400 font-semibold">NEXT REWARD: 2.00 USDT</span>
+
+      <!-- ================= REFERRAL ================= -->
+
+      <div class="referral-card">
+
+        <h3>Referral Program</h3>
+
+        <p>
+          Invite friends and earn
+          <strong>20%</strong>
+          of their faucet rewards.
+        </p>
+
+
+        <div class="input-group">
+
+          <label for="referralLink">
+            Your Referral Link
+          </label>
+
+          <input
+            type="text"
+            id="referralLink"
+            readonly
+          >
+
         </div>
-        <div class="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
-          <div id="sprintProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 w-0 transition-all duration-300"></div>
+
+
+        <div class="referral-count">
+
+          <span>
+            Referrals:
+          </span>
+
+          <strong id="referralCount">
+            0
+          </strong>
+
         </div>
+
       </div>
 
-      <div class="grid grid-cols-4 gap-2 pt-1">
-        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">20 WINS</button>
-        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">50 WINS</button>
-        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">100 WINS</button>
-        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-500 cursor-not-allowed">1000 WINS</button>
+
+      <!-- ================= ACHIEVEMENT ================= -->
+
+      <div class="achievement-card">
+
+        <h3>Achievement</h3>
+
+        <p>
+          Reach
+          <strong>5.00000000 USDT</strong>
+          in faucet earnings to receive an extra
+          <strong>5.00000000 USDT</strong>
+          bonus.
+        </p>
+
+        <div class="achievement-progress">
+
+          <div
+            id="achievementProgress"
+            class="achievement-progress-bar"
+            style="width: 0%;"
+          ></div>
+
+        </div>
+
+        <p
+          id="achievementText"
+          class="achievement-text"
+        >
+          0.00000000 / 5.00000000 USDT
+        </p>
+
       </div>
-    </div>
-  </div>
 
-  <!-- DEPOSIT MODAL -->
-  <div id="depositModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="relative w-full max-w-md p-6 bg-slate-900 border border-cyan-500/30 rounded-2xl shadow-2xl">
-      <button onclick="closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
 
-      <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-          <i class="fa-solid fa-qrcode"></i>
+      <!-- ================= MESSAGE ================= -->
+
+      <div
+        id="message"
+        class="message"
+        style="display: none;"
+      ></div>
+
+    </section>
+
+
+    <!-- ================= FOOTER ================= -->
+
+    <footer class="site-footer">
+
+      <div class="footer-content">
+
+        <h3>Nexus Faucet</h3>
+
+        <p>
+          Earn small USDT rewards by using Nexus Faucet.
+        </p>
+
+        <div class="footer-links">
+
+          <a href="#home">
+            Home
+          </a>
+
+          <a href="#accountSection">
+            Dashboard
+          </a>
+
+          <a href="#registerSection">
+            Register
+          </a>
+
+          <a href="#loginSection">
+            Login
+          </a>
+
         </div>
-        <div>
-          <h3 class="font-['Orbitron'] font-bold text-lg text-slate-100">DEPOSIT USDT</h3>
-          <p class="text-xs text-slate-400">Direct FaucetPay / Crypto Transfer</p>
-        </div>
+
+        <p class="copyright">
+          © 2026 Nexus Faucet. All rights reserved.
+        </p>
+
       </div>
 
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">AMOUNT (USDT)</label>
-          <input type="number" id="depositAmount" value="1.00" min="0.50" step="0.10" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-['Orbitron'] focus:border-cyan-500 focus:outline-none">
-        </div>
+    </footer>
 
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">YOUR USER ID MEMO</label>
-          <input type="text" id="depositUserId" readonly class="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800/80 text-slate-400 font-mono text-xs select-all">
-        </div>
+    <!-- ================= JAVASCRIPT ================= -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="script.js"></script>
 
-        <div class="p-3.5 rounded-xl bg-cyan-500/5 border border-cyan-500/20 text-xs text-slate-300 space-y-1">
-          <p class="font-bold text-cyan-400 font-['Orbitron']">Deposit Instructions:</p>
-          <p>Clicking proceed will redirect you securely to FaucetPay to complete your <span id="depositAmountDisplay">1.00 USDT</span> deposit.</p>
-        </div>
+  </body>
 
-        <!-- FaucetPay Gateway Button -->
-        <button onclick="initiateFaucetPayDeposit()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
-          PROCEED TO PAYMENT GATEWAY
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- WITHDRAW MODAL -->
-  <div id="withdrawModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="relative w-full max-w-md p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl space-y-4">
-      <button onclick="closeModal('withdrawModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-          <i class="fa-solid fa-wallet"></i>
-        </div>
-        <div>
-          <h3 class="font-['Orbitron'] font-bold text-lg text-slate-100">WITHDRAW FUNDS</h3>
-          <p class="text-xs text-slate-400">Available: <span id="withdrawBalanceDisplay" class="text-emerald-400 font-bold">0.00 USDT</span></p>
-        </div>
-      </div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">FAUCETPAY EMAIL</label>
-          <input type="email" id="withdrawEmail" readonly class="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800 text-slate-400 text-xs select-all">
-        </div>
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">AMOUNT (USDT)</label>
-          <input type="number" id="withdrawAmount" placeholder="0.50" min="0.50" step="0.10" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-['Orbitron'] focus:border-cyan-500 focus:outline-none">
-        </div>
-        <button onclick="confirmWithdrawal()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
-          CONFIRM WITHDRAWAL
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- CYBER ALERT MODAL -->
-  <div id="cyberAlertModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="relative w-full max-w-sm p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl text-center space-y-4">
-      <div class="w-12 h-12 mx-auto rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl">
-        <i id="cyberAlertIcon" class="fa-solid fa-triangle-exclamation"></i>
-      </div>
-      <div class="space-y-1">
-        <h3 id="cyberAlertTitle" class="font-['Orbitron'] font-bold text-base text-slate-100">NOTICE</h3>
-        <p id="cyberAlertMessage" class="text-xs text-slate-400"></p>
-      </div>
-      <button onclick="closeModal('cyberAlertModal')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-['Orbitron'] font-bold text-xs text-slate-200 transition">
-        DISMISS
-      </button>
-    </div>
-  </div>
-
-  <!-- Main Application Logic Script -->
-  <script src="script.js"></script>
-</body>
   </html>
-        

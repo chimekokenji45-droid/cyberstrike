@@ -101,7 +101,7 @@ async function handleLogin() {
       // Fallback if Supabase is offline
       await new Promise(res => setTimeout(res, 800));
       state.user = { id: "usr_" + Math.random().toString(36).substr(2, 9), email: emailInput };
-      state.balance = 0.00; // Reset fallback balance to 0.00
+      state.balance = 0.00; 
     }
 
     // Success: Hide Auth Gate and Show App
@@ -115,7 +115,6 @@ async function handleLogin() {
   } catch (err) {
     showAuthError(err.message || "Failed to log in. Check credentials.");
   } finally {
-    // Correctly restores button state (no crash!)
     loginBtn.innerText = "LOGIN / ENTER ARENA";
     loginBtn.disabled = false;
   }
@@ -132,6 +131,44 @@ function logout() {
   state.user = null;
   document.getElementById("appContainer").classList.add("hidden");
   document.getElementById("authGate").classList.remove("hidden");
+}
+
+// --- 4.1 FAUCETPAY DEPOSIT HANDLER ---
+function initiateFaucetPayDeposit() {
+  const amount = parseFloat(document.getElementById("depositAmount").value);
+  
+  if (!amount || amount <= 0) {
+    showCyberAlert("INVALID AMOUNT", "Please enter a valid deposit amount.");
+    return;
+  }
+
+  // REPLACE WITH YOUR ACTUAL FAUCETPAY USERNAME / MERCHANT CODE
+  const merchantUsername = "YOUR_MERCHANT_USERNAME"; 
+  
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "https://faucetpay.io/merchant/webcoins";
+
+  const fields = {
+    merchant_username: merchantUsername,
+    item_description: "CyberStrike Arena Deposit",
+    amount1: amount.toFixed(2),
+    currency1: "USDT",
+    custom: state.user ? state.user.id : "", 
+    success_url: window.location.origin + "?payment=success",
+    cancel_url: window.location.origin + "?payment=cancel"
+  };
+
+  for (const key in fields) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = fields[key];
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
 }
 
 // --- 5. UI & STATE UPDATERS ---
@@ -262,7 +299,6 @@ function initPenaltyGame() {
 function updatePenaltyGame() {
   if (!gameObject) return;
 
-  // Move Goalkeeper
   gameObject.goalKeeperX += gameObject.goalKeeperSpeed * gameObject.goalKeeperDir;
   if (gameObject.goalKeeperX > canvas.width / 2 + 260 || gameObject.goalKeeperX < canvas.width / 2 - 260) {
     gameObject.goalKeeperDir *= -1;
@@ -304,7 +340,6 @@ function renderPenaltyGame() {
   ctx.lineWidth = 6;
   ctx.strokeRect(goalLeft, goalTop, 600, 220);
 
-  // Net Pattern
   ctx.strokeStyle = "rgba(6, 182, 212, 0.15)";
   ctx.lineWidth = 1;
   for (let x = goalLeft; x <= goalRight; x += 30) {
@@ -320,14 +355,12 @@ function renderPenaltyGame() {
     ctx.stroke();
   }
 
-  // Goalkeeper
   ctx.fillStyle = "#f43f5e";
   ctx.shadowColor = "#f43f5e";
   ctx.shadowBlur = 15;
   ctx.fillRect(gameObject.goalKeeperX - 35, goalBottom - 70, 70, 70);
   ctx.shadowBlur = 0;
 
-  // Aiming Reticle
   if (gameObject.state === 'aiming') {
     ctx.strokeStyle = "#10b981";
     ctx.lineWidth = 3;
@@ -346,7 +379,6 @@ function renderPenaltyGame() {
     ctx.fillText("CLICK CANVAS TO STRIKE", canvas.width / 2, canvas.height - 20);
   }
 
-  // Ball
   ctx.fillStyle = "#38bdf8";
   ctx.shadowColor = "#38bdf8";
   ctx.shadowBlur = 15;

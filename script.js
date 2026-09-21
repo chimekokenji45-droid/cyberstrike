@@ -1,12 +1,11 @@
 // ------------------------------------------
-// 1. CONFIGURATION
+// 1. CONFIGURATION & INITIALIZATION
 // ------------------------------------------
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
 const FAUCETPAY_MERCHANT_USERNAME = "YOUR_FAUCETPAY_USERNAME";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+let supabase = null;
 let currentUser = null;
 let currentBalance = 0.00;
 let currentStake = 0.50;
@@ -15,35 +14,68 @@ let claimedMilestones = [];
 let isMatchmaking = false;
 let gameState = "IDLE";
 
+// Canvas variables
+let canvas = null;
+let ctx = null;
+let ball = { x: 300, y: 380, radius: 14, targetX: 300, targetY: 380, moving: false };
+let keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
+
+// Safe initialization function
+function initSupabase() {
+  if (
+    typeof window.supabase !== "undefined" && 
+    SUPABASE_URL && 
+    SUPABASE_URL !== "YOUR_SUPABASE_URL" && 
+    SUPABASE_URL.startsWith("https://")
+  ) {
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+      console.warn("Supabase client init failed:", e);
+      supabase = null;
+    }
+  }
+}
+
 // ------------------------------------------
-// 2. AUTHENTICATION & INITIALIZATION
+// 2. AUTHENTICATION & LIFECYCLE
 // ------------------------------------------
 window.addEventListener("DOMContentLoaded", async () => {
+  initSupabase();
   initCanvas();
   selectStakeTier(0.50);
   startSprintCountdown();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    showApp();
-  }
+  if (supabase) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        await showApp();
+      }
 
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
-      currentUser = session.user;
-      showApp();
-    } else {
-      currentUser = null;
-      document.getElementById("authGate").classList.remove("hidden");
-      document.getElementById("appContainer").classList.add("hidden");
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+          currentUser = session.user;
+          await showApp();
+        } else {
+          currentUser = null;
+          document.getElementById("authGate")?.classList.remove("hidden");
+          document.getElementById("appContainer")?.classList.add("hidden");
+        }
+      });
+    } catch (err) {
+      console.warn("Auth check error:", err);
     }
-  });
+  }
 });
 
 async function handleLogin() {
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value.trim();
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+
+  const email = emailInput ? emailInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value.trim() : "";
 
   if (!email || !password) {
     showAuthError("Please enter both email and password.");
@@ -52,43 +84,75 @@ async function handleLogin() {
 
   hideAuthError();
 
-  let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    const signup = await supabase.auth.signUp({ email, password });
-    if (signup.error) {
-      showAuthError(signup.error.message);
-      return;
-    }
-    currentUser = signup.data.user;
-  } else {
-    currentUser = data.user;
+  // Demo Fallback if Supabase credentials are not configured yet
+  if (!supabase) {
+    currentUser = { id: "demo-user-123", email: email };
+    await showApp();
+    return;
   }
 
-  showApp();
+  try {
+    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      const signup = await supabase.auth.signUp({ email, password });
+      
+      if (signup.error) {
+        showAuthError(signup.error.message);
+        return;
+      }
+
+      if (!signup.data.session) {
+        showAuthError("Account created! Please check your email to confirm registration or turn off 'Confirm email' in Supabase.");
+        return;
+      }
+      
+      currentUser = signup.data.user;
+    } else {
+      currentUser = data.user;
+    }
+
+    if (currentUser) {
+      await showApp();
+    }
+  } catch (err) {
+    showAuthError(err.message || "Login failed.");
+  }
 }
 
 function showAuthError(msg) {
   const authMessage = document.getElementById("authMessage");
-  authMessage.textContent = msg;
-  authMessage.classList.remove("hidden");
+  if (authMessage) {
+    authMessage.textContent = msg;
+    authMessage.classList.remove("hidden");
+  }
 }
 
 function hideAuthError() {
-  document.getElementById("authMessage").classList.add("hidden");
+  const authMessage = document.getElementById("authMessage");
+  if (authMessage) {
+    authMessage.classList.add("hidden");
+  }
 }
 
 async function showApp() {
-  document.getElementById("authGate").classList.add("hidden");
-  document.getElementById("appContainer").classList.remove("hidden");
-  document.getElementById("depositUserId").value = currentUser.id;
-  document.getElementById("withdrawEmail").value = currentUser.email;
+  document.getElementById("authGate")?.classList.add("hidden");
+  document.getElementById("appContainer")?.classList.remove("hidden");
+
+  if (currentUser) {
+    const depUser = document.getElementById("depositUserId");
+    const withEmail = document.getElementById("withdrawEmail");
+    if (depUser) depUser.value = currentUser.id;
+    if (withEmail) withEmail.value = currentUser.email || "";
+  }
 
   await fetchUserData();
 }
 
 async function logout() {
-  await supabase.auth.signOut();
+  if (supabase) {
+    await supabase.auth.signOut();
+  }
   window.location.reload();
 }
 
@@ -98,32 +162,64 @@ async function logout() {
 async function fetchUserData() {
   if (!currentUser) return;
 
-  let { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", currentUser.id)
-    .single();
+  if (supabase) {
+    try {
+      let { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", currentUser.id)
+        .single();
 
-  if (error || !profile) {
-    const { data: newProfile } = await supabase
-      .from("profiles")
-      .insert([{ id: currentUser.id, balance: 0.00, sprint_wins: 0, claimed_milestones: [] }])
-      .select()
-      .single();
-    profile = newProfile;
+      if (error || !profile) {
+        const { data: newProfile } = await supabase
+          .from("profiles")
+          .insert([{ id: currentUser.id, balance: 0.00, sprint_wins: 0, claimed_milestones: [] }])
+          .select()
+          .single();
+        profile = newProfile;
+      }
+
+      currentBalance = parseFloat(profile?.balance) || 0.00;
+      sprintWins = parseInt(profile?.sprint_wins) || 0;
+      claimedMilestones = profile?.claimed_milestones || [];
+    } catch (e) {
+      console.warn("Supabase fetch failed:", e);
+    }
+  } else {
+    // Local persistence for Demo mode
+    const local = JSON.parse(localStorage.getItem(`cyber_${currentUser.id}`) || "{}");
+    currentBalance = local.balance !== undefined ? local.balance : 10.00;
+    sprintWins = local.sprintWins || 0;
+    claimedMilestones = local.claimedMilestones || [];
   }
-
-  currentBalance = profile?.balance || 0.00;
-  sprintWins = profile?.sprint_wins || 0;
-  claimedMilestones = profile?.claimed_milestones || [];
 
   updateUI();
 }
 
+async function saveUserData() {
+  if (supabase && currentUser) {
+    await supabase.from("profiles").update({ 
+      balance: currentBalance, 
+      sprint_wins: sprintWins,
+      claimed_milestones: claimedMilestones
+    }).eq("id", currentUser.id);
+  } else if (currentUser) {
+    localStorage.setItem(`cyber_${currentUser.id}`, JSON.stringify({
+      balance: currentBalance,
+      sprintWins: sprintWins,
+      claimedMilestones: claimedMilestones
+    }));
+  }
+}
+
 function updateUI() {
-  document.getElementById("userBalanceDisplay").textContent = currentBalance.toFixed(2);
-  document.getElementById("withdrawBalanceDisplay").textContent = `${currentBalance.toFixed(2)} USDT`;
-  document.getElementById("sprintWinsDisplay").textContent = sprintWins;
+  const balDisp = document.getElementById("userBalanceDisplay");
+  const withDisp = document.getElementById("withdrawBalanceDisplay");
+  const winsDisp = document.getElementById("sprintWinsDisplay");
+
+  if (balDisp) balDisp.textContent = currentBalance.toFixed(2);
+  if (withDisp) withDisp.textContent = `${currentBalance.toFixed(2)} USDT`;
+  if (winsDisp) winsDisp.textContent = sprintWins;
 
   updateSprintMilestones();
 }
@@ -149,8 +245,10 @@ function selectStakeTier(amount) {
   }
 
   const netWin = (amount * 2 * 0.8).toFixed(2);
-  document.getElementById("matchOverlayDesc").textContent = 
-    `Entry Stake: $${amount.toFixed(2)} USDT. Winner takes $${netWin} USDT (20% rake).`;
+  const desc = document.getElementById("matchOverlayDesc");
+  if (desc) {
+    desc.textContent = `Entry Stake: $${amount.toFixed(2)} USDT. Winner takes $${netWin} USDT (20% rake).`;
+  }
 }
 
 async function startMatchmaking() {
@@ -160,27 +258,23 @@ async function startMatchmaking() {
   }
 
   isMatchmaking = true;
-  document.getElementById("canvasOverlay").classList.add("hidden");
+  document.getElementById("canvasOverlay")?.classList.add("hidden");
 
-  // Immediate balance deduction to prevent match-abandonment exploits
   currentBalance -= currentStake;
   updateUI();
   
-  await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
-
+  await saveUserData();
   resetGameRound();
 }
 
 // ------------------------------------------
 // 5. CANVAS GAME ENGINE
 // ------------------------------------------
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-let ball = { x: 300, y: 380, radius: 14, targetX: 300, targetY: 380, moving: false };
-let keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
-
 function initCanvas() {
+  canvas = document.getElementById("gameCanvas");
+  if (!canvas) return;
+  ctx = canvas.getContext("2d");
+
   canvas.addEventListener("click", handleInput);
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
@@ -198,7 +292,7 @@ function resetGameRound() {
 }
 
 function handleInput(e) {
-  if (gameState !== "IDLE" || !isMatchmaking) return;
+  if (gameState !== "IDLE" || !isMatchmaking || !canvas) return;
 
   const rect = canvas.getBoundingClientRect();
   const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -216,6 +310,8 @@ function handleInput(e) {
 }
 
 function gameLoop() {
+  if (!ctx || !canvas) return;
+
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -286,18 +382,14 @@ async function evaluateShootout() {
       showCyberAlert("SAVED!", "The goalkeeper blocked your shot. Better luck next match!");
     }
 
-    await supabase.from("profiles").update({ 
-      balance: currentBalance, 
-      sprint_wins: sprintWins 
-    }).eq("id", currentUser.id);
-
+    await saveUserData();
     updateUI();
-    document.getElementById("canvasOverlay").classList.remove("hidden");
+    document.getElementById("canvasOverlay")?.classList.remove("hidden");
   }, 500);
 }
 
 // ------------------------------------------
-// 6. WEEKLY SPRINT & MILESTONE RENDERING
+// 6. WEEKLY SPRINT & MILESTONES
 // ------------------------------------------
 function updateSprintMilestones() {
   const milestones = [
@@ -335,12 +427,16 @@ function updateSprintMilestones() {
   });
 
   const currentMilestone = milestones.find(m => m.wins === currentTarget);
-  if (currentMilestone) {
-    document.getElementById("nextRewardLabel").textContent = `NEXT REWARD: ${currentMilestone.reward.toFixed(2)} USDT`;
+  const nextRewardLabel = document.getElementById("nextRewardLabel");
+  if (currentMilestone && nextRewardLabel) {
+    nextRewardLabel.textContent = `NEXT REWARD: ${currentMilestone.reward.toFixed(2)} USDT`;
   }
 
-  const progressPercent = Math.min(100, (sprintWins / currentTarget) * 100);
-  document.getElementById("sprintProgressBar").style.width = `${progressPercent}%`;
+  const progressBar = document.getElementById("sprintProgressBar");
+  if (progressBar) {
+    const progressPercent = Math.min(100, (sprintWins / currentTarget) * 100);
+    progressBar.style.width = `${progressPercent}%`;
+  }
 }
 
 async function claimMilestone(wins, reward) {
@@ -351,11 +447,7 @@ async function claimMilestone(wins, reward) {
 
   showCyberAlert("REWARD CLAIMED!", `You added $${reward.toFixed(2)} USDT to your balance.`);
 
-  await supabase.from("profiles").update({ 
-    balance: currentBalance,
-    claimed_milestones: claimedMilestones
-  }).eq("id", currentUser.id);
-
+  await saveUserData();
   updateUI();
 }
 
@@ -372,8 +464,10 @@ function startSprintCountdown() {
     const mins = Math.floor((diff / 1000 / 60) % 60);
     const secs = Math.floor((diff / 1000) % 60);
 
-    document.getElementById("sprintCountdown").textContent = 
-      `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+    const countdownEl = document.getElementById("sprintCountdown");
+    if (countdownEl) {
+      countdownEl.textContent = `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+    }
   }
 
   updateTimer();
@@ -381,29 +475,32 @@ function startSprintCountdown() {
 }
 
 // ------------------------------------------
-// 7. MODALS & PAYMENT GATEWAY
+// 7. MODALS & PAYMENTS
 // ------------------------------------------
 function openModal(id) {
-  document.getElementById(id).classList.remove("hidden");
+  document.getElementById(id)?.classList.remove("hidden");
 }
 
 function closeModal(id) {
-  document.getElementById(id).classList.add("hidden");
+  document.getElementById(id)?.classList.add("hidden");
 }
 
 function initiateFaucetPayDeposit() {
-  const amount = parseFloat(document.getElementById("depositAmount").value);
+  const amountInput = document.getElementById("depositAmount");
+  const amount = parseFloat(amountInput ? amountInput.value : "0");
   if (!amount || amount < 0.5) {
     showCyberAlert("INVALID AMOUNT", "Minimum deposit is 0.50 USDT.");
     return;
   }
 
-  const checkoutUrl = `https://faucetpay.io/merchant/webpay?merchant_username=${FAUCETPAY_MERCHANT_USERNAME}&item_name=Cyberstrike+Deposit&currency1=USDT&amount1=${amount}&custom=${currentUser.id}`;
+  const userId = currentUser ? currentUser.id : "demo";
+  const checkoutUrl = `https://faucetpay.io/merchant/webpay?merchant_username=${FAUCETPAY_MERCHANT_USERNAME}&item_name=Cyberstrike+Deposit&currency1=USDT&amount1=${amount}&custom=${userId}`;
   window.open(checkoutUrl, "_blank");
 }
 
 async function confirmWithdrawal() {
-  const amount = parseFloat(document.getElementById("withdrawAmount").value);
+  const amountInput = document.getElementById("withdrawAmount");
+  const amount = parseFloat(amountInput ? amountInput.value : "0");
   if (!amount || amount > currentBalance || amount < 0.5) {
     showCyberAlert("INVALID WITHDRAWAL", "Check your balance and ensure the amount is at least 0.50 USDT.");
     return;
@@ -411,10 +508,17 @@ async function confirmWithdrawal() {
 
   currentBalance -= amount;
   
-  await supabase.from("profiles").update({ balance: currentBalance }).eq("id", currentUser.id);
-  await supabase.from("withdrawals").insert([
-    { user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }
-  ]);
+  await saveUserData();
+
+  if (supabase && currentUser) {
+    try {
+      await supabase.from("withdrawals").insert([
+        { user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }
+      ]);
+    } catch (e) {
+      console.warn("Failed to record withdrawal:", e);
+    }
+  }
 
   closeModal("withdrawModal");
   updateUI();
@@ -422,8 +526,10 @@ async function confirmWithdrawal() {
 }
 
 function showCyberAlert(title, message) {
-  document.getElementById("cyberAlertTitle").textContent = title;
-  document.getElementById("cyberAlertMessage").textContent = message;
+  const titleEl = document.getElementById("cyberAlertTitle");
+  const msgEl = document.getElementById("cyberAlertMessage");
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl) msgEl.textContent = message;
   openModal("cyberAlertModal");
-    }
-    
+}
+  

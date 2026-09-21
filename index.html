@@ -3,244 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CYBERSTRIKE | 1v1 Arena</title>
-  <!-- Tailwind CSS -->
+  <title>Cyberstrike Arena</title>
+  
+  <!-- Tailwind CSS for styling -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;600;800;900&display=swap" rel="stylesheet">
-  <!-- Supabase Client -->
+  
+  <!-- Orbitron Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body { font-family: 'Orbitron', sans-serif; }
+    canvas { touch-action: none; } /* Prevents scrolling when tapping canvas on mobile */
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-['Inter'] antialiased min-h-screen flex flex-col">
+<body class="bg-slate-950 text-white min-h-screen selection:bg-cyan-500/30">
 
-  <!-- AUTH GATE -->
-  <div id="authGate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-4">
-    <div class="w-full max-w-md p-8 bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 rounded-2xl shadow-2xl space-y-6">
-      <div class="text-center space-y-2">
-        <div class="inline-flex w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 items-center justify-center text-cyan-400 text-2xl shadow-lg">
-          <i class="fa-solid fa-gamepad"></i>
-        </div>
-        <h1 class="font-['Orbitron'] font-black text-2xl text-slate-100 tracking-wider">CYBERSTRIKE</h1>
-        <p class="text-xs text-slate-400">1v1 Penalty Shootout Arena</p>
-      </div>
+  <!-- ========================================== -->
+  <!-- 1. LOGIN / AUTHENTICATION GATE             -->
+  <!-- ========================================== -->
+  <div id="authGate" class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-[0_0_40px_rgba(6,182,212,0.1)] w-full max-w-md">
+      <h2 class="text-3xl font-bold text-center mb-6 text-cyan-400 tracking-wider">CYBERSTRIKE</h2>
+      
+      <!-- Error Message -->
+      <div id="authMessage" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/50 text-red-400 text-xs rounded-lg text-center tracking-wide"></div>
 
-      <div id="authMessage" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs text-center font-medium"></div>
-
-      <div class="space-y-4">
+      <div class="space-y-5">
         <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">EMAIL ADDRESS</label>
-          <input type="email" id="loginEmail" placeholder="player@domain.com" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-cyan-500 focus:outline-none">
+          <label class="block text-slate-400 text-[10px] mb-1 tracking-widest">PLAYER EMAIL</label>
+          <input type="email" id="loginEmail" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-cyan-500 outline-none transition" placeholder="Enter email">
         </div>
+        
         <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">PASSWORD</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-cyan-500 focus:outline-none">
+          <label class="block text-slate-400 text-[10px] mb-1 tracking-widest">PASSWORD</label>
+          <input type="password" id="loginPassword" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-cyan-500 outline-none transition" placeholder="••••••••">
         </div>
 
-        <button id="loginButton" onclick="handleLogin()" class="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
+        <button type="button" id="loginButton" onclick="handleLogin()" class="w-full mt-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 rounded-lg transition shadow-[0_0_15px_rgba(6,182,212,0.4)]">
           LOGIN / ENTER ARENA
         </button>
       </div>
     </div>
   </div>
 
-  <!-- MAIN APP CONTAINER -->
-  <div id="appContainer" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full p-4 space-y-4">
-    <!-- Header -->
-    <header class="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl backdrop-blur-md">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-          <i class="fa-solid fa-bolt"></i>
-        </div>
-        <div>
-          <h2 class="font-['Orbitron'] font-bold text-sm tracking-wider text-slate-100">CYBERSTRIKE</h2>
-          <p class="text-[10px] text-emerald-400 font-bold uppercase">Live Arena</p>
-        </div>
+  <!-- ========================================== -->
+  <!-- 2. MAIN APPLICATION INTERFACE (HIDDEN)     -->
+  <!-- ========================================== -->
+  <div id="appContainer" class="hidden max-w-4xl mx-auto p-4 pb-20">
+    
+    <!-- Header Panel -->
+    <header class="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-xl mb-6">
+      <div>
+        <div class="text-[10px] text-slate-400 tracking-widest">BALANCE</div>
+        <div class="text-2xl font-bold text-emerald-400">$<span id="userBalanceDisplay">0.00</span></div>
       </div>
-
-      <div class="flex items-center gap-2">
-        <div class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-wallet text-cyan-400 text-xs"></i>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-100">$<span id="userBalanceDisplay">0.00</span></span>
-        </div>
-        <button onclick="openModal('depositModal')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 font-['Orbitron'] font-bold text-xs hover:bg-cyan-500/30 transition">
-          DEPOSIT
-        </button>
-        <button onclick="openModal('withdrawModal')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-['Orbitron'] font-bold text-xs hover:bg-slate-700 transition">
-          WITHDRAW
-        </button>
-        <button onclick="logout()" class="p-2 text-slate-400 hover:text-rose-400 transition" title="Logout">
-          <i class="fa-solid fa-right-from-bracket"></i>
-        </button>
+      <div class="flex gap-2">
+        <button onclick="openModal('depositModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs transition">DEPOSIT</button>
+        <button onclick="openModal('withdrawModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs transition">WITHDRAW</button>
+        <button onclick="logout()" class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs transition">LOGOUT</button>
       </div>
     </header>
 
-    <!-- Stake Tiers -->
-    <div class="grid grid-cols-3 gap-2">
-      <button id="stakeTier-0.5" onclick="selectStakeTier(0.5)" class="stake-tier-btn p-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/50 transition text-center">
-        <p class="text-[10px] text-slate-400 font-['Orbitron']">STAKE</p>
-        <p class="font-['Orbitron'] font-bold text-sm text-slate-100 mt-0.5">$0.50</p>
-      </button>
-      <button id="stakeTier-1.0" onclick="selectStakeTier(1.0)" class="stake-tier-btn p-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/50 transition text-center">
-        <p class="text-[10px] text-slate-400 font-['Orbitron']">STAKE</p>
-        <p class="font-['Orbitron'] font-bold text-sm text-slate-100 mt-0.5">$1.00</p>
-      </button>
-      <button id="stakeTier-5.0" onclick="selectStakeTier(5.0)" class="stake-tier-btn p-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/50 transition text-center">
-        <p class="text-[10px] text-slate-400 font-['Orbitron']">STAKE</p>
-        <p class="font-['Orbitron'] font-bold text-sm text-slate-100 mt-0.5">$5.00</p>
-      </button>
+    <!-- Game Arena Area -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 relative overflow-hidden flex flex-col items-center">
+      <h3 class="text-center text-cyan-500 tracking-widest mb-4">PENALTY SHOOTOUT</h3>
+      
+      <!-- Stake Selection -->
+      <div class="flex justify-center gap-4 mb-6">
+        <button id="stakeTier-0.5" onclick="selectStakeTier(0.50)" class="px-6 py-2 border rounded-lg transition text-sm">0.50 USDT</button>
+        <button id="stakeTier-1.0" onclick="selectStakeTier(1.00)" class="px-6 py-2 border rounded-lg transition text-sm">1.00 USDT</button>
+        <button id="stakeTier-5.0" onclick="selectStakeTier(5.00)" class="px-6 py-2 border rounded-lg transition text-sm">5.00 USDT</button>
+      </div>
+
+      <!-- Canvas Engine -->
+      <div class="relative w-full max-w-[600px] aspect-[6/4] bg-slate-950 border-2 border-slate-800 rounded-lg overflow-hidden">
+        <canvas id="gameCanvas" width="600" height="400" class="w-full h-full block"></canvas>
+        
+        <!-- Matchmaking Overlay -->
+        <div id="canvasOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+          <p id="matchOverlayDesc" class="text-slate-300 text-xs mb-4 text-center px-4"></p>
+          <button onclick="startMatchmaking()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 px-8 py-3 font-bold rounded-lg transition shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+            FIND MATCH
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Game Arena Container -->
-    <div class="relative w-full aspect-[4/3] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center justify-center">
-      <canvas id="gameCanvas" width="600" height="450" class="w-full h-full object-cover cursor-pointer"></canvas>
-
-      <!-- Canvas Overlay / Matchmaking Screen -->
-      <div id="canvasOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
-        <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-2xl shadow-lg">
-          <i class="fa-solid fa-futbol"></i>
-        </div>
+    <!-- Weekly Sprint Progress -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <div class="flex justify-between items-end mb-4">
         <div>
-          <h3 class="font-['Orbitron'] font-extrabold text-xl text-slate-100 tracking-wider">PENALTY SHOOTOUT</h3>
-          <p id="matchOverlayDesc" class="text-xs text-slate-400 mt-1 max-w-xs">Select your stake and enter matchmaking to duel an opponent.</p>
+          <h3 class="text-cyan-500 tracking-widest">WEEKLY SPRINT</h3>
+          <p class="text-xs text-slate-400 mt-1">Ends in: <span id="sprintCountdown" class="text-white">--:--:--</span></p>
         </div>
-        <button onclick="startMatchmaking()" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg flex items-center gap-2">
-          <i class="fa-solid fa-play"></i> FIND MATCH
-        </button>
-      </div>
-    </div>
-
-    <!-- Weekly Sprint Section -->
-    <div class="p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl backdrop-blur-md space-y-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-trophy text-amber-400"></i>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-100">WEEKLY SPRINT</span>
-        </div>
-        <span id="sprintCountdown" class="text-xs font-mono text-cyan-400">00d 00h 00m 00s</span>
-      </div>
-
-      <div class="space-y-1.5">
-        <div class="flex justify-between text-xs text-slate-400">
-          <span>Wins: <strong class="text-slate-200" id="sprintWinsDisplay">0</strong></span>
-          <span id="nextRewardLabel" class="text-emerald-400 font-semibold">NEXT REWARD: 2.00 USDT</span>
-        </div>
-        <div class="w-full h-2.5 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
-          <div id="sprintProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 w-0 transition-all duration-500"></div>
+        <div class="text-right">
+          <div class="text-[10px] text-slate-400 tracking-widest">TOTAL WINS</div>
+          <div class="text-xl font-bold text-white"><span id="sprintWinsDisplay">0</span></div>
         </div>
       </div>
 
-      <!-- Milestone Cards Container -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
-          <span class="text-[10px] text-slate-400 font-['Orbitron']">20 WINS</span>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$2.00 USDT</span>
-        </button>
-        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
-          <span class="text-[10px] text-slate-400 font-['Orbitron']">50 WINS</span>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$5.00 USDT</span>
-        </button>
-        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
-          <span class="text-[10px] text-slate-400 font-['Orbitron']">100 WINS</span>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$10.00 USDT</span>
-        </button>
-        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)" disabled class="milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center transition">
-          <span class="text-[10px] text-slate-400 font-['Orbitron']">1000 WINS</span>
-          <span class="font-['Orbitron'] font-bold text-xs text-slate-200 mt-0.5">$100.00 USDT</span>
-        </button>
+      <!-- Progress Bar -->
+      <div class="w-full h-2 bg-slate-950 rounded-full mb-2 overflow-hidden border border-slate-800">
+        <div id="sprintProgressBar" class="h-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)] transition-all duration-500" style="width: 0%"></div>
+      </div>
+      <p id="nextRewardLabel" class="text-right text-[10px] text-cyan-400 mb-6">NEXT REWARD: -- USDT</p>
+
+      <!-- Milestone Buttons -->
+      <div class="grid grid-cols-4 gap-2">
+        <button id="claim20Btn" onclick="claimMilestone(20, 2.00)"></button>
+        <button id="claim50Btn" onclick="claimMilestone(50, 5.00)"></button>
+        <button id="claim100Btn" onclick="claimMilestone(100, 10.00)"></button>
+        <button id="claim1000Btn" onclick="claimMilestone(1000, 100.00)"></button>
       </div>
     </div>
   </div>
 
-  <!-- DEPOSIT MODAL -->
-  <div id="depositModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="relative w-full max-w-md p-6 bg-slate-900 border border-cyan-500/30 rounded-2xl shadow-2xl">
-      <button onclick="closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
+  <!-- ========================================== -->
+  <!-- 3. MODALS (HIDDEN BY DEFAULT)              -->
+  <!-- ========================================== -->
+  
+  <!-- Cyber Alert Modal -->
+  <div id="cyberAlertModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border-2 border-cyan-500 p-6 rounded-xl text-center max-w-sm w-full shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+      <h2 id="cyberAlertTitle" class="text-cyan-400 font-bold text-xl mb-2">ALERT</h2>
+      <p id="cyberAlertMessage" class="text-slate-300 text-sm mb-6"></p>
+      <button onclick="closeModal('cyberAlertModal')" class="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg border border-slate-600 transition">ACKNOWLEDGE</button>
+    </div>
+  </div>
 
-      <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-          <i class="fa-solid fa-qrcode"></i>
-        </div>
-        <div>
-          <h3 class="font-['Orbitron'] font-bold text-lg text-slate-100">DEPOSIT USDT</h3>
-          <p class="text-xs text-slate-400">Direct FaucetPay / Crypto Transfer</p>
-        </div>
-      </div>
-
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">AMOUNT (USDT)</label>
-          <input type="number" id="depositAmount" value="1.00" min="0.50" step="0.10" oninput="updateDepositDisplay()" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-['Orbitron'] focus:border-cyan-500 focus:outline-none">
-        </div>
-
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">YOUR USER ID MEMO</label>
-          <input type="text" id="depositUserId" readonly class="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800/80 text-slate-400 font-mono text-xs select-all">
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-cyan-500/5 border border-cyan-500/20 text-xs text-slate-300 space-y-1">
-          <p class="font-bold text-cyan-400 font-['Orbitron']">Deposit Instructions:</p>
-          <p>Clicking proceed will redirect you securely to FaucetPay to complete your <span id="depositAmountDisplay">1.00 USDT</span> deposit.</p>
-        </div>
-
-        <button onclick="initiateFaucetPayDeposit()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
-          PROCEED TO PAYMENT GATEWAY
-        </button>
+  <!-- Deposit Modal -->
+  <div id="depositModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 p-6 rounded-xl max-w-md w-full">
+      <h2 class="text-xl font-bold text-emerald-400 mb-4">DEPOSIT FUNDS</h2>
+      <input type="hidden" id="depositUserId">
+      <label class="block text-slate-400 text-xs mb-2">AMOUNT (USDT)</label>
+      <input type="number" id="depositAmount" step="0.5" min="0.5" value="5.0" oninput="updateDepositDisplay()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white mb-6">
+      <div class="flex gap-4">
+        <button onclick="closeModal('depositModal')" class="flex-1 py-3 bg-slate-800 rounded-lg text-sm transition">CANCEL</button>
+        <button onclick="initiateFaucetPayDeposit()" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg transition shadow-[0_0_15px_rgba(16,185,129,0.3)]">PAY <span id="depositAmountDisplay">5.00 USDT</span></button>
       </div>
     </div>
   </div>
 
-  <!-- WITHDRAW MODAL -->
-  <div id="withdrawModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="relative w-full max-w-md p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl space-y-4">
-      <button onclick="closeModal('withdrawModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-          <i class="fa-solid fa-wallet"></i>
-        </div>
-        <div>
-          <h3 class="font-['Orbitron'] font-bold text-lg text-slate-100">WITHDRAW FUNDS</h3>
-          <p class="text-xs text-slate-400">Available: <span id="withdrawBalanceDisplay" class="text-emerald-400 font-bold">0.00 USDT</span></p>
-        </div>
+  <!-- Withdraw Modal -->
+  <div id="withdrawModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 p-6 rounded-xl max-w-md w-full">
+      <h2 class="text-xl font-bold text-cyan-400 mb-4">WITHDRAW FUNDS</h2>
+      <div class="mb-4">
+        <div class="text-xs text-slate-400">AVAILABLE BALANCE</div>
+        <div class="text-lg text-white" id="withdrawBalanceDisplay">0.00 USDT</div>
       </div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">FAUCETPAY EMAIL</label>
-          <input type="email" id="withdrawEmail" readonly class="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800 text-slate-400 text-xs select-all">
-        </div>
-        <div>
-          <label class="block text-xs font-['Orbitron'] font-bold text-slate-300 mb-1.5">AMOUNT (USDT)</label>
-          <input type="number" id="withdrawAmount" placeholder="0.50" min="0.50" step="0.10" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-['Orbitron'] focus:border-cyan-500 focus:outline-none">
-        </div>
-        <button onclick="confirmWithdrawal()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-lg">
-          CONFIRM WITHDRAWAL
-        </button>
+      <label class="block text-slate-400 text-xs mb-2">FAUCETPAY EMAIL</label>
+      <input type="email" id="withdrawEmail" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white mb-4" disabled>
+      <label class="block text-slate-400 text-xs mb-2">AMOUNT TO WITHDRAW</label>
+      <input type="number" id="withdrawAmount" step="0.5" min="0.5" placeholder="0.00" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white mb-6">
+      <div class="flex gap-4">
+        <button onclick="closeModal('withdrawModal')" class="flex-1 py-3 bg-slate-800 rounded-lg text-sm transition">CANCEL</button>
+        <button onclick="confirmWithdrawal()" class="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold rounded-lg transition shadow-[0_0_15px_rgba(6,182,212,0.3)]">WITHDRAW</button>
       </div>
     </div>
   </div>
 
-  <!-- CYBER ALERT MODAL -->
-  <div id="cyberAlertModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="relative w-full max-w-sm p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl text-center space-y-4">
-      <div class="w-12 h-12 mx-auto rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl">
-        <i id="cyberAlertIcon" class="fa-solid fa-triangle-exclamation"></i>
-      </div>
-      <div class="space-y-1">
-        <h3 id="cyberAlertTitle" class="font-['Orbitron'] font-bold text-base text-slate-100">NOTICE</h3>
-        <p id="cyberAlertMessage" class="text-xs text-slate-400"></p>
-      </div>
-      <button onclick="closeModal('cyberAlertModal')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-['Orbitron'] font-bold text-xs text-slate-200 transition">
-        DISMISS
-      </button>
-    </div>
-  </div>
-
+  <!-- Javascript Connection -->
   <script src="script.js"></script>
 </body>
-        </html>
-            
+  </html>
+  

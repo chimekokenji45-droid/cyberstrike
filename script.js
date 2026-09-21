@@ -5,7 +5,9 @@ const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
 const FAUCETPAY_MERCHANT_USERNAME = "YOUR_FAUCETPAY_USERNAME";
 
-let supabase = null;
+// RENAMED VARIABLE TO PREVENT SYNTAX ERROR CONFLICT WITH CDN
+let supabaseClient = null; 
+
 let currentUser = null;
 let currentBalance = 0.00;
 let currentStake = 0.50;
@@ -28,10 +30,10 @@ function initSupabase() {
     SUPABASE_URL.startsWith("https://")
   ) {
     try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch (e) {
       console.warn("Supabase init failed:", e);
-      supabase = null;
+      supabaseClient = null;
     }
   }
 }
@@ -45,15 +47,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   selectStakeTier(0.50);
   startSprintCountdown();
 
-  if (supabase) {
+  if (supabaseClient) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
         currentUser = session.user;
         await showApp();
       }
 
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session) {
           currentUser = session.user;
           await showApp();
@@ -80,17 +82,17 @@ async function handleLogin() {
   hideAuthError();
 
   // Demo Fallback (Works locally without configured Supabase keys)
-  if (!supabase) {
+  if (!supabaseClient) {
     currentUser = { id: "demo-user-123", email: email };
     await showApp();
     return;
   }
 
   try {
-    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    let { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
     if (error) {
-      const signup = await supabase.auth.signUp({ email, password });
+      const signup = await supabaseClient.auth.signUp({ email, password });
       
       if (signup.error) {
         showAuthError(signup.error.message);
@@ -145,8 +147,8 @@ async function showApp() {
 }
 
 async function logout() {
-  if (supabase) {
-    await supabase.auth.signOut();
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
   }
   window.location.reload();
 }
@@ -157,16 +159,16 @@ async function logout() {
 async function fetchUserData() {
   if (!currentUser) return;
 
-  if (supabase) {
+  if (supabaseClient) {
     try {
-      let { data: profile, error } = await supabase
+      let { data: profile, error } = await supabaseClient
         .from("profiles")
         .select("*")
         .eq("id", currentUser.id)
         .single();
 
       if (error || !profile) {
-        const { data: newProfile } = await supabase
+        const { data: newProfile } = await supabaseClient
           .from("profiles")
           .insert([{ id: currentUser.id, balance: 0.00, sprint_wins: 0, claimed_milestones: [] }])
           .select()
@@ -181,7 +183,6 @@ async function fetchUserData() {
       console.warn("Error fetching data:", e);
     }
   } else {
-    // Local storage fallback for offline/demo testing
     const local = JSON.parse(localStorage.getItem(`cyber_${currentUser.id}`) || "{}");
     currentBalance = local.balance !== undefined ? local.balance : 10.00;
     sprintWins = local.sprintWins || 0;
@@ -192,8 +193,8 @@ async function fetchUserData() {
 }
 
 async function saveUserData() {
-  if (supabase && currentUser) {
-    await supabase.from("profiles").update({ 
+  if (supabaseClient && currentUser) {
+    await supabaseClient.from("profiles").update({ 
       balance: currentBalance, 
       sprint_wins: sprintWins,
       claimed_milestones: claimedMilestones
@@ -478,9 +479,9 @@ async function confirmWithdrawal() {
   currentBalance -= amount;
   await saveUserData();
 
-  if (supabase && currentUser) {
+  if (supabaseClient && currentUser) {
     try {
-      await supabase.from("withdrawals").insert([{ user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }]);
+      await supabaseClient.from("withdrawals").insert([{ user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }]);
     } catch (e) {
       console.warn("Withdrawal log error:", e);
     }
@@ -497,5 +498,5 @@ function showCyberAlert(title, message) {
   if (titleEl) titleEl.textContent = title;
   if (msgEl) msgEl.textContent = message;
   openModal("cyberAlertModal");
-        }
-            
+    }
+          

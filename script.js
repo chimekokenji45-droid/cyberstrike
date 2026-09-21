@@ -1,5 +1,5 @@
 // ------------------------------------------
-// 1. CONFIGURATION & INITIALIZATION
+// CONFIGURATION
 // ------------------------------------------
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
@@ -14,31 +14,30 @@ let claimedMilestones = [];
 let isMatchmaking = false;
 let gameState = "IDLE";
 
-// Canvas variables
 let canvas = null;
 let ctx = null;
 let ball = { x: 300, y: 380, radius: 14, targetX: 300, targetY: 380, moving: false };
 let keeper = { x: 260, y: 170, width: 80, height: 20, targetX: 260 };
 
-// Safe initialization function
+// Safe Supabase Loader
 function initSupabase() {
   if (
-    typeof window.supabase !== "undefined" && 
-    SUPABASE_URL && 
-    SUPABASE_URL !== "YOUR_SUPABASE_URL" && 
+    typeof window.supabase !== "undefined" &&
+    SUPABASE_URL &&
+    SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
     SUPABASE_URL.startsWith("https://")
   ) {
     try {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch (e) {
-      console.warn("Supabase client init failed:", e);
+      console.warn("Supabase init failed:", e);
       supabase = null;
     }
   }
 }
 
 // ------------------------------------------
-// 2. AUTHENTICATION & LIFECYCLE
+// LIFECYCLE & AUTH
 // ------------------------------------------
 window.addEventListener("DOMContentLoaded", async () => {
   initSupabase();
@@ -65,26 +64,22 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
       });
     } catch (err) {
-      console.warn("Auth check error:", err);
+      console.warn("Auth session error:", err);
     }
   }
 });
 
 async function handleLogin() {
-  const emailInput = document.getElementById("loginEmail");
-  const passwordInput = document.getElementById("loginPassword");
-
-  const email = emailInput ? emailInput.value.trim() : "";
-  const password = passwordInput ? passwordInput.value.trim() : "";
+  const email = document.getElementById("loginEmail")?.value.trim() || "";
+  const password = document.getElementById("loginPassword")?.value.trim() || "";
 
   if (!email || !password) {
     showAuthError("Please enter both email and password.");
     return;
   }
-
   hideAuthError();
 
-  // Demo Fallback if Supabase credentials are not configured yet
+  // Demo Fallback (Works locally without configured Supabase keys)
   if (!supabase) {
     currentUser = { id: "demo-user-123", email: email };
     await showApp();
@@ -103,7 +98,7 @@ async function handleLogin() {
       }
 
       if (!signup.data.session) {
-        showAuthError("Account created! Please check your email to confirm registration or turn off 'Confirm email' in Supabase.");
+        showAuthError("Account created! Check your email to confirm registration.");
         return;
       }
       
@@ -157,7 +152,7 @@ async function logout() {
 }
 
 // ------------------------------------------
-// 3. USER DATA & BALANCES
+// PROFILE DATA & PERSISTENCE
 // ------------------------------------------
 async function fetchUserData() {
   if (!currentUser) return;
@@ -183,10 +178,10 @@ async function fetchUserData() {
       sprintWins = parseInt(profile?.sprint_wins) || 0;
       claimedMilestones = profile?.claimed_milestones || [];
     } catch (e) {
-      console.warn("Supabase fetch failed:", e);
+      console.warn("Error fetching data:", e);
     }
   } else {
-    // Local persistence for Demo mode
+    // Local storage fallback for offline/demo testing
     const local = JSON.parse(localStorage.getItem(`cyber_${currentUser.id}`) || "{}");
     currentBalance = local.balance !== undefined ? local.balance : 10.00;
     sprintWins = local.sprintWins || 0;
@@ -225,7 +220,7 @@ function updateUI() {
 }
 
 // ------------------------------------------
-// 4. STAKE SELECTION & MATCHMAKING
+// GAME & MATCHMAKING
 // ------------------------------------------
 function selectStakeTier(amount) {
   currentStake = amount;
@@ -253,7 +248,7 @@ function selectStakeTier(amount) {
 
 async function startMatchmaking() {
   if (currentBalance < currentStake) {
-    showCyberAlert("INSUFFICIENT BALANCE", `You need at least $${currentStake.toFixed(2)} USDT to enter this match.`);
+    showCyberAlert("INSUFFICIENT BALANCE", `You need at least $${currentStake.toFixed(2)} USDT.`);
     return;
   }
 
@@ -267,9 +262,6 @@ async function startMatchmaking() {
   resetGameRound();
 }
 
-// ------------------------------------------
-// 5. CANVAS GAME ENGINE
-// ------------------------------------------
 function initCanvas() {
   canvas = document.getElementById("gameCanvas");
   if (!canvas) return;
@@ -278,8 +270,7 @@ function initCanvas() {
   canvas.addEventListener("click", handleInput);
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    const touch = e.touches[0];
-    handleInput(touch);
+    handleInput(e.touches[0]);
   }, { passive: false });
 
   requestAnimationFrame(gameLoop);
@@ -315,17 +306,14 @@ function gameLoop() {
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Field markings
   ctx.strokeStyle = "#1e293b";
   ctx.lineWidth = 4;
   ctx.strokeRect(50, 50, 500, 350);
 
-  // Goal frame
   ctx.strokeStyle = "#38bdf8";
   ctx.lineWidth = 6;
   ctx.strokeRect(120, 90, 360, 130);
 
-  // Goal net grid
   ctx.strokeStyle = "rgba(56, 189, 248, 0.15)";
   ctx.lineWidth = 1;
   for (let x = 120; x <= 480; x += 20) {
@@ -335,7 +323,6 @@ function gameLoop() {
     ctx.beginPath(); ctx.moveTo(120, y); ctx.lineTo(480, y); ctx.stroke();
   }
 
-  // Goalkeeper movement
   if (gameState === "SHOOTING") {
     keeper.x += (keeper.targetX - keeper.x) * 0.15;
   }
@@ -348,7 +335,6 @@ function gameLoop() {
   }
   ctx.fill();
 
-  // Ball animation
   if (ball.moving) {
     ball.x += (ball.targetX - ball.x) * 0.12;
     ball.y += (ball.targetY - ball.y) * 0.12;
@@ -379,7 +365,7 @@ async function evaluateShootout() {
       sprintWins += 1;
       showCyberAlert("GOAL! YOU WIN", `You won $${prize.toFixed(2)} USDT!`);
     } else {
-      showCyberAlert("SAVED!", "The goalkeeper blocked your shot. Better luck next match!");
+      showCyberAlert("SAVED!", "The goalkeeper blocked your shot.");
     }
 
     await saveUserData();
@@ -389,7 +375,7 @@ async function evaluateShootout() {
 }
 
 // ------------------------------------------
-// 6. WEEKLY SPRINT & MILESTONES
+// SPRINT MILESTONES
 // ------------------------------------------
 function updateSprintMilestones() {
   const milestones = [
@@ -405,20 +391,18 @@ function updateSprintMilestones() {
     const btn = document.getElementById(m.btnId);
     if (!btn) return;
 
-    const isClaimed = claimedMilestones.includes(m.wins);
-
-    if (isClaimed) {
+    if (claimedMilestones.includes(m.wins)) {
       btn.disabled = true;
-      btn.className = "milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/40 opacity-50 cursor-not-allowed flex flex-col items-center justify-center";
-      btn.innerHTML = `<span class="text-[10px] text-slate-500 font-['Orbitron']">CLAIMED</span><span class="font-['Orbitron'] font-bold text-xs text-slate-500 mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
+      btn.className = "p-2 rounded-xl border border-slate-800 bg-slate-950/40 opacity-50 flex flex-col items-center justify-center cursor-not-allowed";
+      btn.innerHTML = `<span class="text-[10px] text-slate-500 font-['Orbitron']">CLAIMED</span>`;
     } else if (sprintWins >= m.wins) {
       btn.disabled = false;
-      btn.className = "milestone-btn p-2 rounded-xl border border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold cursor-pointer transition shadow-lg shadow-emerald-500/10 flex flex-col items-center justify-center animate-pulse";
-      btn.innerHTML = `<span class="text-[10px] font-['Orbitron']">CLAIM NOW</span><span class="font-['Orbitron'] font-bold text-xs mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
+      btn.className = "p-2 rounded-xl border border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold flex flex-col items-center justify-center animate-pulse cursor-pointer";
+      btn.innerHTML = `<span class="text-[10px]">CLAIM NOW</span><span class="text-xs">$${m.reward.toFixed(2)}</span>`;
     } else {
       btn.disabled = true;
-      btn.className = "milestone-btn p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 cursor-not-allowed flex flex-col items-center justify-center";
-      btn.innerHTML = `<span class="text-[10px] text-slate-400 font-['Orbitron']">${m.wins} WINS</span><span class="font-['Orbitron'] font-bold text-xs text-slate-300 mt-0.5">$${m.reward.toFixed(2)} USDT</span>`;
+      btn.className = "p-2 rounded-xl border border-slate-800 bg-slate-950/80 opacity-60 flex flex-col items-center justify-center cursor-not-allowed";
+      btn.innerHTML = `<span class="text-[10px] text-slate-400">${m.wins} WINS</span>`;
 
       if (sprintWins < m.wins && currentTarget === 20) {
         currentTarget = m.wins;
@@ -426,16 +410,9 @@ function updateSprintMilestones() {
     }
   });
 
-  const currentMilestone = milestones.find(m => m.wins === currentTarget);
-  const nextRewardLabel = document.getElementById("nextRewardLabel");
-  if (currentMilestone && nextRewardLabel) {
-    nextRewardLabel.textContent = `NEXT REWARD: ${currentMilestone.reward.toFixed(2)} USDT`;
-  }
-
   const progressBar = document.getElementById("sprintProgressBar");
   if (progressBar) {
-    const progressPercent = Math.min(100, (sprintWins / currentTarget) * 100);
-    progressBar.style.width = `${progressPercent}%`;
+    progressBar.style.width = `${Math.min(100, (sprintWins / currentTarget) * 100)}%`;
   }
 }
 
@@ -454,14 +431,14 @@ async function claimMilestone(wins, reward) {
 function startSprintCountdown() {
   function updateTimer() {
     const now = new Date();
-    const endOfWeek = new Date();
-    endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-    endOfWeek.setHours(23, 59, 59, 0);
+    const end = new Date();
+    end.setDate(now.getDate() + (7 - now.getDay()));
+    end.setHours(23, 59, 59, 0);
 
-    const diff = endOfWeek - now;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const mins = Math.floor((diff / 1000 / 60) % 60);
+    const diff = end - now;
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff / 3600000) % 24);
+    const mins = Math.floor((diff / 60000) % 60);
     const secs = Math.floor((diff / 1000) % 60);
 
     const countdownEl = document.getElementById("sprintCountdown");
@@ -475,48 +452,37 @@ function startSprintCountdown() {
 }
 
 // ------------------------------------------
-// 7. MODALS & PAYMENTS
+// MODALS & PAYMENTS
 // ------------------------------------------
-function openModal(id) {
-  document.getElementById(id)?.classList.remove("hidden");
-}
+function openModal(id) { document.getElementById(id)?.classList.remove("hidden"); }
+function closeModal(id) { document.getElementById(id)?.classList.add("hidden"); }
 
-function closeModal(id) {
-  document.getElementById(id)?.classList.add("hidden");
+function updateDepositDisplay() {
+  const amount = document.getElementById("depositAmount")?.value || "0";
+  const display = document.getElementById("depositAmountDisplay");
+  if (display) display.textContent = `${parseFloat(amount).toFixed(2)} USDT`;
 }
 
 function initiateFaucetPayDeposit() {
-  const amountInput = document.getElementById("depositAmount");
-  const amount = parseFloat(amountInput ? amountInput.value : "0");
-  if (!amount || amount < 0.5) {
-    showCyberAlert("INVALID AMOUNT", "Minimum deposit is 0.50 USDT.");
-    return;
-  }
+  const amount = parseFloat(document.getElementById("depositAmount")?.value || "0");
+  if (amount < 0.5) return showCyberAlert("INVALID AMOUNT", "Minimum deposit is 0.50 USDT.");
 
   const userId = currentUser ? currentUser.id : "demo";
-  const checkoutUrl = `https://faucetpay.io/merchant/webpay?merchant_username=${FAUCETPAY_MERCHANT_USERNAME}&item_name=Cyberstrike+Deposit&currency1=USDT&amount1=${amount}&custom=${userId}`;
-  window.open(checkoutUrl, "_blank");
+  window.open(`https://faucetpay.io/merchant/webpay?merchant_username=${FAUCETPAY_MERCHANT_USERNAME}&item_name=Cyberstrike+Deposit&currency1=USDT&amount1=${amount}&custom=${userId}`, "_blank");
 }
 
 async function confirmWithdrawal() {
-  const amountInput = document.getElementById("withdrawAmount");
-  const amount = parseFloat(amountInput ? amountInput.value : "0");
-  if (!amount || amount > currentBalance || amount < 0.5) {
-    showCyberAlert("INVALID WITHDRAWAL", "Check your balance and ensure the amount is at least 0.50 USDT.");
-    return;
-  }
+  const amount = parseFloat(document.getElementById("withdrawAmount")?.value || "0");
+  if (amount > currentBalance || amount < 0.5) return showCyberAlert("INVALID WITHDRAWAL", "Check balance and ensure amount is at least 0.50 USDT.");
 
   currentBalance -= amount;
-  
   await saveUserData();
 
   if (supabase && currentUser) {
     try {
-      await supabase.from("withdrawals").insert([
-        { user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }
-      ]);
+      await supabase.from("withdrawals").insert([{ user_id: currentUser.id, email: currentUser.email, amount, status: "pending" }]);
     } catch (e) {
-      console.warn("Failed to record withdrawal:", e);
+      console.warn("Withdrawal log error:", e);
     }
   }
 
@@ -531,5 +497,5 @@ function showCyberAlert(title, message) {
   if (titleEl) titleEl.textContent = title;
   if (msgEl) msgEl.textContent = message;
   openModal("cyberAlertModal");
-}
-  
+        }
+            

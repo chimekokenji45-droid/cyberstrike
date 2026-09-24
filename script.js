@@ -1,25 +1,12 @@
 /* ==========================================================================
-   CYBERSTRIKE — PRODUCTION APPLICATION SCRIPT
+   CYBERSTRIKE — PRODUCTION APPLICATION SCRIPT (PART 1 OF 2)
    ========================================================================== */
 
 // 1. SUPABASE CLIENT INITIALIZATION
-// Replace with your actual Supabase Project URL and Anon API Key
 const SUPABASE_URL = 'https://btugwhcoypxtlgmsxqci.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h';
-// 1. SUPABASE CLIENT INITIALIZATION
+
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// 2. AUTH STATE LISTENER (Transitions to dashboard on login)
-supabaseClient.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' || session) {
-    // Hide the login screen (Ensure 'authGate' matches your HTML ID)
-    document.getElementById('authGate').classList.add('hidden');
-    
-    // Show the main dashboard (Ensure 'appContainer' matches your HTML ID)
-    document.getElementById('appContainer').classList.remove('hidden');
-  }
-});
-
 
 // 2. GLOBAL APPLICATION STATE
 let currentUser = null;
@@ -52,24 +39,25 @@ let gameState = {
 // 3. APPLICATION INITIALIZATION & AUTH OBSERVER
 document.addEventListener('DOMContentLoaded', () => {
   initSprintCountdown();
-  setupDepositListener();
+  if (typeof setupDepositListener === 'function') {
+    setupDepositListener();
+  }
 
-  // Listen for Supabase Authentication State Changes
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  // Single central auth state listener
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    const authGate = document.getElementById('authGate');
+    const appContainer = document.getElementById('appContainer');
+
     if (session) {
       currentUser = session.user;
       await fetchUserProfile();
       
-      const authGate = document.getElementById('authGate');
-      const appContainer = document.getElementById('appContainer');
       if (authGate) authGate.classList.add('hidden');
       if (appContainer) appContainer.classList.remove('hidden');
     } else {
       currentUser = null;
       userProfile = { balance: 0.00, sprint_wins: 0, claimed_milestones: { 20: false, 50: false, 100: false, 1000: false } };
       
-      const authGate = document.getElementById('authGate');
-      const appContainer = document.getElementById('appContainer');
       if (appContainer) appContainer.classList.add('hidden');
       if (authGate) authGate.classList.remove('hidden');
     }
@@ -80,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchUserProfile() {
   if (!currentUser) return;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('profiles')
     .select('balance, sprint_wins, claimed_milestones')
     .eq('id', currentUser.id)
@@ -106,24 +94,21 @@ function initSprintCountdown() {
   function getNextMondayReset() {
     const now = new Date();
     const target = new Date(now);
-    const dayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed...
+    const dayOfWeek = now.getDay();
 
     let daysUntilMonday = (1 - dayOfWeek + 7) % 7;
-
-    // If today is Monday and midnight has passed, target next Monday
     if (daysUntilMonday === 0) {
       daysUntilMonday = 7;
     }
 
     target.setDate(now.getDate() + daysUntilMonday);
-    target.setHours(0, 0, 0, 0); // 00:00:00 Monday Midnight
+    target.setHours(0, 0, 0, 0);
     return target;
   }
 
   let savedTarget = localStorage.getItem('CYBERSTRIKE_NEXT_RESET');
   let targetDate = savedTarget ? new Date(savedTarget) : getNextMondayReset();
 
-  // Trigger reset if current time has passed target reset date
   if (new Date() >= targetDate) {
     resetWeeklySprint();
     targetDate = getNextMondayReset();
@@ -160,7 +145,7 @@ async function resetWeeklySprint() {
   userProfile.claimed_milestones = { 20: false, 50: false, 100: false, 1000: false };
 
   if (currentUser) {
-    await supabase
+    await supabaseClient
       .from('profiles')
       .update({ 
         sprint_wins: 0, 
@@ -176,6 +161,7 @@ async function resetWeeklySprint() {
     "fa-rotate text-cyan-400"
   );
 }
+
 // 5. AUTHENTICATION (SUPABASE AUTH INTEGRATION)
 async function handleLogin() {
   const loginEmailInput = document.getElementById('loginEmail');
@@ -196,7 +182,6 @@ async function handleLogin() {
   }
 
   try {
-    // Note: using 'supabaseClient' here
     let { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
     if (error && (error.message.includes("Invalid login credentials") || error.status === 400)) {
@@ -206,8 +191,6 @@ async function handleLogin() {
 
     if (error) {
       alert("Auth Failure: " + error.message);
-    } else {
-      alert("Success! Logged in.");
     }
   } catch (err) {
     alert("Connection Error: " + err.message);
@@ -218,9 +201,6 @@ async function handleLogin() {
     }
   }
 }
-
-
-
 
 // 6. MODALS & ALERTS
 function openModal(modalId) {
@@ -289,13 +269,12 @@ async function startMatchmaking() {
   }
 
   try {
-    const session = (await supabase.auth.getSession()).data.session;
+    const session = (await supabaseClient.auth.getSession()).data.session;
     if (!session) {
       showCyberAlert("AUTH ERROR", "Please log in again.");
       return;
     }
 
-    // Server-side deduction check via Edge Function
     const response = await fetch(`${SUPABASE_URL}/functions/v1/match`, {
       method: 'POST',
       headers: {
@@ -312,7 +291,6 @@ async function startMatchmaking() {
       return;
     }
 
-    // Refresh client profile state from server
     await fetchUserProfile();
 
     const canvasOverlay = document.getElementById('canvasOverlay');
@@ -500,7 +478,7 @@ async function finish1v1Match() {
   gameState.matchEnded = true;
 
   try {
-    const session = (await supabase.auth.getSession()).data.session;
+    const session = (await supabaseClient.auth.getSession()).data.session;
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/match`, {
       method: 'POST',
@@ -517,7 +495,7 @@ async function finish1v1Match() {
     });
 
     const result = await response.json();
-    await fetchUserProfile(); // Fetch server-validated state updates
+    await fetchUserProfile();
 
     if (result.outcome === 'win') {
       const reward = selectedStake * 2 * 0.80;
@@ -537,6 +515,9 @@ async function finish1v1Match() {
     if (canvasOverlay) canvasOverlay.classList.remove('hidden');
   }, 1500);
 }
+   /* ==========================================================================
+   CYBERSTRIKE — PRODUCTION APPLICATION SCRIPT (PART 2 OF 2)
+   ========================================================================== */
 
 // 11. SPRINT MILESTONE SYSTEM
 function updateSprintProgress() {
@@ -594,11 +575,10 @@ async function claimMilestone(event, targetWins, rewardAmount) {
     return;
   }
 
-  // Update milestone claim state in Database
   const updatedMilestones = { ...userProfile.claimed_milestones, [targetWins]: true };
   const newBalance = userProfile.balance + rewardAmount;
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('profiles')
     .update({ 
       balance: newBalance, 
@@ -640,7 +620,7 @@ async function confirmWithdrawal() {
 
   try {
     showCyberAlert("PROCESSING", "Dispatching payout request to FaucetPay API...", "fa-spinner fa-spin text-cyan-400");
-    const session = (await supabase.auth.getSession()).data.session;
+    const session = (await supabaseClient.auth.getSession()).data.session;
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/withdraw`, {
       method: 'POST',
@@ -687,4 +667,5 @@ function confirmDeposit() {
       depositForm.submit();
     }
   }, 1200);
-}
+     }
+     

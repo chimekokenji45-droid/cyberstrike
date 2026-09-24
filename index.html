@@ -8,6 +8,9 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Supabase JS Client SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <!-- Google Fonts & FontAwesome -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,7 +27,6 @@
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
     canvas { touch-action: none; }
 
-    /* Custom Claim Milestone Button Styles */
     .sprint-claim-btn {
       width: 100%;
       padding: 6px 10px;
@@ -38,7 +40,6 @@
       cursor: pointer;
     }
 
-    /* Ready to Claim State */
     .sprint-claim-btn.ready {
       background-color: #00e676;
       color: #020617;
@@ -50,7 +51,6 @@
       box-shadow: 0 0 16px rgba(0, 230, 118, 0.7);
     }
 
-    /* Locked State */
     .sprint-claim-btn.locked,
     .sprint-claim-btn:disabled:not(.claimed-glowing) {
       background-color: #020617;
@@ -59,7 +59,6 @@
       cursor: not-allowed;
     }
 
-    /* High Contrast & Neon Glow Claimed State */
     .sprint-claim-btn.claimed-glowing,
     .sprint-claim-btn:disabled.claimed-glowing {
       background-color: #0f172a !important;
@@ -105,8 +104,6 @@
 
   <!-- MAIN APPLICATION CONTAINER -->
   <div id="appContainer" class="hidden flex-1 flex flex-col min-h-screen">
-    
-    <!-- HEADER NAVBAR -->
     <header class="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur sticky top-0 z-40 w-full overflow-hidden">
       <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2 min-h-[3.25rem] flex items-center justify-between gap-1 sm:gap-2">
         <div class="flex items-center gap-1.5 shrink-0">
@@ -120,7 +117,7 @@
             <div>
               <div class="text-[7px] sm:text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none">Balance</div>
               <div class="text-[10px] sm:text-sm font-bold text-emerald-400 font-['Orbitron'] leading-tight">
-                <span id="userBalanceDisplay">13.20</span> <span class="text-[8px] sm:text-xs">USDT</span>
+                <span id="userBalanceDisplay">0.00</span> <span class="text-[8px] sm:text-xs">USDT</span>
               </div>
             </div>
           </div>
@@ -135,10 +132,7 @@
       </div>
     </header>
 
-    <!-- DASHBOARD CONTENT -->
     <main class="max-w-7xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-      
-      <!-- LEFT PANEL -->
       <section class="lg:col-span-4 space-y-6">
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
           <div class="flex items-center justify-between">
@@ -162,9 +156,8 @@
             <i class="fa-solid fa-football text-cyan-400 text-lg"></i>
           </div>
         </div>
-            </section>
-        <!-- RIGHT PANEL -->
-      <section class="lg:col-span-8 space-y-6">
+  </section>
+        <section class="lg:col-span-8 space-y-6">
         <div class="relative bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden min-h-[380px] sm:min-h-[460px] flex flex-col shadow-2xl">
           <div class="px-4 py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60">
             <div class="flex items-center gap-2">
@@ -194,7 +187,6 @@
           </div>
         </div>
 
-        <!-- WEEKLY SPRINT -->
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -203,67 +195,52 @@
             </div>
             <div class="text-right">
               <div class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">RESET IN</div>
-              <span id="sprintCountdown" class="font-mono text-xs font-bold text-cyan-400">00d 13h 48m 30s</span>
+              <span id="sprintCountdown" class="font-mono text-xs font-bold text-cyan-400">00d 00h 00m 00s</span>
             </div>
           </div>
 
           <div class="space-y-1">
             <div class="flex justify-between text-xs text-slate-400">
-              <span>Wins: <strong id="sprintWinsCount" class="text-slate-100">20</strong></span>
+              <span>Wins: <strong id="sprintWinsCount" class="text-slate-100">0</strong></span>
               <span id="nextRewardLabel" class="text-cyan-400 font-bold">NEXT REWARD: 2.00 USDT</span>
             </div>
             <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-              <div id="sprintProgressBar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[20%] transition-all duration-500"></div>
+              <div id="sprintProgressBar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[0%] transition-all duration-500"></div>
             </div>
           </div>
 
-          <!-- MILESTONE BUTTONS GRID -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            
-            <!-- 20 Wins -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
               <div>
                 <div class="text-[10px] text-slate-500 font-bold uppercase">20 Wins</div>
                 <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$2.00</div>
               </div>
-              <button id="claim20Btn" onclick="claimMilestone(event, 20, 2.00)" class="sprint-claim-btn ready">
-                CLAIM
-              </button>
+              <button id="claim20Btn" onclick="claimMilestone(event, 20, 2.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
             </div>
 
-            <!-- 50 Wins -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
               <div>
                 <div class="text-[10px] text-slate-500 font-bold uppercase">50 Wins</div>
                 <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$5.00</div>
               </div>
-              <button id="claim50Btn" onclick="claimMilestone(event, 50, 5.00)" disabled class="sprint-claim-btn locked">
-                LOCKED
-              </button>
+              <button id="claim50Btn" onclick="claimMilestone(event, 50, 5.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
             </div>
 
-            <!-- 100 Wins -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
               <div>
                 <div class="text-[10px] text-slate-500 font-bold uppercase">100 Wins</div>
                 <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$10.00</div>
               </div>
-              <button id="claim100Btn" onclick="claimMilestone(event, 100, 10.00)" disabled class="sprint-claim-btn locked">
-                LOCKED
-              </button>
+              <button id="claim100Btn" onclick="claimMilestone(event, 100, 10.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
             </div>
 
-            <!-- 1000 Wins -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
               <div>
                 <div class="text-[10px] text-slate-500 font-bold uppercase">1000 Wins</div>
                 <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$100.00</div>
               </div>
-              <button id="claim1000Btn" onclick="claimMilestone(event, 1000, 100.00)" disabled class="sprint-claim-btn locked">
-                LOCKED
-              </button>
+              <button id="claim1000Btn" onclick="claimMilestone(event, 1000, 100.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
             </div>
-
           </div>
         </div>
       </section>
@@ -277,20 +254,28 @@
         <h3 class="font-['Orbitron'] font-bold text-sm text-cyan-400">FAUCETPAY DEPOSIT</h3>
         <button onclick="closeModal('depositModal')" class="text-slate-500 hover:text-slate-300"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form action="https://faucetpay.io/merchant/webscr" method="POST" class="space-y-4" onsubmit="event.preventDefault(); confirmDeposit();">
-        <input type="hidden" name="merchant_username" value="YOUR_FAUCETPAY_MERCHANT_NAME" />
-        <input type="hidden" name="item_name" value="CYBERSTRIKE Balance Deposit" />
-        <input type="hidden" name="currency1" value="USDT" />
-        <input type="hidden" id="depositUserId" name="custom" value="" />
+
+      <form onsubmit="event.preventDefault(); confirmDeposit();" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Deposit Amount (USDT)</label>
-          <input type="number" id="depositAmount" name="amount1" min="0.50" step="0.50" value="1.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-100 focus:outline-none focus:border-cyan-500" />
+          <input 
+            type="number" 
+            id="depositAmount" 
+            min="0.50" 
+            step="0.50" 
+            value="1.00" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-100 focus:outline-none focus:border-cyan-500" 
+          />
         </div>
+
         <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 flex justify-between">
           <span>You will pay:</span>
           <strong id="depositAmountDisplay" class="text-emerald-400">1.00 USDT</strong>
         </div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 font-['Orbitron'] font-bold text-slate-950 text-xs tracking-wider hover:brightness-110">PROCEED TO FAUCETPAY</button>
+
+        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 font-['Orbitron'] font-bold text-slate-950 text-xs tracking-wider hover:brightness-110">
+          PROCEED TO FAUCETPAY
+        </button>
       </form>
     </div>
   </div>
@@ -308,7 +293,7 @@
         </div>
         <div>
           <label class="block font-bold text-slate-400 uppercase mb-1">Available Balance</label>
-          <div id="withdrawBalanceDisplay" class="font-['Orbitron'] font-bold text-emerald-400 text-base">13.20 USDT</div>
+          <div id="withdrawBalanceDisplay" class="font-['Orbitron'] font-bold text-emerald-400 text-base">0.00 USDT</div>
         </div>
         <div>
           <label class="block font-bold text-slate-400 uppercase mb-1">Withdraw Amount (USDT)</label>
@@ -334,10 +319,8 @@
       </div>
     </div>
   </div>
-  
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="script.js" defer></script>
 
+  <script src="script.js"></script>
 </body>
-                </html>
-            
+          </html>
+  

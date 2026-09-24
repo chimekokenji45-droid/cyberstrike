@@ -163,11 +163,11 @@ async function resetWeeklySprint() {
     "fa-rotate text-cyan-400"
   );
 }
-
 // 5. AUTHENTICATION (SUPABASE AUTH INTEGRATION)
 async function handleLogin() {
   const loginEmailInput = document.getElementById('loginEmail');
   const loginPasswordInput = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginButton');
   
   const email = loginEmailInput ? loginEmailInput.value.trim() : '';
   const password = loginPasswordInput ? loginPasswordInput.value.trim() : '';
@@ -177,30 +177,40 @@ async function handleLogin() {
     return;
   }
 
-  // Attempt login; if user doesn't exist, attempt sign-up
-  let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error && error.message.includes("Invalid login credentials")) {
-    const signUpResult = await supabase.auth.signUp({ email, password });
-    error = signUpResult.error;
+  // Update button visual state
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.innerText = "CONNECTING...";
   }
 
-  if (error) {
-    showAuthError(error.message);
-  }
-}
-
-async function logout() {
-  await supabase.auth.signOut();
-}
-
-function showAuthError(message) {
   const authMsg = document.getElementById('authMessage');
-  if (authMsg) {
-    authMsg.innerText = message;
-    authMsg.classList.remove('hidden');
+  if (authMsg) authMsg.classList.add('hidden');
+
+  try {
+    // Attempt sign-in with Supabase
+    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    // Fallback: Attempt sign-up if credentials do not exist
+    if (error && (error.message.includes("Invalid login credentials") || error.status === 400)) {
+      const signUpResult = await supabase.auth.signUp({ email, password });
+      error = signUpResult.error;
+    }
+
+    if (error) {
+      showAuthError(error.message);
+    }
+  } catch (err) {
+    console.error("Auth Exception:", err);
+    showAuthError("Connection failed. Check SUPABASE_URL & ANON_KEY in script.js.");
+  } finally {
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerText = "LOGIN / ENTER ARENA";
+    }
   }
 }
+
+
 
 // 6. MODALS & ALERTS
 function openModal(modalId) {

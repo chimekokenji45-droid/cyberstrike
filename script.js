@@ -174,35 +174,31 @@ async function handleLogin() {
   const password = loginPasswordInput ? loginPasswordInput.value.trim() : '';
 
   if (!email || !password) {
-    showAuthError('Please enter both email and password.');
+    alert('Please enter both email and password.');
     return;
   }
 
-  // Update button visual state
   if (loginBtn) {
     loginBtn.disabled = true;
     loginBtn.innerText = "CONNECTING...";
   }
 
-  const authMsg = document.getElementById('authMessage');
-  if (authMsg) authMsg.classList.add('hidden');
-
   try {
-    // Attempt sign-in with Supabase
-    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Note: using 'supabaseClient' here
+    let { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
-    // Fallback: Attempt sign-up if credentials do not exist
     if (error && (error.message.includes("Invalid login credentials") || error.status === 400)) {
-      const signUpResult = await supabase.auth.signUp({ email, password });
+      const signUpResult = await supabaseClient.auth.signUp({ email, password });
       error = signUpResult.error;
     }
 
     if (error) {
-      showAuthError(error.message);
+      alert("Auth Failure: " + error.message);
+    } else {
+      alert("Success! Logged in.");
     }
   } catch (err) {
-    console.error("Auth Exception:", err);
-    showAuthError("Connection failed. Check SUPABASE_URL & ANON_KEY in script.js.");
+    alert("Connection Error: " + err.message);
   } finally {
     if (loginBtn) {
       loginBtn.disabled = false;
@@ -210,6 +206,7 @@ async function handleLogin() {
     }
   }
 }
+
 
 
 

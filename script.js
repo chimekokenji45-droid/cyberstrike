@@ -6,7 +6,8 @@
 // Replace with your actual Supabase Project URL and Anon API Key
 const SUPABASE_URL = 'https://btugwhcoypxtlgmsxqci.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ✅ CORRECT: Renamed variable to 'supabaseClient'
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 2. GLOBAL APPLICATION STATE
 let currentUser = null;

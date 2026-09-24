@@ -39,9 +39,7 @@ let gameState = {
 // 3. APPLICATION INITIALIZATION & AUTH OBSERVER
 document.addEventListener('DOMContentLoaded', () => {
   initSprintCountdown();
-  if (typeof setupDepositListener === 'function') {
-    setupDepositListener();
-  }
+  setupDepositListener();
 
   // Central Auth State Observer
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -533,8 +531,8 @@ async function finish1v1Match() {
     const canvasOverlay = document.getElementById('canvasOverlay');
     if (canvasOverlay) canvasOverlay.classList.remove('hidden');
   }, 1500);
-                  }
-                           /* ==========================================================================
+       }
+   /* ==========================================================================
    CYBERSTRIKE — FULL PRODUCTION SCRIPT (PART 2 OF 2)
    ========================================================================== */
 
@@ -678,12 +676,29 @@ function setupDepositListener() {
 }
 
 function confirmDeposit() {
+  const depositInput = document.getElementById('depositAmount');
+  const val = parseFloat(depositInput ? depositInput.value : 0);
+
+  if (!val || val < 0.10) {
+    showCyberAlert("INVALID DEPOSIT", "Minimum deposit threshold is $0.10 USDT.", "fa-triangle-exclamation text-rose-500");
+    return;
+  }
+
   showCyberAlert("REDIRECTING TO FAUCETPAY", "Opening secure FaucetPay Merchant payment gateway...", "fa-shield-halved text-cyan-400");
+
   setTimeout(() => {
     closeModal('depositModal');
+    closeModal('cyberAlertModal');
+
     const depositForm = document.querySelector('#depositModal form');
     if (depositForm) {
+      const customField = depositForm.querySelector('input[name="custom"]');
+      if (customField && currentUser) {
+        customField.value = currentUser.id;
+      }
       depositForm.submit();
+    } else {
+      showCyberAlert("FORM ERROR", "Deposit form could not be found in HTML.");
     }
-  }, 1200);
-   }
+  }, 1000);
+}

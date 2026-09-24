@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CYBERSTRIKE — PRODUCTION APPLICATION SCRIPT (PART 1 OF 2)
+   CYBERSTRIKE — FULL PRODUCTION SCRIPT (PART 1 OF 2)
    ========================================================================== */
 
 // 1. SUPABASE CLIENT INITIALIZATION
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDepositListener();
   }
 
-  // Single central auth state listener
+  // Central Auth State Observer
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     const authGate = document.getElementById('authGate');
     const appContainer = document.getElementById('appContainer');
@@ -162,7 +162,7 @@ async function resetWeeklySprint() {
   );
 }
 
-// 5. AUTHENTICATION (SUPABASE AUTH INTEGRATION)
+// 5. AUTHENTICATION & SESSION MANAGEMENT
 async function handleLogin() {
   const loginEmailInput = document.getElementById('loginEmail');
   const loginPasswordInput = document.getElementById('loginPassword');
@@ -199,6 +199,25 @@ async function handleLogin() {
       loginBtn.disabled = false;
       loginBtn.innerText = "LOGIN / ENTER ARENA";
     }
+  }
+}
+
+async function logout() {
+  try {
+    if (typeof supabaseClient !== 'undefined') {
+      await supabaseClient.auth.signOut();
+    }
+  } catch (err) {
+    console.error("Logout error:", err);
+  } finally {
+    currentUser = null;
+    userProfile = { balance: 0.00, sprint_wins: 0, claimed_milestones: { 20: false, 50: false, 100: false, 1000: false } };
+
+    const appContainer = document.getElementById('appContainer');
+    if (appContainer) appContainer.classList.add('hidden');
+
+    const authGate = document.getElementById('authGate');
+    if (authGate) authGate.classList.remove('hidden');
   }
 }
 
@@ -514,9 +533,9 @@ async function finish1v1Match() {
     const canvasOverlay = document.getElementById('canvasOverlay');
     if (canvasOverlay) canvasOverlay.classList.remove('hidden');
   }, 1500);
-}
-   /* ==========================================================================
-   CYBERSTRIKE — PRODUCTION APPLICATION SCRIPT (PART 2 OF 2)
+                  }
+                           /* ==========================================================================
+   CYBERSTRIKE — FULL PRODUCTION SCRIPT (PART 2 OF 2)
    ========================================================================== */
 
 // 11. SPRINT MILESTONE SYSTEM
@@ -667,5 +686,4 @@ function confirmDeposit() {
       depositForm.submit();
     }
   }, 1200);
-     }
-     
+   }

@@ -8,6 +8,20 @@ const SUPABASE_URL = 'https://btugwhcoypxtlgmsxqci.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h';
 // ✅ CORRECT: Renamed variable to 'supabaseClient'
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// 1. SUPABASE CLIENT INITIALIZATION
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// 2. AUTH STATE LISTENER (Transitions to dashboard on login)
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' || session) {
+    // Hide the login screen (Ensure 'authGate' matches your HTML ID)
+    document.getElementById('authGate').classList.add('hidden');
+    
+    // Show the main dashboard (Ensure 'appContainer' matches your HTML ID)
+    document.getElementById('appContainer').classList.remove('hidden');
+  }
+});
+
 
 // 2. GLOBAL APPLICATION STATE
 let currentUser = null;

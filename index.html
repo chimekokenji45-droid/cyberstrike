@@ -265,7 +265,16 @@
         <input type="hidden" name="merchant_username" value="chimeko45" />
         <input type="hidden" name="currency1" value="USDT" />
         <input type="hidden" name="item_name" value="CyberStrike Balance Deposit" />
-        <input type="hidden" name="custom" value="" />
+        <!-- Add this so FaucetPay knows exactly where to send the webhook -->
+<input type="hidden" name="callback_url" value="https://btugwhcoypxtlgmsxqci.supabase.co/functions/v1/Deposit" />
+
+<!-- You must populate this value dynamically with the logged-in user's ID -->
+<input type="hidden" name="custom" id="custom_user_id" value="THE_ACTUAL_USER_ID_HERE" />
+
+<!-- Optional: Add success and cancel URLs to redirect the user back to your game after payment -->
+<input type="hidden" name="success_url" value="https://yourwebsite.com/success" />
+<input type="hidden" name="cancel_url" value="https://yourwebsite.com/cancel" />
+        
 
         <div>
           <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Deposit Amount (USDT)</label>

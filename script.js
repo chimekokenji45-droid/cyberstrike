@@ -25,6 +25,7 @@ if (typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_ANON_KEY) {
    ========================================================================== */
 
 let currentUser = null;
+let profileChannel = null;
 
 let userProfile = {
   balance: 0,
@@ -261,6 +262,11 @@ async function handleLogin() {
    ========================================================================== */
 
 async function logout() {
+  if (profileChannel && supabaseClient) {
+    supabaseClient.removeChannel(profileChannel);
+    profileChannel = null;
+  }
+
   try {
     if (supabaseClient) await supabaseClient.auth.signOut();
   } catch (error) {
@@ -275,7 +281,7 @@ async function logout() {
 /* ==========================================================================
    END OF PART 1 OF 4
    ========================================================================== */
-  /* ==========================================================================
+     /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 2 OF 4
    ========================================================================== */
 
@@ -388,38 +394,20 @@ async function startMatchmaking() {
   }
 
   try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) throw new Error("Session expired. Please log in again.");
-
     showCyberAlert("SEARCHING", "Searching for an opponent...", "fa-spinner fa-spin text-cyan-400");
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/match`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-        "apikey": SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabaseClient.functions.invoke("match", {
+      body: {
         action: "START",
         stake: selectedStake,
         gameMode: selectedGameMode
-      })
+      }
     });
 
-    const rawText = await response.text();
-    let result = {};
-    try {
-      result = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      result = { error: rawText || "Invalid response format" };
-    }
+    if (error) throw new Error(error.message || "Match initialization failed.");
+    if (!data || !data.success) throw new Error(data?.error || data?.message || "Could not start match.");
 
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || result.message || "Match initialization failed.");
-    }
-
-    currentMatchId = result.matchId || result.match_id || null;
+    currentMatchId = data.matchId || data.match_id || null;
     closeModal("cyberAlertModal");
 
     showCyberAlert("MATCH FOUND", "Opponent connected. Prepare for battle!", "fa-crosshairs text-cyan-400");
@@ -577,38 +565,20 @@ async function finish1v1Match() {
   matchActive = false;
 
   try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) throw new Error("Your login session has expired.");
-
     showCyberAlert("RESOLVING MATCH", "Calculating results on blockchain ledger...", "fa-spinner fa-spin text-cyan-400");
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/match`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-        "apikey": SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabaseClient.functions.invoke("match", {
+      body: {
         action: "RESOLVE",
         matchId: currentMatchId,
         stake: selectedStake,
         playerScore: playerScore,
         opponentScore: opponentScore
-      })
+      }
     });
 
-    const rawText = await response.text();
-    let result = {};
-    try {
-      result = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      result = { error: rawText || "Invalid response format." };
-    }
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || result.message || "Could not resolve match.");
-    }
+    if (error) throw new Error(error.message || "Match resolution failed.");
+    if (!data || !data.success) throw new Error(data?.error || data?.message || "Could not resolve match.");
 
     await fetchUserProfile();
 
@@ -616,7 +586,7 @@ async function finish1v1Match() {
     const draw = playerScore === opponentScore;
 
     let title = "MATCH COMPLETE";
-    let message = result.message || "Match resolution verified.";
+    let message = data.message || "Match resolution verified.";
     let icon = "fa-circle-info text-cyan-400";
 
     if (won) {
@@ -764,30 +734,12 @@ async function claimMilestone(eventOrWins, targetWinsParam, rewardAmountParam) {
   try {
     showCyberAlert("PROCESSING", "Verifying milestone eligibility...", "fa-spinner fa-spin text-cyan-400");
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) throw new Error("Your session has expired.");
-
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/milestone`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-        "apikey": SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ targetWins, rewardAmount })
+    const { data, error } = await supabaseClient.functions.invoke("milestone", {
+      body: { targetWins, rewardAmount }
     });
 
-    const rawText = await response.text();
-    let result = {};
-    try {
-      result = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      result = { error: rawText || "Invalid server response." };
-    }
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || result.message || "Claim request was rejected.");
-    }
+    if (error) throw new Error(error.message || "Milestone claim request failed.");
+    if (!data || !data.success) throw new Error(data?.error || data?.message || "Claim request was rejected.");
 
     await fetchUserProfile();
     showCyberAlert("REWARD CLAIMED", `+$${Number(rewardAmount).toFixed(2)} USDT credited to your balance!`, "fa-gift text-emerald-400");
@@ -804,7 +756,6 @@ async function claimMilestone(eventOrWins, targetWinsParam, rewardAmountParam) {
 /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
-
 
 /* ==========================================================================
    24. FAUCETPAY CASHOUT / WITHDRAWAL
@@ -840,34 +791,15 @@ async function confirmWithdrawal() {
   try {
     showCyberAlert("PROCESSING", "Dispatching instant cashout via FaucetPay...", "fa-spinner fa-spin text-emerald-400");
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) throw new Error("Session expired. Please log in again.");
-
-    // Note: URL path is case-sensitive ('withdraw' or 'Withdraw')
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/withdraw`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-        "apikey": SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabaseClient.functions.invoke("withdraw", {
+      body: {
         amount: Number(amount),
         recipientEmail: recipientEmail
-      })
+      }
     });
 
-    const rawText = await response.text();
-    let result = {};
-    try {
-      result = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      result = { error: rawText || "Server returned non-JSON response." };
-    }
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || result.message || `HTTP ${response.status}: Cashout failed.`);
-    }
+    if (error) throw new Error(error.message || "Failed to communicate with payout engine.");
+    if (!data || !data.success) throw new Error(data?.error || data?.message || "Cashout failed.");
 
     await fetchUserProfile();
 
@@ -881,8 +813,6 @@ async function confirmWithdrawal() {
     showCyberAlert("PAYOUT ERROR", error.message || "Payout dispatch failed.", "fa-triangle-exclamation text-rose-500");
   }
 }
-
-
 
 /* ==========================================================================
    25. FAUCETPAY DEPOSIT
@@ -932,8 +862,13 @@ function confirmDeposit() {
 function setupDepositListener() {
   if (!supabaseClient || !currentUser) return;
 
+  if (profileChannel) {
+    supabaseClient.removeChannel(profileChannel);
+    profileChannel = null;
+  }
+
   try {
-    supabaseClient
+    profileChannel = supabaseClient
       .channel(`profile-${currentUser.id}`)
       .on(
         "postgres_changes",
@@ -952,7 +887,9 @@ function setupDepositListener() {
             }
 
             if (payload.new.claimed_milestones !== undefined) {
-              userProfile.claimed_milestones = Array.isArray(payload.new.claimed_milestones) ? payload.new.claimed_milestones : [];
+              userProfile.claimed_milestones = Array.isArray(payload.new.claimed_milestones)
+                ? payload.new.claimed_milestones
+                : [];
             }
 
             updateBalanceDisplay();
@@ -1034,4 +971,4 @@ document.addEventListener("click", event => {
 /* ==========================================================================
    END OF SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
-    
+         

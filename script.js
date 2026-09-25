@@ -3,35 +3,22 @@
    SCRIPT.JS — PART 1 OF 4
    ========================================================================== */
 
-
 /* ==========================================================================
    1. SUPABASE CONFIGURATION
    ========================================================================== */
 
-const SUPABASE_URL =
-  "https://btugwhcoypxtlgmsxqci.supabase.co";
-
-const SUPABASE_ANON_KEY =
-  "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
+const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
 
 let supabaseClient = null;
-
 
 /* ==========================================================================
    2. INITIALIZE SUPABASE
    ========================================================================== */
 
-if (
-  typeof supabase !== "undefined" &&
-  SUPABASE_URL &&
-  SUPABASE_ANON_KEY
-) {
-  supabaseClient = supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+if (typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_ANON_KEY) {
+  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
-
 
 /* ==========================================================================
    3. GLOBAL STATE
@@ -53,333 +40,204 @@ let matchActive = false;
 let playerScore = 0;
 let opponentScore = 0;
 
-
 /* ==========================================================================
    4. PAGE INITIALIZATION
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", async () => {
-
   if (!supabaseClient) {
     console.error("Supabase failed to initialize.");
     return;
   }
 
   try {
-    const {
-      data: {
-        session
-      }
-    } = await supabaseClient.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
 
     if (session && session.user) {
       currentUser = session.user;
-
       await fetchUserProfile();
-
       showApplication();
     } else {
       showLoginScreen();
     }
-
   } catch (error) {
-
-    console.error(
-      "Initial authentication error:",
-      error
-    );
-
+    console.error("Initial authentication error:", error);
     showLoginScreen();
   }
 
   checkPaymentRedirect();
   initSprintCountdown();
+  setupDepositInputListener();
 });
-
 
 /* ==========================================================================
    5. AUTH STATE LISTENER
    ========================================================================== */
 
 if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    console.log("Auth event:", event);
 
-  supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-
-      console.log(
-        "Auth event:",
-        event
-      );
-
-      if (session && session.user) {
-
-        currentUser = session.user;
-
-        await fetchUserProfile();
-
-        showApplication();
-
-      } else {
-
-        currentUser = null;
-
-        userProfile = {
-          balance: 0,
-          sprint_wins: 0,
-          claimed_milestones: []
-        };
-
-        showLoginScreen();
-      }
+    if (session && session.user) {
+      currentUser = session.user;
+      await fetchUserProfile();
+      showApplication();
+    } else {
+      currentUser = null;
+      userProfile = {
+        balance: 0,
+        sprint_wins: 0,
+        claimed_milestones: []
+      };
+      showLoginScreen();
     }
-  );
+  });
 }
-
 
 /* ==========================================================================
    6. SHOW LOGIN SCREEN
    ========================================================================== */
 
 function showLoginScreen() {
+  const authGate = document.getElementById("authGate");
+  const appContainer = document.getElementById("appContainer");
 
-  const authGate =
-    document.getElementById("authGate");
-
-  const appContainer =
-    document.getElementById("appContainer");
-
-  if (authGate) {
-    authGate.style.display = "flex";
-  }
-
-  if (appContainer) {
-    appContainer.style.display = "none";
-  }
+  if (authGate) authGate.style.display = "flex";
+  if (appContainer) appContainer.style.display = "none";
 }
-
 
 /* ==========================================================================
    7. SHOW APPLICATION
    ========================================================================== */
 
 function showApplication() {
+  const authGate = document.getElementById("authGate");
+  const appContainer = document.getElementById("appContainer");
 
-  const authGate =
-    document.getElementById("authGate");
-
-  const appContainer =
-    document.getElementById("appContainer");
-
-  if (authGate) {
-    authGate.style.display = "none";
-  }
-
-  if (appContainer) {
-    appContainer.style.display = "block";
-  }
+  if (authGate) authGate.style.display = "none";
+  if (appContainer) appContainer.style.display = "flex";
 
   updateBalanceDisplay();
   updateSprintProgress();
   setupDepositListener();
 }
 
-
 /* ==========================================================================
    8. LOAD USER PROFILE
    ========================================================================== */
 
 async function fetchUserProfile() {
+  if (!supabaseClient) return;
 
-  if (!supabaseClient) {
-    return;
-  }
-
-  // Session fallback check if currentUser is not yet cached
   if (!currentUser) {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) currentUser = session.user;
   }
 
-  if (!currentUser) {
-    return;
-  }
+  if (!currentUser) return;
 
-  // Auto-fill FaucetPay withdrawal email input
+  // Sync FaucetPay withdrawal email field
   const withdrawEmailInput = document.getElementById("withdrawEmailInput");
   if (withdrawEmailInput && currentUser.email) {
     withdrawEmailInput.value = currentUser.email;
   }
 
-  // Auto-fill FaucetPay deposit custom user ID field
+  // Sync FaucetPay deposit user ID field
   const userIdField = document.getElementById("custom_user_id");
   if (userIdField) {
     userIdField.value = currentUser.id;
   }
 
   try {
-
-    const {
-      data,
-      error
-    } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from("profiles")
-      .select(
-        "balance, sprint_wins, claimed_milestones"
-      )
+      .select("balance, sprint_wins, claimed_milestones")
       .eq("id", currentUser.id)
       .single();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     userProfile = {
       balance: Number(data.balance || 0),
       sprint_wins: Number(data.sprint_wins || 0),
-      claimed_milestones:
-        Array.isArray(data.claimed_milestones)
-          ? data.claimed_milestones
-          : []
+      claimed_milestones: Array.isArray(data.claimed_milestones) ? data.claimed_milestones : []
     };
 
     updateBalanceDisplay();
     updateSprintProgress();
-
   } catch (error) {
-
-    console.error(
-      "Profile loading error:",
-      error
-    );
-
-    userProfile = {
-      balance: 0,
-      sprint_wins: 0,
-      claimed_milestones: []
-    };
-
+    console.error("Profile loading error:", error);
+    userProfile = { balance: 0, sprint_wins: 0, claimed_milestones: [] };
     updateBalanceDisplay();
   }
 }
-
 
 /* ==========================================================================
    9. UPDATE BALANCE DISPLAY
    ========================================================================== */
 
 function updateBalanceDisplay() {
+  const balance = Number(userProfile.balance || 0);
 
-  const balance =
-    Number(userProfile.balance || 0);
-
-  const balanceDisplay =
-    document.getElementById(
-      "userBalanceDisplay"
-    );
-
+  const balanceDisplay = document.getElementById("userBalanceDisplay");
   if (balanceDisplay) {
-    balanceDisplay.textContent =
-      `${balance.toFixed(2)} USDT`;
+    balanceDisplay.textContent = balance.toFixed(2);
   }
 
-  const withdrawBalanceDisplay =
-    document.getElementById(
-      "withdrawBalanceDisplay"
-    );
-
+  const withdrawBalanceDisplay = document.getElementById("withdrawBalanceDisplay");
   if (withdrawBalanceDisplay) {
-    withdrawBalanceDisplay.textContent =
-      `${balance.toFixed(2)} USDT`;
+    withdrawBalanceDisplay.textContent = `${balance.toFixed(2)} USDT`;
   }
 }
 
-
 /* ==========================================================================
-   10. LOGIN
+   10. HANDLE LOGIN
    ========================================================================== */
 
 async function handleLogin() {
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+  const message = document.getElementById("authMessage");
 
-  const emailInput =
-    document.getElementById("loginEmail");
-
-  const passwordInput =
-    document.getElementById("loginPassword");
-
-  const message =
-    document.getElementById("authMessage");
-
-  const email =
-    emailInput
-      ? emailInput.value.trim()
-      : "";
-
-  const password =
-    passwordInput
-      ? passwordInput.value
-      : "";
+  const email = emailInput ? emailInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value : "";
 
   if (!email || !password) {
-
     if (message) {
-      message.textContent =
-        "Please enter your email and password.";
+      message.textContent = "Please enter your email and password.";
+      message.classList.remove("hidden");
     }
-
     return;
   }
 
   if (!supabaseClient) {
-
     if (message) {
-      message.textContent =
-        "Supabase connection is not available.";
+      message.textContent = "Supabase connection unavailable.";
+      message.classList.remove("hidden");
     }
-
     return;
   }
 
   try {
-
     if (message) {
-      message.textContent =
-        "CONNECTING TO CYBERSTRIKE...";
+      message.textContent = "CONNECTING TO CYBERSTRIKE...";
+      message.classList.remove("hidden");
     }
 
-    const {
-      data,
-      error
-    } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
     if (error) {
-
-      /*
-        If login fails, try creating the account.
-        This keeps the current CYBERSTRIKE login flow.
-      */
-
-      const signup =
-        await supabaseClient.auth.signUp({
-          email,
-          password
-        });
-
-      if (signup.error) {
-        throw error;
-      }
+      // Auto signup fallback
+      const signup = await supabaseClient.auth.signUp({ email, password });
+      if (signup.error) throw error;
 
       if (message) {
-        message.textContent =
-          "ACCOUNT CREATED. PLEASE CHECK YOUR EMAIL IF CONFIRMATION IS REQUIRED.";
+        message.textContent = "ACCOUNT CREATED. LOGGING IN...";
       }
 
       if (signup.data && signup.data.user) {
         currentUser = signup.data.user;
       }
-
       return;
     }
 
@@ -388,126 +246,78 @@ async function handleLogin() {
     }
 
     await fetchUserProfile();
-
     showApplication();
-
   } catch (error) {
-
-    console.error(
-      "Login error:",
-      error
-    );
-
+    console.error("Login error:", error);
     if (message) {
-      message.textContent =
-        error.message ||
-        "Login failed. Please try again.";
+      message.textContent = error.message || "Login failed. Please try again.";
+      message.classList.remove("hidden");
     }
   }
 }
-
 
 /* ==========================================================================
    11. LOGOUT
    ========================================================================== */
 
 async function logout() {
-
   try {
-
-    if (supabaseClient) {
-      await supabaseClient.auth.signOut();
-    }
-
+    if (supabaseClient) await supabaseClient.auth.signOut();
   } catch (error) {
-
-    console.error(
-      "Logout error:",
-      error
-    );
+    console.error("Logout error:", error);
   }
 
   currentUser = null;
-
-  userProfile = {
-    balance: 0,
-    sprint_wins: 0,
-    claimed_milestones: []
-  };
-
+  userProfile = { balance: 0, sprint_wins: 0, claimed_milestones: [] };
   showLoginScreen();
 }
-
 
 /* ==========================================================================
    END OF PART 1 OF 4
    ========================================================================== */
-           /* ==========================================================================
+     /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 2 OF 4
    ========================================================================== */
 
-
 /* ==========================================================================
-   12. CYBER ALERT
+   12. CYBER ALERT MODAL
    ========================================================================== */
 
-function showCyberAlert(title, message, iconClass = "") {
+function showCyberAlert(title, message, iconClass = "fa-gift text-cyan-400") {
+  const titleElement = document.getElementById("cyberAlertTitle");
+  const messageElement = document.getElementById("cyberAlertMessage");
+  const iconElement = document.getElementById("cyberAlertIcon");
 
-  const titleElement =
-    document.getElementById("cyberAlertTitle");
+  if (titleElement) titleElement.textContent = title;
+  if (messageElement) messageElement.textContent = message;
+  if (iconElement) iconElement.className = `fa-solid ${iconClass}`;
 
-  const messageElement =
-    document.getElementById("cyberAlertMessage");
-
-  const iconElement =
-    document.getElementById("cyberAlertIcon");
-
-  if (titleElement) {
-    titleElement.textContent = title;
-  }
-
-  if (messageElement) {
-    messageElement.textContent = message;
-  }
-
-  if (iconElement && iconClass) {
-    iconElement.className =
-      `fas ${iconClass}`;
-  }
-
-  const alertElement =
-    document.getElementById("cyberAlert");
-
-  if (alertElement) {
-    alertElement.classList.remove("hidden");
-  }
+  openModal("cyberAlertModal");
 }
-
 
 /* ==========================================================================
    13. OPEN / CLOSE MODALS
    ========================================================================== */
 
 async function openModal(modalId) {
-
-  const modal =
-    document.getElementById(modalId);
+  const modal = document.getElementById(modalId);
 
   if (modalId === "withdrawModal") {
-
-    // Fetch active session if user state is missing
-    if (!currentUser && supabaseClient) {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) currentUser = session.user;
+    // Direct sync from active session
+    try {
+      if (supabaseClient) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) currentUser = user;
+      }
+    } catch (err) {
+      console.error("User fetch error:", err);
     }
 
-    // Populate FaucetPay email input
     const withdrawEmailInput = document.getElementById("withdrawEmailInput");
     if (withdrawEmailInput && currentUser && currentUser.email) {
       withdrawEmailInput.value = currentUser.email;
     }
 
-    // Update withdraw modal balance display
     const withdrawBalanceDisplay = document.getElementById("withdrawBalanceDisplay");
     if (withdrawBalanceDisplay) {
       const balance = Number(userProfile.balance || 0);
@@ -520,1579 +330,704 @@ async function openModal(modalId) {
   }
 }
 
-
 function closeModal(modalId) {
-
-  const modal =
-    document.getElementById(modalId);
-
+  const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.add("hidden");
   }
 }
 
-
 /* ==========================================================================
-   14. SELECT GAME MODE
-   ========================================================================== */
-
-function selectGameMode(mode) {
-
-  selectedGameMode = mode;
-
-  document
-    .querySelectorAll("[id^='mode-']")
-    .forEach(card => {
-      card.classList.remove(
-        "border-cyan-400",
-        "border-emerald-400"
-      );
-    });
-
-  const selectedCard =
-    document.getElementById(
-      `mode-${mode}`
-    );
-
-  if (selectedCard) {
-    selectedCard.classList.add(
-      "border-cyan-400"
-    );
-  }
-
-  console.log(
-    "Selected game mode:",
-    selectedGameMode
-  );
-}
-
-
-/* ==========================================================================
-   15. SELECT STAKE
+   14. SELECT STAKE TIER
    ========================================================================== */
 
 function selectStakeTier(stake) {
+  selectedStake = Number(stake);
 
-  selectedStake =
-    Number(stake);
+  [0.50, 1.00, 5.00].forEach(tier => {
+    const btn = document.getElementById(`stake-tier-${tier.toFixed(2)}`);
+    if (btn) {
+      if (tier === selectedStake) {
+        btn.className = "stake-tier-btn bg-cyan-500 text-slate-950 font-bold py-2 px-3 rounded text-sm shadow-glow transition-all";
+      } else {
+        btn.className = "stake-tier-btn bg-slate-800 border border-slate-700 hover:border-cyan-500 text-white font-bold py-2 px-3 rounded text-sm transition-all";
+      }
+    }
+  });
 
-  document
-    .querySelectorAll("[data-stake]")
-    .forEach(button => {
-
-      button.classList.remove(
-        "border-cyan-400",
-        "bg-cyan-500/20"
-      );
-    });
-
-  const selectedButton =
-    document.querySelector(
-      `[data-stake="${selectedStake}"]`
-    );
-
-  if (selectedButton) {
-    selectedButton.classList.add(
-      "border-cyan-400",
-      "bg-cyan-500/20"
-    );
+  const overviewStake = document.getElementById("matchOverviewStake");
+  if (overviewStake) {
+    overviewStake.innerHTML = `Entry Stake: <strong class="text-cyan-400">$${selectedStake.toFixed(2)} USDT</strong>`;
   }
 
-  console.log(
-    "Selected stake:",
-    selectedStake
-  );
+  const overlayDesc = document.getElementById("matchOverlayDesc");
+  if (overlayDesc) {
+    const prize = (selectedStake * 1.6).toFixed(2);
+    overlayDesc.innerHTML = `Entry Stake: <strong class="text-cyan-400">$${selectedStake.toFixed(2)} USDT</strong>. Winner takes <strong class="text-emerald-400">$${prize} USDT</strong> (20% rake).`;
+  }
 }
 
-
 /* ==========================================================================
-   16. START MATCHMAKING
+   15. START MATCHMAKING
    ========================================================================== */
 
 async function startMatchmaking() {
-
   if (!currentUser) {
-    showCyberAlert(
-      "LOGIN REQUIRED",
-      "Please log in before entering the arena."
-    );
+    showCyberAlert("LOGIN REQUIRED", "Please log in before entering the arena.", "fa-lock text-amber-400");
     return;
   }
 
   if (!supabaseClient) {
-    showCyberAlert(
-      "CONNECTION ERROR",
-      "Supabase is not connected."
-    );
+    showCyberAlert("CONNECTION ERROR", "Supabase connection unavailable.", "fa-triangle-exclamation text-rose-500");
+    return;
+  }
+
+  if (Number(userProfile.balance || 0) < selectedStake) {
+    showCyberAlert("INSUFFICIENT BALANCE", `You need at least $${selectedStake.toFixed(2)} USDT to enter this match.`, "fa-wallet text-rose-400");
     return;
   }
 
   try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error("Session expired. Please log in again.");
 
-    const {
-      data: {
-        session
-      }
-    } =
-      await supabaseClient.auth.getSession();
+    showCyberAlert("SEARCHING", "Searching for an opponent...", "fa-spinner fa-spin text-cyan-400");
 
-    if (!session) {
-      throw new Error(
-        "Your login session has expired."
-      );
-    }
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/match`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        action: "START",
+        stake: selectedStake,
+        gameMode: selectedGameMode
+      })
+    });
 
-    showCyberAlert(
-      "SEARCHING",
-      "Searching for an opponent...",
-      "fa-spinner fa-spin text-cyan-400"
-    );
-
-    const response =
-      await fetch(
-        `${SUPABASE_URL}/functions/v1/match`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization":
-              `Bearer ${session.access_token}`,
-            "apikey":
-              SUPABASE_ANON_KEY
-          },
-
-          body: JSON.stringify({
-            action: "START",
-            stake: selectedStake,
-            gameMode: selectedGameMode
-          })
-        }
-      );
-
-    const rawText =
-      await response.text();
-
+    const rawText = await response.text();
     let result = {};
-
     try {
-      result =
-        rawText
-          ? JSON.parse(rawText)
-          : {};
+      result = rawText ? JSON.parse(rawText) : {};
     } catch {
-      result = {
-        error:
-          rawText ||
-          "Invalid server response."
-      };
+      result = { error: rawText || "Invalid response format" };
     }
 
-    if (!response.ok) {
-      throw new Error(
-        result.error ||
-        result.message ||
-        `Match server returned HTTP ${response.status}.`
-      );
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || result.message || "Match initialization failed.");
     }
 
-    if (!result.success) {
-      throw new Error(
-        result.error ||
-        result.message ||
-        "Could not start matchmaking."
-      );
-    }
+    currentMatchId = result.matchId || result.match_id || null;
+    closeModal("cyberAlertModal");
 
-    currentMatchId =
-      result.matchId ||
-      result.match_id ||
-      null;
-
-    closeModal("cyberAlert");
-
-    showCyberAlert(
-      "MATCH FOUND",
-      "Opponent connected. Prepare for battle!",
-      "fa-crosshairs text-cyan-400"
-    );
+    showCyberAlert("MATCH FOUND", "Opponent connected. Prepare for battle!", "fa-crosshairs text-cyan-400");
 
     setTimeout(() => {
-      closeModal("cyberAlert");
+      closeModal("cyberAlertModal");
       startPenaltyShootout();
     }, 1200);
 
   } catch (error) {
-
-    console.error(
-      "Matchmaking error:",
-      error
-    );
-
-    showCyberAlert(
-      "MATCHMAKING ERROR",
-      error.message ||
-      "Could not connect to matchmaking server.",
-      "fa-triangle-exclamation text-rose-500"
-    );
+    console.error("Matchmaking error:", error);
+    showCyberAlert("MATCHMAKING ERROR", error.message || "Could not connect to match server.", "fa-triangle-exclamation text-rose-500");
   }
 }
 
-
 /* ==========================================================================
-   17. PENALTY SHOOTOUT GAME
+   16. PENALTY SHOOTOUT GAME ENGINE
    ========================================================================== */
 
 function startPenaltyShootout() {
-
-  const canvas =
-    document.getElementById("gameCanvas");
-
-  const overlay =
-    document.getElementById("canvasOverlay");
+  const canvas = document.getElementById("gameCanvas");
+  const overlay = document.getElementById("canvasOverlay");
 
   if (!canvas) {
-    showCyberAlert(
-      "GAME ERROR",
-      "Game canvas was not found."
-    );
+    showCyberAlert("GAME ERROR", "Game canvas element missing.", "fa-triangle-exclamation text-rose-500");
     return;
   }
 
   matchActive = true;
-
   playerScore = 0;
   opponentScore = 0;
 
-  if (overlay) {
-    overlay.style.display = "none";
-  }
+  if (overlay) overlay.style.display = "none";
 
-  const ctx =
-    canvas.getContext("2d");
-
+  const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  ctx.clearRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
   drawPenaltyField(ctx);
-
   startPenaltyRound();
 }
 
-
 /* ==========================================================================
-   18. DRAW PENALTY FIELD
+   17. DRAW FIELD
    ========================================================================== */
 
 function drawPenaltyField(ctx) {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
 
-  const width =
-    ctx.canvas.width;
+  ctx.clearRect(0, 0, width, height);
 
-  const height =
-    ctx.canvas.height;
-
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-  ctx.strokeStyle =
-    "rgba(34,211,238,0.45)";
-
+  ctx.strokeStyle = "rgba(34,211,238,0.45)";
   ctx.lineWidth = 3;
 
-  /*
-    Goal
-  */
-
+  // Goal Post
   const goalWidth = 260;
   const goalHeight = 100;
-
-  const goalX =
-    (width - goalWidth) / 2;
-
+  const goalX = (width - goalWidth) / 2;
   const goalY = 45;
 
-  ctx.strokeRect(
-    goalX,
-    goalY,
-    goalWidth,
-    goalHeight
-  );
+  ctx.strokeRect(goalX, goalY, goalWidth, goalHeight);
 
-  /*
-    Penalty area
-  */
+  // Penalty Box
+  ctx.strokeRect(goalX - 70, goalY + goalHeight, goalWidth + 140, 150);
 
-  ctx.strokeRect(
-    goalX - 70,
-    goalY + goalHeight,
-    goalWidth + 140,
-    150
-  );
-
-  /*
-    Penalty spot
-  */
-
+  // Penalty Spot
   ctx.beginPath();
-
-  ctx.arc(
-    width / 2,
-    height - 115,
-    7,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fillStyle =
-    "rgba(255,255,255,0.8)";
-
+  ctx.arc(width / 2, height - 115, 7, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.fill();
-
-  /*
-    Center line
-  */
-
-  ctx.beginPath();
-
-  ctx.moveTo(
-    0,
-    height / 2
-  );
-
-  ctx.lineTo(
-    width,
-    height / 2
-  );
-
-  ctx.strokeStyle =
-    "rgba(34,211,238,0.15)";
-
-  ctx.stroke();
 }
 
-
 /* ==========================================================================
-   19. START PENALTY ROUND
+   18. START ROUND
    ========================================================================== */
 
 function startPenaltyRound() {
-
   if (!matchActive) return;
 
-  const canvas =
-    document.getElementById("gameCanvas");
-
+  const canvas = document.getElementById("gameCanvas");
   if (!canvas) return;
 
-  const ctx =
-    canvas.getContext("2d");
-
+  const ctx = canvas.getContext("2d");
   drawPenaltyField(ctx);
 
-  /*
-    Draw goalkeeper
-  */
-
-  const centerX =
-    canvas.width / 2;
-
+  const centerX = canvas.width / 2;
   const goalkeeperY = 105;
 
-  ctx.fillStyle =
-    "rgba(16,185,129,0.85)";
-
-  ctx.fillRect(
-    centerX - 35,
-    goalkeeperY,
-    70,
-    18
-  );
-
+  // Goalkeeper
+  ctx.fillStyle = "rgba(16,185,129,0.85)";
+  ctx.fillRect(centerX - 35, goalkeeperY, 70, 18);
   ctx.beginPath();
-
-  ctx.arc(
-    centerX,
-    goalkeeperY - 12,
-    10,
-    0,
-    Math.PI * 2
-  );
-
+  ctx.arc(centerX, goalkeeperY - 12, 10, 0, Math.PI * 2);
   ctx.fill();
 
-  /*
-    Ball
-  */
-
-  ctx.fillStyle =
-    "white";
-
+  // Ball
+  ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-
-  ctx.arc(
-    centerX,
-    canvas.height - 115,
-    11,
-    0,
-    Math.PI * 2
-  );
-
+  ctx.arc(centerX, canvas.height - 115, 11, 0, Math.PI * 2);
   ctx.fill();
 
-  canvas.onclick =
-    handlePenaltyShot;
+  canvas.onclick = handlePenaltyShot;
 }
 
-
 /* ==========================================================================
-   20. HANDLE PENALTY SHOT
+   19. HANDLE SHOT
    ========================================================================== */
 
 function handlePenaltyShot(event) {
-
   if (!matchActive) return;
 
-  const canvas =
-    document.getElementById("gameCanvas");
-
+  const canvas = document.getElementById("gameCanvas");
   if (!canvas) return;
 
-  const rect =
-    canvas.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
 
-  const scaleX =
-    canvas.width / rect.width;
+  const x = (event.clientX - rect.left) * scaleX;
+  const y = (event.clientY - rect.top) * scaleY;
 
-  const scaleY =
-    canvas.height / rect.height;
-
-  const x =
-    (event.clientX - rect.left) *
-    scaleX;
-
-  const y =
-    (event.clientY - rect.top) *
-    scaleY;
-
-  /*
-    Goal boundaries
-  */
-
-  const goalLeft =
-    (canvas.width - 260) / 2;
-
-  const goalRight =
-    goalLeft + 260;
-
+  const goalLeft = (canvas.width - 260) / 2;
+  const goalRight = goalLeft + 260;
   const goalTop = 45;
   const goalBottom = 145;
 
-  const scored =
-    x >= goalLeft &&
-    x <= goalRight &&
-    y >= goalTop &&
-    y <= goalBottom;
+  const scored = x >= goalLeft && x <= goalRight && y >= goalTop && y <= goalBottom;
 
   if (scored) {
-
     playerScore++;
-
-    showCyberAlert(
-      "GOAL!",
-      "Perfect shot!",
-      "fa-futbol text-emerald-400"
-    );
-
+    showCyberAlert("GOAL!", "Target successfully hit!", "fa-futbol text-emerald-400");
   } else {
-
-    showCyberAlert(
-      "MISS!",
-      "The shot missed the target.",
-      "fa-xmark text-rose-500"
-    );
+    showCyberAlert("MISS!", "The shot missed the goal frame.", "fa-xmark text-rose-500");
   }
 
   setTimeout(() => {
-
-    closeModal("cyberAlert");
-
+    closeModal("cyberAlertModal");
     finish1v1Match();
-
   }, 800);
 }
-
 
 /* ==========================================================================
    END OF PART 2 OF 4
    ========================================================================== */
-     /* ==========================================================================
+         /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 3 OF 4
    ========================================================================== */
 
-
 /* ==========================================================================
-   21. FINISH 1v1 MATCH
+   20. FINISH 1v1 MATCH
    ========================================================================== */
 
 async function finish1v1Match() {
-
-  if (!currentUser || !matchActive) {
-    return;
-  }
-
+  if (!currentUser || !matchActive) return;
   matchActive = false;
 
   try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error("Your login session has expired.");
 
-    const {
-      data: {
-        session
-      }
-    } =
-      await supabaseClient.auth.getSession();
+    showCyberAlert("RESOLVING MATCH", "Calculating results on blockchain ledger...", "fa-spinner fa-spin text-cyan-400");
 
-    if (!session) {
-      throw new Error(
-        "Your login session has expired."
-      );
-    }
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/match`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        action: "RESOLVE",
+        matchId: currentMatchId,
+        stake: selectedStake,
+        playerScore: playerScore,
+        opponentScore: opponentScore
+      })
+    });
 
-    showCyberAlert(
-      "RESOLVING MATCH",
-      "Calculating match result...",
-      "fa-spinner fa-spin text-cyan-400"
-    );
-
-    const response =
-      await fetch(
-        `${SUPABASE_URL}/functions/v1/match`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization":
-              `Bearer ${session.access_token}`,
-            "apikey":
-              SUPABASE_ANON_KEY
-          },
-
-          body: JSON.stringify({
-            action: "RESOLVE",
-            matchId: currentMatchId,
-            stake: selectedStake,
-            playerScore: playerScore,
-            opponentScore: opponentScore
-          })
-        }
-      );
-
-    const rawText =
-      await response.text();
-
+    const rawText = await response.text();
     let result = {};
-
     try {
-      result =
-        rawText
-          ? JSON.parse(rawText)
-          : {};
+      result = rawText ? JSON.parse(rawText) : {};
     } catch {
-      result = {
-        error:
-          rawText ||
-          "Invalid server response."
-      };
+      result = { error: rawText || "Invalid response format." };
     }
 
-    if (!response.ok) {
-      throw new Error(
-        result.error ||
-        result.message ||
-        `Match server returned HTTP ${response.status}.`
-      );
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || result.message || "Could not resolve match.");
     }
-
-    if (!result.success) {
-      throw new Error(
-        result.error ||
-        result.message ||
-        "Could not resolve the match."
-      );
-    }
-
-    /*
-      Refresh real balance and sprint data.
-    */
 
     await fetchUserProfile();
 
-    const won =
-      playerScore > opponentScore;
-
-    const draw =
-      playerScore === opponentScore;
+    const won = playerScore > opponentScore;
+    const draw = playerScore === opponentScore;
 
     let title = "MATCH COMPLETE";
-    let message = "The match has been resolved.";
+    let message = result.message || "Match resolution verified.";
+    let icon = "fa-circle-info text-cyan-400";
 
     if (won) {
-      title = "VICTORY";
-      message =
-        result.message ||
-        "You won the match!";
+      title = "VICTORY!";
+      icon = "fa-trophy text-emerald-400";
     } else if (draw) {
       title = "DRAW";
-      message =
-        result.message ||
-        "The match ended in a draw.";
+      icon = "fa-handshake text-amber-400";
     } else {
       title = "DEFEAT";
-      message =
-        result.message ||
-        "Your opponent won this match.";
+      icon = "fa-xmark text-rose-500";
     }
 
-    showCyberAlert(
-      title,
-      message,
-      won
-        ? "fa-trophy text-emerald-400"
-        : "fa-circle-info text-cyan-400"
-    );
+    showCyberAlert(title, message, icon);
 
     setTimeout(() => {
-
-      closeModal("cyberAlert");
-
-      const overlay =
-        document.getElementById(
-          "canvasOverlay"
-        );
-
-      if (overlay) {
-        overlay.style.display = "flex";
-      }
-
-    }, 1800);
+      closeModal("cyberAlertModal");
+      const overlay = document.getElementById("canvasOverlay");
+      if (overlay) overlay.style.display = "flex";
+    }, 2000);
 
   } catch (error) {
-
-    console.error(
-      "Match resolution error:",
-      error
-    );
-
-    showCyberAlert(
-      "MATCH ERROR",
-      error.message ||
-      "Could not resolve the match.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    matchActive = false;
+    console.error("Match resolution error:", error);
+    showCyberAlert("MATCH ERROR", error.message || "Resolution failure.", "fa-triangle-exclamation text-rose-500");
   }
 }
 
-
 /* ==========================================================================
-   22. WEEKLY SPRINT PROGRESS
+   21. WEEKLY SPRINT PROGRESS
    ========================================================================== */
 
 function updateSprintProgress() {
+  const wins = Number(userProfile.sprint_wins || 0);
 
-  const wins =
-    Number(userProfile.sprint_wins || 0);
+  const winsDisplay = document.getElementById("sprintWinsCount");
+  const progressBar = document.getElementById("sprintProgressBar");
+  const nextRewardLabel = document.getElementById("nextRewardLabel");
 
-  const winsDisplay =
-    document.getElementById(
-      "sprintWinsCount"
-    );
-
-  const progressBar =
-    document.getElementById(
-      "sprintProgressBar"
-    );
-
-  const nextRewardLabel =
-    document.getElementById(
-      "nextRewardLabel"
-    );
-
-  if (winsDisplay) {
-    winsDisplay.textContent =
-      wins;
-  }
+  if (winsDisplay) winsDisplay.textContent = wins;
 
   let nextTarget = 20;
   let nextReward = 2.00;
 
   if (wins >= 20 && wins < 50) {
-
     nextTarget = 50;
     nextReward = 5.00;
-
   } else if (wins >= 50 && wins < 100) {
-
     nextTarget = 100;
     nextReward = 10.00;
-
   } else if (wins >= 100 && wins < 1000) {
-
     nextTarget = 1000;
     nextReward = 100.00;
-
   } else if (wins >= 1000) {
-
     nextTarget = 1000;
     nextReward = 100.00;
   }
 
   if (progressBar) {
-
-    const percentage =
-      Math.min(
-        (wins / nextTarget) * 100,
-        100
-      );
-
-    progressBar.style.width =
-      `${percentage}%`;
+    const percentage = Math.min((wins / nextTarget) * 100, 100);
+    progressBar.style.width = `${percentage}%`;
   }
 
   if (nextRewardLabel) {
-
     if (wins >= 1000) {
-
-      nextRewardLabel.textContent =
-        "ALL MILESTONES REACHED";
-
+      nextRewardLabel.textContent = "MAX MILESTONES CLAIMED";
     } else {
-
-      nextRewardLabel.textContent =
-        `NEXT REWARD: ${nextReward.toFixed(2)} USDT`;
+      nextRewardLabel.textContent = `NEXT REWARD: ${nextReward.toFixed(2)} USDT`;
     }
   }
 
   updateMilestoneButtons();
 }
 
-
 /* ==========================================================================
-   23. UPDATE MILESTONE BUTTONS
+   22. UPDATE MILESTONE BUTTONS
    ========================================================================== */
 
 function updateMilestoneButtons() {
-
-  const wins =
-    Number(userProfile.sprint_wins || 0);
-
-  const claimed =
-    Array.isArray(
-      userProfile.claimed_milestones
-    )
-      ? userProfile.claimed_milestones
-      : [];
+  const wins = Number(userProfile.sprint_wins || 0);
+  const claimed = Array.isArray(userProfile.claimed_milestones) ? userProfile.claimed_milestones : [];
 
   const milestones = [
-    {
-      id: "claim20Btn",
-      wins: 20
-    },
-    {
-      id: "claim50Btn",
-      wins: 50
-    },
-    {
-      id: "claim100Btn",
-      wins: 100
-    },
-    {
-      id: "claim1000Btn",
-      wins: 1000
-    }
+    { id: "claim20Btn", wins: 20 },
+    { id: "claim50Btn", wins: 50 },
+    { id: "claim100Btn", wins: 100 },
+    { id: "claim1000Btn", wins: 1000 }
   ];
 
-  milestones.forEach(
-    milestone => {
+  milestones.forEach(m => {
+    const button = document.getElementById(m.id);
+    if (!button) return;
 
-      const button =
-        document.getElementById(
-          milestone.id
-        );
+    const isClaimed = claimed.includes(m.wins);
 
-      if (!button) return;
-
-      const alreadyClaimed =
-        claimed.includes(
-          milestone.wins
-        );
-
-      if (alreadyClaimed) {
-
-        button.disabled = true;
-        button.textContent = "CLAIMED";
-
-      } else if (
-        wins >= milestone.wins
-      ) {
-
-        button.disabled = false;
-        button.textContent = "CLAIM";
-
-      } else {
-
-        button.disabled = true;
-        button.textContent = "LOCKED";
-      }
+    if (isClaimed) {
+      button.disabled = true;
+      button.textContent = "CLAIMED";
+      button.className = "sprint-claim-btn claimed-glowing";
+    } else if (wins >= m.wins) {
+      button.disabled = false;
+      button.textContent = "CLAIM";
+      button.className = "sprint-claim-btn ready";
+    } else {
+      button.disabled = true;
+      button.textContent = "LOCKED";
+      button.className = "sprint-claim-btn locked";
     }
-  );
+  });
 }
 
-
 /* ==========================================================================
-   24. CLAIM MILESTONE
+   23. CLAIM MILESTONE
    ========================================================================== */
 
-async function claimMilestone(
-  targetWins,
-  rewardAmount
-) {
+async function claimMilestone(eventOrWins, targetWinsParam, rewardAmountParam) {
+  let targetWins, rewardAmount;
+
+  if (typeof eventOrWins === "number") {
+    targetWins = eventOrWins;
+    rewardAmount = targetWinsParam;
+  } else {
+    if (eventOrWins && eventOrWins.preventDefault) eventOrWins.preventDefault();
+    targetWins = targetWinsParam;
+    rewardAmount = rewardAmountParam;
+  }
 
   if (!currentUser) {
-
-    showCyberAlert(
-      "NOT LOGGED IN",
-      "Please log in before claiming a milestone."
-    );
-
+    showCyberAlert("NOT LOGGED IN", "Please log in before claiming rewards.", "fa-lock text-amber-400");
     return;
   }
 
-  const wins =
-    Number(userProfile.sprint_wins || 0);
-
-  const claimed =
-    Array.isArray(
-      userProfile.claimed_milestones
-    )
-      ? userProfile.claimed_milestones
-      : [];
+  const wins = Number(userProfile.sprint_wins || 0);
+  const claimed = Array.isArray(userProfile.claimed_milestones) ? userProfile.claimed_milestones : [];
 
   if (wins < targetWins) {
-
-    showCyberAlert(
-      "MILESTONE LOCKED",
-      `You need ${targetWins} wins to claim this reward.`
-    );
-
+    showCyberAlert("MILESTONE LOCKED", `Reach ${targetWins} wins to unlock this reward.`, "fa-lock text-slate-400");
     return;
   }
 
   if (claimed.includes(targetWins)) {
-
-    showCyberAlert(
-      "ALREADY CLAIMED",
-      "This milestone has already been claimed."
-    );
-
+    showCyberAlert("ALREADY CLAIMED", "This milestone reward has already been claimed.", "fa-circle-check text-cyan-400");
     return;
   }
 
   try {
+    showCyberAlert("PROCESSING", "Verifying milestone eligibility...", "fa-spinner fa-spin text-cyan-400");
 
-    showCyberAlert(
-      "PROCESSING",
-      "Verifying your milestone reward...",
-      "fa-spinner fa-spin text-cyan-400"
-    );
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error("Your session has expired.");
 
-    const {
-      data: {
-        session
-      }
-    } =
-      await supabaseClient.auth.getSession();
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/milestone`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ targetWins, rewardAmount })
+    });
 
-    if (!session) {
-      throw new Error(
-        "Your login session has expired."
-      );
-    }
-
-    const response =
-      await fetch(
-        `${SUPABASE_URL}/functions/v1/milestone`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization":
-              `Bearer ${session.access_token}`,
-            "apikey":
-              SUPABASE_ANON_KEY
-          },
-
-          body: JSON.stringify({
-            targetWins,
-            rewardAmount
-          })
-        }
-      );
-
-    const rawText =
-      await response.text();
-
+    const rawText = await response.text();
     let result = {};
-
     try {
-      result =
-        rawText
-          ? JSON.parse(rawText)
-          : {};
+      result = rawText ? JSON.parse(rawText) : {};
     } catch {
-      result = {
-        error:
-          rawText ||
-          "Invalid server response."
-      };
+      result = { error: rawText || "Invalid server response." };
     }
 
-    if (!response.ok) {
-
-      throw new Error(
-        result.error ||
-        result.message ||
-        `Server returned HTTP ${response.status}.`
-      );
-    }
-
-    if (!result.success) {
-
-      throw new Error(
-        result.error ||
-        result.message ||
-        "Milestone reward was rejected."
-      );
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || result.message || "Claim request was rejected.");
     }
 
     await fetchUserProfile();
-
-    showCyberAlert(
-      "REWARD CLAIMED",
-      `${Number(rewardAmount).toFixed(2)} USDT has been added to your balance.`,
-      "fa-circle-check text-emerald-400"
-    );
+    showCyberAlert("REWARD CLAIMED", `+$${Number(rewardAmount).toFixed(2)} USDT credited to your balance!`, "fa-gift text-emerald-400");
 
   } catch (error) {
-
-    console.error(
-      "Milestone claim error:",
-      error
-    );
-
-    showCyberAlert(
-      "CLAIM FAILED",
-      error.message ||
-      "Could not process milestone reward.",
-      "fa-triangle-exclamation text-rose-500"
-    );
+    console.error("Milestone error:", error);
+    showCyberAlert("CLAIM FAILED", error.message || "Could not claim milestone.", "fa-triangle-exclamation text-rose-500");
   }
 }
-
 
 /* ==========================================================================
    END OF PART 3 OF 4
    ========================================================================== */
-     /* ==========================================================================
+   /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
 
-
 /* ==========================================================================
-   25. WITHDRAWAL / FAUCETPAY PAYOUT
+   24. FAUCETPAY CASHOUT / WITHDRAWAL
    ========================================================================== */
 
 async function confirmWithdrawal() {
+  const amountInput = document.getElementById("withdrawAmountInput");
+  const emailInput = document.getElementById("withdrawEmailInput");
 
-  const amountInput =
-    document.getElementById("withdrawAmountInput");
-
-  const emailInput =
-    document.getElementById("withdrawEmailInput");
-
-  const amount =
-    parseFloat(
-      amountInput
-        ? amountInput.value
-        : 0
-    );
-
-  const recipientEmail =
-    emailInput
-      ? emailInput.value.trim()
-      : "";
-
+  const amount = parseFloat(amountInput ? amountInput.value : 0);
+  const recipientEmail = emailInput ? emailInput.value.trim() : "";
 
   if (!currentUser) {
-
-    showCyberAlert(
-      "LOGIN REQUIRED",
-      "Please log in before withdrawing."
-    );
-
+    showCyberAlert("LOGIN REQUIRED", "Please log in before submitting cashouts.", "fa-lock text-amber-400");
     return;
   }
 
-
-  if (!recipientEmail) {
-
-    showCyberAlert(
-      "MISSING EMAIL",
-      "Please enter your FaucetPay account email."
-    );
-
+  if (!recipientEmail || !recipientEmail.includes("@")) {
+    showCyberAlert("INVALID EMAIL", "A valid FaucetPay email address is required.", "fa-triangle-exclamation text-rose-500");
     return;
   }
-
-
-  if (!recipientEmail.includes("@")) {
-
-    showCyberAlert(
-      "INVALID EMAIL",
-      "Please enter a valid FaucetPay email address."
-    );
-
-    return;
-  }
-
 
   if (!amount || amount < 0.50) {
-
-    showCyberAlert(
-      "INVALID CASHOUT",
-      "Minimum withdrawal is 0.50 USDT."
-    );
-
+    showCyberAlert("INVALID CASHOUT", "Minimum withdrawal is 0.50 USDT.", "fa-triangle-exclamation text-rose-500");
     return;
   }
 
-
-  if (
-    amount >
-    Number(userProfile.balance || 0)
-  ) {
-
-    showCyberAlert(
-      "INSUFFICIENT BALANCE",
-      "You cannot withdraw more than your current balance."
-    );
-
+  if (amount > Number(userProfile.balance || 0)) {
+    showCyberAlert("INSUFFICIENT BALANCE", "Amount exceeds available balance.", "fa-wallet text-rose-500");
     return;
   }
-
 
   try {
+    showCyberAlert("PROCESSING", "Dispatching instant cashout via FaucetPay...", "fa-spinner fa-spin text-emerald-400");
 
-    showCyberAlert(
-      "PROCESSING",
-      "Sending payout request...",
-      "fa-spinner fa-spin text-cyan-400"
-    );
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error("Session expired. Please log in again.");
 
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/withdraw`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        amount: Number(amount),
+        recipientEmail: recipientEmail
+      })
+    });
 
-    const {
-      data: {
-        session
-      }
-    } =
-      await supabaseClient.auth.getSession();
-
-
-    if (
-      !session ||
-      !session.access_token
-    ) {
-
-      throw new Error(
-        "Your login session has expired. Please log in again."
-      );
-    }
-
-
-    const response =
-      await fetch(
-        `${SUPABASE_URL}/functions/v1/withdraw`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            "Authorization":
-              `Bearer ${session.access_token}`,
-
-            "apikey":
-              SUPABASE_ANON_KEY
-          },
-
-          body: JSON.stringify({
-            amount:
-              Number(amount),
-
-            recipientEmail:
-              recipientEmail
-          })
-        }
-      );
-
-
-    /*
-      Read response as TEXT first for error tracing
-    */
-
-    const rawText =
-      await response.text();
-
-
-    console.log(
-      "Withdrawal HTTP status:",
-      response.status
-    );
-
-    console.log(
-      "Withdrawal server response:",
-      rawText
-    );
-
-
+    const rawText = await response.text();
     let result = {};
-
-
     try {
-
-      result =
-        rawText
-          ? JSON.parse(rawText)
-          : {};
-
+      result = rawText ? JSON.parse(rawText) : {};
     } catch {
-
-      result = {
-        error:
-          rawText ||
-          "Server returned an unreadable response."
-      };
+      result = { error: rawText || "Unreadable server response." };
     }
 
-
-    if (!response.ok) {
-
-      throw new Error(
-        result.error ||
-        result.message ||
-        `Payout server returned HTTP ${response.status}.`
-      );
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || result.message || "Payout rejected.");
     }
-
-
-    if (!result.success) {
-
-      throw new Error(
-        result.error ||
-        result.message ||
-        "Payout request was rejected."
-      );
-    }
-
-
-    /*
-      Payout successful: sync updated profile state
-    */
 
     await fetchUserProfile();
 
+    if (amountInput) amountInput.value = "";
+    closeModal("withdrawModal");
 
-    if (amountInput) {
-      amountInput.value = "";
-    }
-
-
-    closeModal(
-      "withdrawModal"
-    );
-
-
-    showCyberAlert(
-      "CASHOUT SUCCESSFUL",
-      `Payout of ${amount.toFixed(2)} USDT was dispatched successfully.`,
-      "fa-circle-check text-emerald-400"
-    );
-
+    showCyberAlert("CASHOUT SUCCESSFUL", `${amount.toFixed(2)} USDT dispatched to ${recipientEmail}`, "fa-circle-check text-emerald-400");
 
   } catch (error) {
-
-    console.error(
-      "WITHDRAWAL ERROR:",
-      error
-    );
-
-
-    showCyberAlert(
-      "PAYOUT ERROR",
-      error.message ||
-      "Could not connect to the payout server.",
-      "fa-triangle-exclamation text-rose-500"
-    );
+    console.error("WITHDRAWAL ERROR:", error);
+    showCyberAlert("PAYOUT ERROR", error.message || "Payout dispatch failed.", "fa-triangle-exclamation text-rose-500");
   }
 }
 
-
 /* ==========================================================================
-   26. DEPOSIT LISTENER
+   25. FAUCETPAY DEPOSIT
    ========================================================================== */
 
-function setupDepositListener() {
+function setupDepositInputListener() {
+  const depositInput = document.getElementById("depositAmount");
+  const depositDisplay = document.getElementById("depositAmountDisplay");
 
-  if (
-    !supabaseClient ||
-    !currentUser
-  ) {
+  if (depositInput && depositDisplay) {
+    depositInput.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value) || 0;
+      depositDisplay.textContent = `${val.toFixed(2)} USDT`;
+    });
+  }
+}
+
+function confirmDeposit() {
+  const depositInput = document.getElementById("depositAmount");
+  const amount = parseFloat(depositInput ? depositInput.value : 0);
+
+  if (!currentUser) {
+    showCyberAlert("LOGIN REQUIRED", "Please log in before making a deposit.", "fa-lock text-amber-400");
     return;
   }
 
+  if (!amount || amount < 0.50) {
+    showCyberAlert("INVALID DEPOSIT", "Minimum deposit amount is 0.50 USDT.", "fa-triangle-exclamation text-rose-500");
+    return;
+  }
+
+  const userIdField = document.getElementById("custom_user_id");
+  if (userIdField && currentUser) {
+    userIdField.value = currentUser.id;
+  }
+
+  const form = depositInput ? depositInput.closest("form") : null;
+  if (form) {
+    form.submit();
+  }
+}
+
+/* ==========================================================================
+   26. REALTIME DATABASE LISTENER
+   ========================================================================== */
+
+function setupDepositListener() {
+  if (!supabaseClient || !currentUser) return;
 
   try {
-
     supabaseClient
-      .channel(
-        `profile-${currentUser.id}`
-      )
+      .channel(`profile-${currentUser.id}`)
       .on(
         "postgres_changes",
-
         {
           event: "UPDATE",
           schema: "public",
           table: "profiles",
-
-          filter:
-            `id=eq.${currentUser.id}`
+          filter: `id=eq.${currentUser.id}`
         },
-
         payload => {
-
-          console.log(
-            "Profile update:",
-            payload
-          );
-
-
           if (payload.new) {
+            userProfile.balance = Number(payload.new.balance || 0);
 
-            userProfile.balance =
-              Number(
-                payload.new.balance || 0
-              );
-
-
-            if (
-              payload.new.sprint_wins !==
-              undefined
-            ) {
-
-              userProfile.sprint_wins =
-                Number(
-                  payload.new.sprint_wins || 0
-                );
+            if (payload.new.sprint_wins !== undefined) {
+              userProfile.sprint_wins = Number(payload.new.sprint_wins || 0);
             }
 
-
-            if (
-              payload.new.claimed_milestones !==
-              undefined
-            ) {
-
-              userProfile.claimed_milestones =
-                Array.isArray(
-                  payload.new.claimed_milestones
-                )
-                  ? payload.new.claimed_milestones
-                  : [];
+            if (payload.new.claimed_milestones !== undefined) {
+              userProfile.claimed_milestones = Array.isArray(payload.new.claimed_milestones) ? payload.new.claimed_milestones : [];
             }
-
 
             updateBalanceDisplay();
-
             updateSprintProgress();
           }
         }
       )
-      .subscribe(status => {
-
-        console.log(
-          "Profile listener:",
-          status
-        );
-      });
-
+      .subscribe();
   } catch (error) {
-
-    console.error(
-      "Profile listener error:",
-      error
-    );
+    console.error("Profile listener error:", error);
   }
 }
 
-
 /* ==========================================================================
-   27. DEPOSIT CONFIRMATION
-   ========================================================================== */
-
-async function confirmDeposit() {
-
-  const amountInput =
-    document.getElementById(
-      "depositAmountInput"
-    );
-
-  const amount =
-    parseFloat(
-      amountInput
-        ? amountInput.value
-        : 0
-    );
-
-
-  if (!currentUser) {
-
-    showCyberAlert(
-      "LOGIN REQUIRED",
-      "Please log in before making a deposit."
-    );
-
-    return;
-  }
-
-
-  if (!amount || amount < 0.50) {
-
-    showCyberAlert(
-      "INVALID DEPOSIT",
-      "Minimum deposit is 0.50 USDT."
-    );
-
-    return;
-  }
-
-
-  /*
-    Deposits are handled by the FaucetPay payment gateway
-  */
-
-  const userIdField =
-    document.getElementById(
-      "custom_user_id"
-    );
-
-
-  if (userIdField) {
-
-    userIdField.value =
-      currentUser.id;
-  }
-
-
-  console.log(
-    "Deposit prepared:",
-    amount
-  );
-}
-
-
-/* ==========================================================================
-   28. WEEKLY SPRINT COUNTDOWN
+   27. WEEKLY SPRINT COUNTDOWN
    ========================================================================== */
 
 function initSprintCountdown() {
-
-  const countdown =
-    document.getElementById(
-      "sprintCountdown"
-    );
-
-  if (!countdown) {
-    return;
-  }
-
+  const countdown = document.getElementById("sprintCountdown");
+  if (!countdown) return;
 
   function updateCountdown() {
+    const now = new Date();
+    const day = now.getDay();
+    const daysUntilMonday = day === 0 ? 1 : 8 - day;
 
-    const now =
-      new Date();
+    const nextMonday = new Date(now);
+    nextMonday.setDate(now.getDate() + daysUntilMonday);
+    nextMonday.setHours(0, 0, 0, 0);
 
-    const day =
-      now.getDay();
+    const diff = nextMonday.getTime() - now.getTime();
 
-    const daysUntilMonday =
-      day === 0
-        ? 1
-        : 8 - day;
-
-
-    const nextMonday =
-      new Date(now);
-
-    nextMonday.setDate(
-      now.getDate() +
-      daysUntilMonday
-    );
-
-    nextMonday.setHours(
-      0,
-      0,
-      0,
-      0
-    );
-
-
-    const difference =
-      nextMonday.getTime() -
-      now.getTime();
-
-
-    if (difference <= 0) {
-      countdown.textContent =
-        "00:00:00";
+    if (diff <= 0) {
+      countdown.textContent = "00d 00h 00m 00s";
       return;
     }
 
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
 
-    const totalSeconds =
-      Math.floor(
-        difference / 1000
-      );
-
-
-    const days =
-      Math.floor(
-        totalSeconds / 86400
-      );
-
-    const hours =
-      Math.floor(
-        (totalSeconds % 86400) /
-        3600
-      );
-
-    const minutes =
-      Math.floor(
-        (totalSeconds % 3600) /
-        60
-      );
-
-    const seconds =
-      totalSeconds % 60;
-
-
-    countdown.textContent =
-      `${days}d ` +
-      `${String(hours).padStart(2, "0")}:` +
-      `${String(minutes).padStart(2, "0")}:` +
-      `${String(seconds).padStart(2, "0")}`;
+    countdown.textContent = `${days}d ${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
   }
 
-
   updateCountdown();
-
-  setInterval(
-    updateCountdown,
-    1000
-  );
+  setInterval(updateCountdown, 1000);
 }
 
-
 /* ==========================================================================
-   29. PAYMENT REDIRECT CHECK
+   28. PAYMENT REDIRECT CHECK
    ========================================================================== */
 
 function checkPaymentRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const payment = params.get("payment");
 
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-
-  const payment =
-    params.get("payment");
-
-
-  if (
-    payment === "success"
-  ) {
-
-    showCyberAlert(
-      "PAYMENT RECEIVED",
-      "Your deposit payment was received. Your balance will update after confirmation.",
-      "fa-circle-check text-emerald-400"
-    );
-  }
-
-
-  if (
-    payment === "cancelled"
-  ) {
-
-    showCyberAlert(
-      "PAYMENT CANCELLED",
-      "The deposit payment was cancelled."
-    );
+  if (payment === "success") {
+    showCyberAlert("PAYMENT RECEIVED", "Your deposit was received. Balance will update upon confirmation.", "fa-circle-check text-emerald-400");
+  } else if (payment === "cancelled") {
+    showCyberAlert("PAYMENT CANCELLED", "The deposit checkout process was cancelled.", "fa-xmark text-rose-500");
   }
 }
 
-
 /* ==========================================================================
-   30. CLOSE ALERT WHEN CLICKED
+   29. MODAL OUTSIDE CLICK DISMISSAL
    ========================================================================== */
 
-document.addEventListener(
-  "click",
-  event => {
-
-    const alertBox =
-      document.getElementById(
-        "cyberAlert"
-      );
-
-    if (
-      alertBox &&
-      event.target === alertBox
-    ) {
-
-      alertBox.classList.add(
-        "hidden"
-      );
+document.addEventListener("click", event => {
+  ["depositModal", "withdrawModal", "cyberAlertModal"].forEach(modalId => {
+    const modal = document.getElementById(modalId);
+    if (modal && event.target === modal) {
+      modal.classList.add("hidden");
     }
-  }
-);
-
+  });
+});
 
 /* ==========================================================================
    END OF SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
-               
+   

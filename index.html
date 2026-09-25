@@ -160,8 +160,9 @@
             <i class="fa-solid fa-football text-cyan-400 text-lg"></i>
           </div>
         </div>
-              </section>
-                    <section class="lg:col-span-8 space-y-6">
+      </section>
+
+      <section class="lg:col-span-8 space-y-6">
         <div class="relative bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden min-h-[380px] sm:min-h-[460px] flex flex-col shadow-2xl">
           <div class="px-4 py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60">
             <div class="flex items-center gap-2">
@@ -250,8 +251,7 @@
       </section>
     </main>
   </div>
-
-  <!-- MODALS -->
+    <!-- MODALS -->
 
   <!-- Deposit Modal -->
   <div id="depositModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
@@ -261,21 +261,16 @@
         <button onclick="closeModal('depositModal')" class="text-slate-500 hover:text-slate-300"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <form action="https://faucetpay.io/merchant/webscr" method="POST" onsubmit="event.preventDefault(); confirmDeposit();" class="space-y-4">
+      <form action="https://faucetpay.io/merchant/webscr" method="POST" class="space-y-4">
         <input type="hidden" name="merchant_username" value="chimeko45" />
         <input type="hidden" name="currency1" value="USDT" />
-        <input type="hidden" name="item_name" value="CyberStrike Balance Deposit" />
-        <!-- Add this so FaucetPay knows exactly where to send the webhook -->
-<input type="hidden" name="callback_url" value="https://btugwhcoypxtlgmsxqci.supabase.co/functions/v1/Deposit" />
-
-<!-- You must populate this value dynamically with the logged-in user's ID -->
-<input type="hidden" name="custom" id="custom_user_id" value="THE_ACTUAL_USER_ID_HERE" />
-
-<!-- Optional: Add success and cancel URLs to redirect the user back to your game after payment -->
-<input type="hidden" name="success_url" value="https://yourwebsite.com/success" />
-<input type="hidden" name="cancel_url" value="https://yourwebsite.com/cancel" />
-        <input type="hidden" name="callback_url" value="https://yourwebsite.com/your-ipn-script">
+        <input type="hidden" name="item_description" value="CyberStrike Balance Deposit" />
+        <input type="hidden" name="callback_url" value="https://btugwhcoypxtlgmsxqci.supabase.co/functions/v1/Deposit" />
+        <input type="hidden" name="custom" id="custom_user_id" value="THE_ACTUAL_USER_ID_HERE" />
         
+        <!-- Redirect URLs -> Update these with your real website address -->
+        <input type="hidden" name="success_url" value="https://your-domain.com/" />
+        <input type="hidden" name="cancel_url" value="https://your-domain.com/" />
 
         <div>
           <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Deposit Amount (USDT)</label>
@@ -344,5 +339,5 @@
 
   <script src="script.js"></script>
 </body>
-        </html>
-            
+  </html>
+  

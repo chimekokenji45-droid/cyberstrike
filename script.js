@@ -190,8 +190,30 @@ function showApplication() {
 
 async function fetchUserProfile() {
 
-  if (!supabaseClient || !currentUser) {
+  if (!supabaseClient) {
     return;
+  }
+
+  // Session fallback check if currentUser is not yet cached
+  if (!currentUser) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) currentUser = session.user;
+  }
+
+  if (!currentUser) {
+    return;
+  }
+
+  // Auto-fill FaucetPay withdrawal email input
+  const withdrawEmailInput = document.getElementById("withdrawEmailInput");
+  if (withdrawEmailInput && currentUser.email) {
+    withdrawEmailInput.value = currentUser.email;
+  }
+
+  // Auto-fill FaucetPay deposit custom user ID field
+  const userIdField = document.getElementById("custom_user_id");
+  if (userIdField) {
+    userIdField.value = currentUser.id;
   }
 
   try {
@@ -419,7 +441,8 @@ async function logout() {
 
 /* ==========================================================================
    END OF PART 1 OF 4
-   ========================================================================== *//* ==========================================================================
+   ========================================================================== */
+           /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 2 OF 4
    ========================================================================== */
 
@@ -465,10 +488,32 @@ function showCyberAlert(title, message, iconClass = "") {
    13. OPEN / CLOSE MODALS
    ========================================================================== */
 
-function openModal(modalId) {
+async function openModal(modalId) {
 
   const modal =
     document.getElementById(modalId);
+
+  if (modalId === "withdrawModal") {
+
+    // Fetch active session if user state is missing
+    if (!currentUser && supabaseClient) {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) currentUser = session.user;
+    }
+
+    // Populate FaucetPay email input
+    const withdrawEmailInput = document.getElementById("withdrawEmailInput");
+    if (withdrawEmailInput && currentUser && currentUser.email) {
+      withdrawEmailInput.value = currentUser.email;
+    }
+
+    // Update withdraw modal balance display
+    const withdrawBalanceDisplay = document.getElementById("withdrawBalanceDisplay");
+    if (withdrawBalanceDisplay) {
+      const balance = Number(userProfile.balance || 0);
+      withdrawBalanceDisplay.textContent = `${balance.toFixed(2)} USDT`;
+    }
+  }
 
   if (modal) {
     modal.classList.remove("hidden");
@@ -990,7 +1035,8 @@ function handlePenaltyShot(event) {
 
 /* ==========================================================================
    END OF PART 2 OF 4
-   ========================================================================== *//* ==========================================================================
+   ========================================================================== */
+     /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 3 OF 4
    ========================================================================== */
 
@@ -1469,7 +1515,8 @@ async function claimMilestone(
 
 /* ==========================================================================
    END OF PART 3 OF 4
-   ========================================================================== *//* ==========================================================================
+   ========================================================================== */
+     /* ==========================================================================
    CYBERSTRIKE | SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
 
@@ -1614,8 +1661,7 @@ async function confirmWithdrawal() {
 
 
     /*
-      Read the response as TEXT first.
-      This lets us see the real server error.
+      Read response as TEXT first for error tracing
     */
 
     const rawText =
@@ -1674,8 +1720,7 @@ async function confirmWithdrawal() {
 
 
     /*
-      Payment succeeded.
-      Reload the real balance from Supabase.
+      Payout successful: sync updated profile state
     */
 
     await fetchUserProfile();
@@ -1683,10 +1728,6 @@ async function confirmWithdrawal() {
 
     if (amountInput) {
       amountInput.value = "";
-    }
-
-    if (emailInput) {
-      emailInput.value = "";
     }
 
 
@@ -1709,12 +1750,6 @@ async function confirmWithdrawal() {
       error
     );
 
-
-    /*
-      IMPORTANT:
-      This now shows the REAL backend error
-      instead of only saying CONNECTION ERROR.
-    */
 
     showCyberAlert(
       "PAYOUT ERROR",
@@ -1866,12 +1901,7 @@ async function confirmDeposit() {
 
 
   /*
-    IMPORTANT:
-    No demo balance is created here.
-
-    Deposits are handled by the FaucetPay
-    merchant payment flow already connected
-    to the HTML.
+    Deposits are handled by the FaucetPay payment gateway
   */
 
   const userIdField =
@@ -2065,3 +2095,4 @@ document.addEventListener(
 /* ==========================================================================
    END OF SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
+               

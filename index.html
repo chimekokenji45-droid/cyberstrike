@@ -250,8 +250,8 @@
         </div>
       </section>
     </main>
-  </div>
-    <!-- MODALS -->
+    </div>
+                  <!-- MODALS -->
 
   <!-- Deposit Modal -->
   <div id="depositModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
@@ -261,16 +261,18 @@
         <button onclick="closeModal('depositModal')" class="text-slate-500 hover:text-slate-300"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-            <form action="https://faucetpay.io/merchant/webscr" method="POST" class="space-y-4">
+      <form action="https://faucetpay.io/merchant/webscr" method="POST" class="space-y-4">
+        <!-- FaucetPay Merchant Parameters -->
         <input type="hidden" name="merchant_username" value="chimeko45" />
+        <input type="hidden" name="item_name" value="CyberStrike Balance Deposit" />
         <input type="hidden" name="currency1" value="USDT" />
-        <input type="hidden" name="item_description" value="CyberStrike Balance Deposit" />
+        <input type="hidden" name="currency2" value="USDT" />
         <input type="hidden" name="callback_url" value="https://btugwhcoypxtlgmsxqci.supabase.co/functions/v1/Deposit" />
-        <input type="hidden" name="custom" id="custom_user_id" value="THE_ACTUAL_USER_ID_HERE" />
+        <input type="hidden" name="custom" id="custom_user_id" value="" />
         
-        <!-- Live GitHub Pages Redirect URLs -->
-        <input type="hidden" name="success_url" value="https://chimekokenji45-droid.github.io/cyberstrike/?payment=success" />
-        <input type="hidden" name="cancel_url" value="https://chimekokenji45-droid.github.io/cyberstrike/?payment=cancelled" />
+        <!-- Redirect URLs back to application -->
+        <input type="hidden" name="success_url" value="index.html?payment=success" />
+        <input type="hidden" name="cancel_url" value="index.html?payment=cancelled" />
 
         <div>
           <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Deposit Amount (USDT)</label>
@@ -290,14 +292,14 @@
           <strong id="depositAmountDisplay" class="text-emerald-400">1.00 USDT</strong>
         </div>
 
-        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 font-['Orbitron'] font-bold text-slate-950 text-xs tracking-wider hover:brightness-110">
+        <button type="button" onclick="confirmDeposit()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 font-['Orbitron'] font-bold text-slate-950 text-xs tracking-wider hover:brightness-110">
           PROCEED TO FAUCETPAY
         </button>
-            </form>
-      
+      </form>
     </div>
   </div>
 
+  <!-- Cashout Modal -->
   <div id="withdrawModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 relative space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -322,6 +324,7 @@
     </div>
   </div>
 
+  <!-- Cyber Alert Modal -->
   <div id="cyberAlertModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
     <div class="w-full max-w-sm bg-slate-900 border border-cyan-500/40 rounded-2xl p-6 text-center shadow-[0_0_30px_rgba(6,182,212,0.2)] relative space-y-4">
       <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center mx-auto text-cyan-400 text-xl">
@@ -340,5 +343,4 @@
 
   <script src="script.js"></script>
 </body>
-  </html>
-  
+</html>

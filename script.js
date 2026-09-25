@@ -40,6 +40,7 @@ let gameState = {
 document.addEventListener('DOMContentLoaded', () => {
   initSprintCountdown();
   setupDepositListener();
+  checkPaymentRedirect();
 
   // Central Auth State Observer
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -62,9 +63,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Fetch authoritative profile state from Supabase PostgreSQL
+// Fetch authoritative profile state from Supabase PostgreSQL & update hidden form IDs
 async function fetchUserProfile() {
   if (!currentUser) return;
+
+  // Auto-fill FaucetPay hidden field and Cashout email field with active user data
+  const customInput = document.getElementById('custom_user_id');
+  if (customInput) customInput.value = currentUser.id;
+
+  const withdrawEmailInput = document.getElementById('withdrawEmailInput');
+  if (withdrawEmailInput) withdrawEmailInput.value = currentUser.email;
 
   const { data, error } = await supabaseClient
     .from('profiles')
@@ -84,6 +92,33 @@ async function fetchUserProfile() {
 
     updateBalanceDisplay();
     updateSprintProgress();
+  }
+}
+
+// Check URL query parameters for FaucetPay deposit return
+function checkPaymentRedirect() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get('payment');
+
+  if (paymentStatus === 'success') {
+    showCyberAlert(
+      "DEPOSIT INITIATED",
+      "Payment processed! Your balance will automatically update as soon as FaucetPay confirms the transaction.",
+      "fa-circle-check text-emerald-400"
+    );
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    // Poll balance twice to catch fast webhook execution
+    setTimeout(fetchUserProfile, 3000);
+    setTimeout(fetchUserProfile, 7000);
+
+  } else if (paymentStatus === 'cancelled') {
+    showCyberAlert(
+      "DEPOSIT CANCELLED",
+      "You cancelled the FaucetPay payment transaction.",
+      "fa-triangle-exclamation text-rose-400"
+    );
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
@@ -531,8 +566,8 @@ async function finish1v1Match() {
     const canvasOverlay = document.getElementById('canvasOverlay');
     if (canvasOverlay) canvasOverlay.classList.remove('hidden');
   }, 1500);
-       }
-   /* ==========================================================================
+         }
+     /* ==========================================================================
    CYBERSTRIKE — FULL PRODUCTION SCRIPT (PART 2 OF 2)
    ========================================================================== */
 
@@ -670,6 +705,22 @@ function setupDepositListener() {
       const display = document.getElementById('depositAmountDisplay');
       if (display) {
         display.innerText = `${val.toFixed(2)} USDT`;
+      }
+    });
+  }
+
+  // Intercept deposit form submit to guarantee custom_user_id is attached
+  const depositForm = document.querySelector('#depositModal form');
+  if (depositForm) {
+    depositForm.addEventListener('submit', (e) => {
+      if (!currentUser) {
+        e.preventDefault();
+        showCyberAlert("LOGIN REQUIRED", "Please log in before initiating a deposit.", "fa-lock text-rose-500");
+        return;
+      }
+      const customField = depositForm.querySelector('input[name="custom"]');
+      if (customField) {
+        customField.value = currentUser.id;
       }
     });
   }

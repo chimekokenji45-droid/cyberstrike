@@ -805,6 +805,7 @@ async function claimMilestone(eventOrWins, targetWinsParam, rewardAmountParam) {
    CYBERSTRIKE | SCRIPT.JS — PART 4 OF 4
    ========================================================================== */
 
+
 /* ==========================================================================
    24. FAUCETPAY CASHOUT / WITHDRAWAL
    ========================================================================== */
@@ -842,6 +843,7 @@ async function confirmWithdrawal() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error("Session expired. Please log in again.");
 
+    // Note: URL path is case-sensitive ('withdraw' or 'Withdraw')
     const response = await fetch(`${SUPABASE_URL}/functions/v1/withdraw`, {
       method: "POST",
       headers: {
@@ -860,11 +862,11 @@ async function confirmWithdrawal() {
     try {
       result = rawText ? JSON.parse(rawText) : {};
     } catch {
-      result = { error: rawText || "Unreadable server response." };
+      result = { error: rawText || "Server returned non-JSON response." };
     }
 
     if (!response.ok || !result.success) {
-      throw new Error(result.error || result.message || "Payout rejected.");
+      throw new Error(result.error || result.message || `HTTP ${response.status}: Cashout failed.`);
     }
 
     await fetchUserProfile();
@@ -879,6 +881,8 @@ async function confirmWithdrawal() {
     showCyberAlert("PAYOUT ERROR", error.message || "Payout dispatch failed.", "fa-triangle-exclamation text-rose-500");
   }
 }
+
+
 
 /* ==========================================================================
    25. FAUCETPAY DEPOSIT

@@ -3436,4 +3436,972 @@ function updateMilestoneButtons() {
 /* ==========================================================================
    42. CLAIM MILESTONE
    ========================================================================== */
+async function claimMilestone(
+  eventOrWins,
+  targetWinsParam,
+  rewardAmountParam
+) {
 
+  let targetWins;
+
+  let rewardAmount;
+
+  if (
+    typeof eventOrWins ===
+    "number"
+  ) {
+
+    targetWins =
+      eventOrWins;
+
+    rewardAmount =
+      targetWinsParam;
+
+  } else {
+
+    if (
+      eventOrWins &&
+      eventOrWins.preventDefault
+    ) {
+
+      eventOrWins.preventDefault();
+    }
+
+    targetWins =
+      targetWinsParam;
+
+    rewardAmount =
+      rewardAmountParam;
+  }
+
+  if (!currentUser) {
+
+    showCyberAlert(
+      "NOT LOGGED IN",
+      "Please log in before claiming rewards.",
+      "fa-lock text-amber-400"
+    );
+
+    return;
+  }
+
+  const wins =
+    Number(
+      userProfile.sprint_wins || 0
+    );
+
+  const claimed =
+    Array.isArray(
+      userProfile.claimed_milestones
+    )
+      ? userProfile.claimed_milestones
+      : [];
+
+  if (
+    wins < targetWins
+  ) {
+
+    showCyberAlert(
+      "MILESTONE LOCKED",
+      `Reach ${targetWins} wins to unlock this reward.`,
+      "fa-lock text-slate-400"
+    );
+
+    return;
+  }
+
+  if (
+    claimed.includes(
+      targetWins
+    )
+  ) {
+
+    showCyberAlert(
+      "ALREADY CLAIMED",
+      "This milestone reward has already been claimed.",
+      "fa-circle-check text-cyan-400"
+    );
+
+    return;
+  }
+
+  try {
+
+    showCyberAlert(
+      "PROCESSING",
+      "Verifying milestone eligibility...",
+      "fa-spinner fa-spin text-cyan-400"
+    );
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.functions.invoke(
+        "milestone",
+        {
+          body: {
+            targetWins,
+            rewardAmount
+          }
+        }
+      );
+
+    if (error) {
+
+      throw new Error(
+        error.message ||
+        "Milestone claim request failed."
+      );
+    }
+
+    if (
+      !data ||
+      !data.success
+    ) {
+
+      throw new Error(
+        data?.error ||
+        data?.message ||
+        "Claim request was rejected."
+      );
+    }
+
+    await fetchUserProfile();
+
+    showCyberAlert(
+      "REWARD CLAIMED",
+      `+$${Number(rewardAmount).toFixed(2)} USDT credited to your balance!`,
+      "fa-gift text-emerald-400"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Milestone error:",
+      error
+    );
+
+    showCyberAlert(
+      "CLAIM FAILED",
+      error.message ||
+      "Could not claim milestone.",
+      "fa-triangle-exclamation text-rose-500"
+    );
+  }
+}
+
+/* ==========================================================================
+   END OF PART 3 OF 4
+   ========================================================================== *//* ==========================================================================
+   CYBERSTRIKE | SCRIPT.JS — PART 4 OF 4
+   DEPOSIT + CASHOUT + REALTIME BALANCE + SPRINT COUNTDOWN
+   ========================================================================== */
+
+/* ==========================================================================
+   43. FAUCETPAY CASHOUT / WITHDRAWAL
+   ========================================================================== */
+
+async function confirmWithdrawal() {
+
+  const amountInput =
+    document.getElementById(
+      "withdrawAmountInput"
+    );
+
+  const emailInput =
+    document.getElementById(
+      "withdrawEmailInput"
+    );
+
+  const amount =
+    parseFloat(
+      amountInput
+        ? amountInput.value
+        : 0
+    );
+
+  const recipientEmail =
+    emailInput
+      ? emailInput.value.trim()
+      : "";
+
+  if (!currentUser) {
+
+    showCyberAlert(
+      "LOGIN REQUIRED",
+      "Please log in before submitting cashouts.",
+      "fa-lock text-amber-400"
+    );
+
+    return;
+  }
+
+  if (
+    !recipientEmail ||
+    !recipientEmail.includes("@")
+  ) {
+
+    showCyberAlert(
+      "INVALID EMAIL",
+      "A valid FaucetPay email address is required.",
+      "fa-triangle-exclamation text-rose-500"
+    );
+
+    return;
+  }
+
+  if (
+    !amount ||
+    amount < 0.50
+  ) {
+
+    showCyberAlert(
+      "INVALID CASHOUT",
+      "Minimum withdrawal is 0.50 USDT.",
+      "fa-triangle-exclamation text-rose-500"
+    );
+
+    return;
+  }
+
+  if (
+    amount >
+    Number(userProfile.balance || 0)
+  ) {
+
+    showCyberAlert(
+      "INSUFFICIENT BALANCE",
+      "Amount exceeds your available balance.",
+      "fa-wallet text-rose-500"
+    );
+
+    return;
+  }
+
+  try {
+
+    showCyberAlert(
+      "PROCESSING",
+      "Dispatching cashout request via FaucetPay...",
+      "fa-spinner fa-spin text-emerald-400"
+    );
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.functions.invoke(
+        "withdraw",
+        {
+          body: {
+            amount:
+              Number(amount),
+
+            recipientEmail:
+              recipientEmail
+          }
+        }
+      );
+
+    if (error) {
+
+      throw new Error(
+        error.message ||
+        "Failed to communicate with payout engine."
+      );
+    }
+
+    if (
+      !data ||
+      !data.success
+    ) {
+
+      throw new Error(
+        data?.error ||
+        data?.message ||
+        "Cashout failed."
+      );
+    }
+
+    /*
+      Reload the real balance
+      from Supabase.
+    */
+
+    await fetchUserProfile();
+
+    if (amountInput) {
+
+      amountInput.value = "";
+    }
+
+    closeModal(
+      "withdrawModal"
+    );
+
+    showCyberAlert(
+      "CASHOUT SUCCESSFUL",
+      `${amount.toFixed(2)} USDT cashout request submitted to ${recipientEmail}.`,
+      "fa-circle-check text-emerald-400"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "WITHDRAWAL ERROR:",
+      error
+    );
+
+    showCyberAlert(
+      "PAYOUT ERROR",
+      error.message ||
+      "Payout dispatch failed.",
+      "fa-triangle-exclamation text-rose-500"
+    );
+  }
+}
+
+/* ==========================================================================
+   44. DEPOSIT INPUT LISTENER
+   ========================================================================== */
+
+function setupDepositInputListener() {
+
+  const depositInput =
+    document.getElementById(
+      "depositAmount"
+    );
+
+  const depositDisplay =
+    document.getElementById(
+      "depositAmountDisplay"
+    );
+
+  if (
+    !depositInput ||
+    !depositDisplay
+  ) {
+
+    return;
+  }
+
+  /*
+    Avoid installing the
+    same listener more than once.
+  */
+
+  if (
+    depositInput.dataset.listenerReady ===
+    "true"
+  ) {
+
+    return;
+  }
+
+  depositInput.dataset.listenerReady =
+    "true";
+
+  depositInput.addEventListener(
+    "input",
+    event => {
+
+      const value =
+        parseFloat(
+          event.target.value
+        ) || 0;
+
+      depositDisplay.textContent =
+        `${value.toFixed(2)} USDT`;
+    }
+  );
+}
+
+/* ==========================================================================
+   45. CONFIRM DEPOSIT
+   ========================================================================== */
+
+function confirmDeposit() {
+
+  const depositInput =
+    document.getElementById(
+      "depositAmount"
+    );
+
+  const amount =
+    parseFloat(
+      depositInput
+        ? depositInput.value
+        : 0
+    );
+
+  if (!currentUser) {
+
+    showCyberAlert(
+      "LOGIN REQUIRED",
+      "Please log in before making a deposit.",
+      "fa-lock text-amber-400"
+    );
+
+    return;
+  }
+
+  if (
+    !amount ||
+    amount < 0.50
+  ) {
+
+    showCyberAlert(
+      "INVALID DEPOSIT",
+      "Minimum deposit amount is 0.50 USDT.",
+      "fa-triangle-exclamation text-rose-500"
+    );
+
+    return;
+  }
+
+  /*
+    Update the FaucetPay custom
+    field with the logged-in user ID.
+  */
+
+  const userIdField =
+    document.getElementById(
+      "custom_user_id"
+    );
+
+  if (
+    userIdField &&
+    currentUser
+  ) {
+
+    userIdField.value =
+      currentUser.id;
+  }
+
+  const form =
+    depositInput
+      ? depositInput.closest("form")
+      : null;
+
+  if (!form) {
+
+    showCyberAlert(
+      "DEPOSIT ERROR",
+      "Deposit form could not be found.",
+      "fa-triangle-exclamation text-rose-500"
+    );
+
+    return;
+  }
+
+  /*
+    Make sure the amount being
+    submitted is valid.
+  */
+
+  depositInput.value =
+    amount.toFixed(2);
+
+  form.submit();
+}
+
+/* ==========================================================================
+   46. REALTIME PROFILE LISTENER
+   ========================================================================== */
+
+function setupDepositListener() {
+
+  if (
+    !supabaseClient ||
+    !currentUser
+  ) {
+
+    return;
+  }
+
+  /*
+    Remove old listener first.
+  */
+
+  if (profileChannel) {
+
+    try {
+
+      supabaseClient.removeChannel(
+        profileChannel
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Old channel removal error:",
+        error
+      );
+    }
+
+    profileChannel = null;
+  }
+
+  try {
+
+    profileChannel =
+      supabaseClient
+        .channel(
+          `profile-${currentUser.id}`
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+            filter:
+              `id=eq.${currentUser.id}`
+          },
+          payload => {
+
+            if (!payload.new) {
+              return;
+            }
+
+            /*
+              Always use the REAL
+              database balance.
+            */
+
+            if (
+              payload.new.balance !==
+              undefined
+            ) {
+
+              userProfile.balance =
+                Number(
+                  payload.new.balance ||
+                  0
+                );
+            }
+
+            if (
+              payload.new.sprint_wins !==
+              undefined
+            ) {
+
+              userProfile.sprint_wins =
+                Number(
+                  payload.new.sprint_wins ||
+                  0
+                );
+            }
+
+            if (
+              payload.new.claimed_milestones !==
+              undefined
+            ) {
+
+              userProfile.claimed_milestones =
+                Array.isArray(
+                  payload.new.claimed_milestones
+                )
+                  ? payload.new.claimed_milestones
+                  : [];
+            }
+
+            updateBalanceDisplay();
+
+            updateSprintProgress();
+          }
+        )
+        .subscribe(
+          status => {
+
+            console.log(
+              "Profile realtime status:",
+              status
+            );
+          }
+        );
+
+  } catch (error) {
+
+    console.error(
+      "Profile listener error:",
+      error
+    );
+  }
+}
+
+/* ==========================================================================
+   47. WEEKLY SPRINT COUNTDOWN
+   ========================================================================== */
+
+function initSprintCountdown() {
+
+  const countdown =
+    document.getElementById(
+      "sprintCountdown"
+    );
+
+  if (!countdown) {
+    return;
+  }
+
+  /*
+    The countdown starts immediately,
+    even when the player has 0 wins.
+  */
+
+  function updateCountdown() {
+
+    const now =
+      new Date();
+
+    const day =
+      now.getDay();
+
+    /*
+      JavaScript:
+      Sunday = 0
+      Monday = 1
+      ...
+      Saturday = 6
+
+      Sprint resets every Monday
+      at 00:00.
+    */
+
+    let daysUntilMonday;
+
+    if (day === 0) {
+
+      daysUntilMonday = 1;
+
+    } else {
+
+      daysUntilMonday =
+        8 - day;
+    }
+
+    const nextMonday =
+      new Date(now);
+
+    nextMonday.setDate(
+      now.getDate() +
+      daysUntilMonday
+    );
+
+    nextMonday.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const difference =
+      nextMonday.getTime() -
+      now.getTime();
+
+    if (
+      difference <= 0
+    ) {
+
+      countdown.textContent =
+        "00d 00h 00m 00s";
+
+      return;
+    }
+
+    const totalSeconds =
+      Math.floor(
+        difference / 1000
+      );
+
+    const days =
+      Math.floor(
+        totalSeconds / 86400
+      );
+
+    const hours =
+      Math.floor(
+        (totalSeconds % 86400) /
+        3600
+      );
+
+    const minutes =
+      Math.floor(
+        (totalSeconds % 3600) /
+        60
+      );
+
+    const seconds =
+      totalSeconds % 60;
+
+    countdown.textContent =
+      `${String(days).padStart(2, "0")}d ` +
+      `${String(hours).padStart(2, "0")}h ` +
+      `${String(minutes).padStart(2, "0")}m ` +
+      `${String(seconds).padStart(2, "0")}s`;
+  }
+
+  updateCountdown();
+
+  setInterval(
+    updateCountdown,
+    1000
+  );
+}
+
+/* ==========================================================================
+   48. PAYMENT REDIRECT CHECK
+   ========================================================================== */
+
+function checkPaymentRedirect() {
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const payment =
+    params.get("payment");
+
+  if (
+    payment === "success"
+  ) {
+
+    showCyberAlert(
+      "PAYMENT RECEIVED",
+      "Your deposit was received. Your balance will update after confirmation.",
+      "fa-circle-check text-emerald-400"
+    );
+
+  } else if (
+    payment === "cancelled"
+  ) {
+
+    showCyberAlert(
+      "PAYMENT CANCELLED",
+      "The deposit checkout process was cancelled.",
+      "fa-xmark text-rose-500"
+    );
+  }
+}
+
+/* ==========================================================================
+   49. MODAL OUTSIDE CLICK DISMISSAL
+   ========================================================================== */
+
+document.addEventListener(
+  "click",
+  event => {
+
+    [
+      "depositModal",
+      "withdrawModal",
+      "cyberAlertModal"
+    ].forEach(
+      modalId => {
+
+        const modal =
+          document.getElementById(
+            modalId
+          );
+
+        if (
+          modal &&
+          event.target === modal
+        ) {
+
+          modal.classList.add(
+            "hidden"
+          );
+        }
+      }
+    );
+  }
+);
+
+/* ==========================================================================
+   50. ESC KEY CLOSES MODALS
+   ========================================================================== */
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      event.key !== "Escape"
+    ) {
+
+      return;
+    }
+
+    [
+      "depositModal",
+      "withdrawModal",
+      "cyberAlertModal"
+    ].forEach(
+      modalId => {
+
+        closeModal(
+          modalId
+        );
+      }
+    );
+  }
+);
+
+/* ==========================================================================
+   51. KEEP DEPOSIT USER ID SYNCHRONIZED
+   ========================================================================== */
+
+function syncDepositUserId() {
+
+  if (!currentUser) {
+    return;
+  }
+
+  const field =
+    document.getElementById(
+      "custom_user_id"
+    );
+
+  if (field) {
+
+    field.value =
+      currentUser.id;
+  }
+}
+
+/* ==========================================================================
+   52. KEEP WITHDRAW EMAIL SYNCHRONIZED
+   ========================================================================== */
+
+function syncWithdrawEmail() {
+
+  if (
+    !currentUser ||
+    !currentUser.email
+  ) {
+
+    return;
+  }
+
+  const field =
+    document.getElementById(
+      "withdrawEmailInput"
+    );
+
+  if (field) {
+
+    field.value =
+      currentUser.email;
+  }
+}
+
+/* ==========================================================================
+   53. REFRESH USER DATA
+   ========================================================================== */
+
+async function refreshUserData() {
+
+  if (!currentUser) {
+    return;
+  }
+
+  await fetchUserProfile();
+
+  syncDepositUserId();
+
+  syncWithdrawEmail();
+
+  updateBalanceDisplay();
+
+  updateSprintProgress();
+}
+
+/* ==========================================================================
+   54. PREVENT STALE MATCH STATE
+   ========================================================================== */
+
+function resetMatchState() {
+
+  matchActive =
+    false;
+
+  currentMatchId =
+    null;
+
+  playerScore =
+    0;
+
+  opponentScore =
+    0;
+
+  ludoGameOver =
+    false;
+
+  ludoDice =
+    0;
+
+  ludoWaitingForToken =
+    false;
+
+  ludoTurn =
+    "player";
+
+  ludoPlayerHome =
+    0;
+
+  ludoOpponentHome =
+    0;
+
+  ludoPlayerTokens =
+    [0, 0, 0, 0];
+
+  ludoOpponentTokens =
+    [0, 0, 0, 0];
+
+  const canvas =
+    document.getElementById(
+      "gameCanvas"
+    );
+
+  if (canvas) {
+
+    canvas.onclick =
+      null;
+  }
+}
+
+/* ==========================================================================
+   55. FINAL INITIALIZATION
+   ========================================================================== */
+
+window.addEventListener(
+  "load",
+  () => {
+
+    /*
+      Make sure the game selector
+      exists after the page has
+      completely loaded.
+    */
+
+    createGameModeSelector();
+
+    updateGameModeUI();
+
+    updateMatchOverlay();
+
+    setupDepositInputListener();
+
+    syncDepositUserId();
+
+    syncWithdrawEmail();
+  }
+);
+
+/* ==========================================================================
+   END OF SCRIPT.JS — PART 4 OF 4
+   ========================================================================== */

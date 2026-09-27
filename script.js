@@ -1,20 +1,13 @@
-/* ==========================================================================
-   CYBERSTRIKE | 1v1 COMPETITIVE ARENA
-   COMPLETE SCRIPT.JS
-   PART 1 OF 4
+/* ============================================================
+   CYBERSTRIKE — 1v1 COMPETITIVE ARENA
+   SCRIPT.JS — PART 1 OF 5
+   ============================================================ */
 
-   AUTHENTICATION
-   SUPABASE
-   PLAYER WALLET
-   GAME SELECTION
-   STAKE SELECTION
-   WEEKLY SPRINT
-   ========================================================================== */
+"use strict";
 
-
-/* ==========================================================================
+/* ============================================================
    1. SUPABASE CONFIGURATION
-   ========================================================================== */
+   ============================================================ */
 
 const SUPABASE_URL = "YOUR_SUPABASE_URL";
 const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
@@ -22,9 +15,9 @@ const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 let supabaseClient = null;
 
 
-/* ==========================================================================
-   2. CYBERSTRIKE STATE
-   ========================================================================== */
+/* ============================================================
+   2. GLOBAL PLAYER STATE
+   ============================================================ */
 
 let currentUser = null;
 
@@ -34,18 +27,39 @@ let weeklyWins = 0;
 
 let weeklySprintStartedAt = null;
 
+let weeklyWeekKey = null;
+
 let selectedGame = "Penalty Shootout";
 
 let selectedStake = 0.50;
 
-let countdownTimer = null;
-
 let walletLoading = false;
 
+let countdownTimer = null;
 
-/* ==========================================================================
-   3. CONSTANTS
-   ========================================================================== */
+
+/* ============================================================
+   3. PENALTY SHOOTOUT STATE
+   ============================================================ */
+
+let penaltyMatchId = null;
+
+let penaltyRoundActive = false;
+
+let penaltyTimeLeft = 15;
+
+let penaltyTimer = null;
+
+let penaltyPlayerScore = 0;
+
+let penaltyOpponentScore = 0;
+
+let penaltyActionLocked = false;
+
+
+/* ============================================================
+   4. CYBERSTRIKE SETTINGS
+   ============================================================ */
 
 const CYBERSTRIKE_GAMES = [
     "Penalty Shootout",
@@ -69,24 +83,43 @@ const MIN_DEPOSIT = 0.50;
 
 const MIN_WITHDRAWAL = 0.50;
 
+
+/* ============================================================
+   5. EDGE FUNCTIONS
+   ============================================================ */
+
 const DEPOSIT_FUNCTION_NAME =
     "cyberstrike-deposit";
 
 const WITHDRAW_FUNCTION_NAME =
     "cyberstrike-withdraw";
 
+const MATCHMAKING_FUNCTION_NAME =
+    "cyberstrike-matchmaking";
 
-/* ==========================================================================
-   4. INITIALIZE SUPABASE
-   ========================================================================== */
+const MILESTONE_FUNCTION_NAME =
+    "cyberstrike-milestone";
+
+/*
+   This function must exist on Supabase before real
+   Penalty Shootout matches can be securely played.
+*/
+
+const PENALTY_ACTION_FUNCTION_NAME =
+    "cyberstrike-penalty-action";
+
+
+/* ============================================================
+   6. INITIALIZE SUPABASE
+   ============================================================ */
 
 function initializeSupabase() {
 
     if (
-        typeof supabase === "undefined"
+        typeof window.supabase === "undefined"
     ) {
         console.error(
-            "CYBERSTRIKE: Supabase library not loaded."
+            "Supabase library was not loaded."
         );
 
         showMessage(
@@ -97,39 +130,27 @@ function initializeSupabase() {
         return false;
     }
 
-
     if (
-        SUPABASE_URL ===
-        "YOUR_SUPABASE_URL" ||
-
-        SUPABASE_ANON_KEY ===
-        "YOUR_SUPABASE_ANON_KEY"
+        SUPABASE_URL === "YOUR_SUPABASE_URL" ||
+        SUPABASE_ANON_KEY === "YOUR_SUPABASE_ANON_KEY"
     ) {
-
-        console.error(
-            "CYBERSTRIKE: Add your Supabase URL and anon key."
-        );
-
-        showMessage(
-            "Supabase configuration is missing.",
-            "error"
+        console.warn(
+            "Supabase URL and anon key still need to be configured."
         );
 
         return false;
     }
 
-
     try {
 
         supabaseClient =
-            supabase.createClient(
+            window.supabase.createClient(
                 SUPABASE_URL,
                 SUPABASE_ANON_KEY
             );
 
-
         console.log(
-            "CYBERSTRIKE: Supabase connected."
+            "CYBERSTRIKE Supabase initialized."
         );
 
         return true;
@@ -137,13 +158,8 @@ function initializeSupabase() {
     } catch (error) {
 
         console.error(
-            "Supabase initialization error:",
+            "Supabase initialization failed:",
             error
-        );
-
-        showMessage(
-            "Unable to connect to Supabase.",
-            "error"
         );
 
         return false;
@@ -151,136 +167,49 @@ function initializeSupabase() {
 }
 
 
-/* ==========================================================================
-   5. PAGE START
-   ========================================================================== */
+/* ============================================================
+   7. PAGE INITIALIZATION
+   ============================================================ */
 
 document.addEventListener(
     "DOMContentLoaded",
     async function () {
 
         console.log(
-            "CYBERSTRIKE starting..."
+            "CYBERSTRIKE loading..."
         );
 
+        initializeSupabase();
 
-        const connected =
-            initializeSupabase();
-
-
-        if (!connected) {
+        if (!supabaseClient) {
             return;
         }
 
-
         setupAuthListener();
-
 
         await checkCurrentSession();
 
+        startWeeklyCountdown();
 
-        startCountdown();
+        updateSelectedGameDisplay();
 
+        updateSelectedStakeDisplay();
 
-        updateDashboard();
+        updatePayoutDisplay();
 
     }
 );
 
 
-/* ==========================================================================
-   6. CHECK CURRENT SESSION
-   ========================================================================== */
-
-async function checkCurrentSession() {
-
-    if (!supabaseClient) {
-        return;
-    }
-
-
-    try {
-
-        showLoading();
-
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient.auth.getSession();
-
-
-        if (error) {
-
-            console.error(
-                "Session error:",
-                error
-            );
-
-            currentUser = null;
-
-            showLoginScreen();
-
-            return;
-        }
-
-
-        if (
-            data &&
-            data.session &&
-            data.session.user
-        ) {
-
-            currentUser =
-                data.session.user;
-
-
-            console.log(
-                "Logged in:",
-                currentUser.email
-            );
-
-
-            await loadPlayerData();
-
-
-            showDashboard();
-
-        } else {
-
-            currentUser = null;
-
-            resetLocalWalletState();
-
-            showLoginScreen();
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Session check failed:",
-            error
-        );
-
-        currentUser = null;
-
-        showLoginScreen();
-    }
-}
-
-
-/* ==========================================================================
-   7. AUTH STATE LISTENER
-   ========================================================================== */
+/* ============================================================
+   8. AUTH STATE LISTENER
+   ============================================================ */
 
 function setupAuthListener() {
 
     if (!supabaseClient) {
         return;
     }
-
 
     supabaseClient.auth.onAuthStateChange(
         async function (event, session) {
@@ -290,18 +219,11 @@ function setupAuthListener() {
                 event
             );
 
+            if (session && session.user) {
 
-            if (
-                session &&
-                session.user
-            ) {
-
-                currentUser =
-                    session.user;
-
+                currentUser = session.user;
 
                 await loadPlayerData();
-
 
                 showDashboard();
 
@@ -309,9 +231,7 @@ function setupAuthListener() {
 
                 currentUser = null;
 
-
                 resetLocalWalletState();
-
 
                 showLoginScreen();
             }
@@ -321,9 +241,59 @@ function setupAuthListener() {
 }
 
 
-/* ==========================================================================
-   8. LOGIN
-   ========================================================================== */
+/* ============================================================
+   9. CHECK EXISTING SESSION
+   ============================================================ */
+
+async function checkCurrentSession() {
+
+    if (!supabaseClient) {
+        return;
+    }
+
+    try {
+
+        const result =
+            await supabaseClient.auth.getSession();
+
+        const session =
+            result.data
+                ? result.data.session
+                : null;
+
+        if (session && session.user) {
+
+            currentUser = session.user;
+
+            console.log(
+                "Existing CYBERSTRIKE session found."
+            );
+
+            await loadPlayerData();
+
+            showDashboard();
+
+        } else {
+
+            showLoginScreen();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Session check failed:",
+            error
+        );
+
+        showLoginScreen();
+    }
+}
+
+
+/* ============================================================
+   10. LOGIN
+   ============================================================ */
 
 async function loginUser(
     email,
@@ -340,138 +310,83 @@ async function loginUser(
         return false;
     }
 
-
     email =
-        String(
-            email || ""
-        ).trim();
-
+        String(email || "")
+            .trim();
 
     password =
-        String(
-            password || ""
-        );
+        String(password || "");
 
+    if (!email || !password) {
 
-    if (
-        !email ||
-        !password
-    ) {
-
-        showMessage(
-            "Enter your email and password.",
-            "error"
+        showAuthMessage(
+            "Enter your email and password."
         );
 
         return false;
     }
 
+    showAuthMessage(
+        "Connecting to CYBERSTRIKE..."
+    );
 
     try {
 
-        showLoading();
+        const result =
+            await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
 
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient.auth
-                .signInWithPassword({
-
-                    email:
-                        email,
-
-                    password:
-                        password
-
-                });
-
-
-        if (error) {
+        if (result.error) {
 
             console.error(
                 "Login error:",
-                error
+                result.error
             );
 
-
-            showLoginScreen();
-
-
-            showMessage(
-                error.message ||
-                "Login failed.",
-                "error"
+            showAuthMessage(
+                result.error.message ||
+                "Login failed."
             );
-
 
             return false;
         }
-
-
-        if (
-            !data ||
-            !data.user
-        ) {
-
-            showLoginScreen();
-
-
-            showMessage(
-                "Login failed.",
-                "error"
-            );
-
-
-            return false;
-        }
-
 
         currentUser =
-            data.user;
-
+            result.data.user;
 
         await loadPlayerData();
 
-
         showDashboard();
-
 
         showMessage(
             "Login successful.",
             "success"
         );
 
-
         return true;
-
 
     } catch (error) {
 
         console.error(
-            "Unexpected login error:",
+            "Login exception:",
             error
         );
 
-
-        showLoginScreen();
-
-
-        showMessage(
-            "Unable to login right now.",
-            "error"
+        showAuthMessage(
+            error.message ||
+            "Unable to login."
         );
-
 
         return false;
     }
 }
 
 
-/* ==========================================================================
-   9. REGISTER
-   ========================================================================== */
+/* ============================================================
+   11. REGISTER
+   ============================================================ */
 
 async function registerUser(
     email,
@@ -480,160 +395,107 @@ async function registerUser(
 
     if (!supabaseClient) {
 
-        showMessage(
-            "Supabase is not connected.",
-            "error"
+        showAuthMessage(
+            "Supabase is not connected."
         );
 
         return false;
     }
-
 
     email =
-        String(
-            email || ""
-        ).trim();
-
+        String(email || "")
+            .trim();
 
     password =
-        String(
-            password || ""
-        );
+        String(password || "");
 
+    if (!email || !password) {
 
-    if (
-        !email ||
-        !password
-    ) {
-
-        showMessage(
-            "Enter an email and password.",
-            "error"
+        showAuthMessage(
+            "Enter an email and password."
         );
 
         return false;
     }
 
+    if (password.length < 6) {
 
-    if (
-        password.length < 6
-    ) {
-
-        showMessage(
-            "Password must contain at least 6 characters.",
-            "error"
+        showAuthMessage(
+            "Password must contain at least 6 characters."
         );
 
         return false;
     }
 
+    showAuthMessage(
+        "Creating your CYBERSTRIKE account..."
+    );
 
     try {
 
-        showLoading();
+        const result =
+            await supabaseClient.auth.signUp({
+                email: email,
+                password: password
+            });
 
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient.auth
-                .signUp({
-
-                    email:
-                        email,
-
-                    password:
-                        password
-
-                });
-
-
-        if (error) {
+        if (result.error) {
 
             console.error(
                 "Registration error:",
-                error
+                result.error
             );
 
-
-            showLoginScreen();
-
-
-            showMessage(
-                error.message ||
-                "Registration failed.",
-                "error"
+            showAuthMessage(
+                result.error.message ||
+                "Registration failed."
             );
-
 
             return false;
         }
 
-
-        if (
-            data &&
-            data.session &&
-            data.user
-        ) {
+        if (result.data.user) {
 
             currentUser =
-                data.user;
+                result.data.user;
 
+            /*
+              Player profile creation can be handled
+              by your Supabase database trigger.
+            */
 
             await loadPlayerData();
 
-
             showDashboard();
-
 
             showMessage(
                 "Account created successfully.",
                 "success"
             );
-
-
-            return true;
         }
 
-
-        showLoginScreen();
-
-
-        showMessage(
-            "Account created. Check your email if confirmation is required.",
-            "success"
-        );
-
-
         return true;
-
 
     } catch (error) {
 
         console.error(
-            "Registration error:",
+            "Registration exception:",
             error
         );
 
-
-        showLoginScreen();
-
-
-        showMessage(
-            "Unable to create account.",
-            "error"
+        showAuthMessage(
+            error.message ||
+            "Unable to create account."
         );
-
 
         return false;
     }
 }
 
 
-/* ==========================================================================
-   10. LOGOUT
-   ========================================================================== */
+/* ============================================================
+   12. LOGOUT
+   ============================================================ */
 
 async function logoutUser() {
 
@@ -641,65 +503,39 @@ async function logoutUser() {
         return;
     }
 
-
     try {
 
         await supabaseClient.auth.signOut();
 
-
         currentUser = null;
-
 
         resetLocalWalletState();
 
-
         showLoginScreen();
-
 
     } catch (error) {
 
         console.error(
-            "Logout error:",
+            "Logout failed:",
             error
-        );
-
-
-        showMessage(
-            "Unable to logout.",
-            "error"
         );
     }
 }
 
 
-/* ==========================================================================
-   11. LOAD PLAYER DATA
-   ========================================================================== */
+/* ============================================================
+   13. LOAD PLAYER DATA
+   ============================================================ */
 
 async function loadPlayerData() {
 
-    if (
-        !supabaseClient ||
-        !currentUser
-    ) {
+    if (!supabaseClient || !currentUser) {
         return;
     }
-
-
-    if (walletLoading) {
-        return;
-    }
-
-
-    walletLoading = true;
-
 
     try {
 
-        const {
-            data,
-            error
-        } =
+        const result =
             await supabaseClient
                 .from("players")
                 .select(
@@ -711,114 +547,90 @@ async function loadPlayerData() {
                 )
                 .maybeSingle();
 
-
-        if (error) {
+        if (result.error) {
 
             console.error(
                 "Player data error:",
-                error
+                result.error
             );
 
+            /*
+              Do NOT create demo money.
+
+              If the player row is missing, balance
+              remains zero until the real database
+              profile is created.
+            */
 
             playerBalance = 0;
 
             weeklyWins = 0;
 
-            weeklySprintStartedAt =
-                null;
-
+            weeklySprintStartedAt = null;
 
             updateDashboard();
-
-
-            showMessage(
-                "Wallet data could not be loaded.",
-                "error"
-            );
-
 
             return;
         }
 
-
-        if (!data) {
+        if (!result.data) {
 
             console.warn(
-                "No player record found."
+                "No player profile found."
             );
-
 
             playerBalance = 0;
 
             weeklyWins = 0;
 
-            weeklySprintStartedAt =
-                null;
-
+            weeklySprintStartedAt = null;
 
             updateDashboard();
-
 
             return;
         }
 
+        const player =
+            result.data;
 
         playerBalance =
-            Number(
-                data.balance || 0
-            );
-
+            Number(player.balance || 0);
 
         weeklyWins =
-            Number(
-                data.weekly_wins || 0
-            );
-
+            Number(player.weekly_wins || 0);
 
         weeklySprintStartedAt =
-            data.weekly_sprint_started_at ||
-            null;
-
-
-        updateDashboard();
-
+            player.weekly_sprint_started_at || null;
 
         console.log(
-            "Wallet:",
-            playerBalance,
-            CURRENCY
+            "Player data loaded:",
+            {
+                balance: playerBalance,
+                weeklyWins: weeklyWins
+            }
         );
 
+        updateDashboard();
 
     } catch (error) {
 
         console.error(
-            "loadPlayerData error:",
+            "Failed to load player data:",
             error
         );
-
 
         playerBalance = 0;
 
         weeklyWins = 0;
 
-        weeklySprintStartedAt =
-            null;
-
-
         updateDashboard();
-
-
-    } finally {
-
-        walletLoading = false;
     }
 }
 
 
-/* ==========================================================================
-   12. UPDATE DASHBOARD
-   ========================================================================== */
+/* ============================================================
+   14. UPDATE DASHBOARD
+   ============================================================ */
 
 function updateDashboard() {
 
@@ -828,55 +640,43 @@ function updateDashboard() {
 
     updateWeeklySprint();
 
+    updateMilestoneButtons();
+
     updateSelectedGameDisplay();
 
     updateSelectedStakeDisplay();
+
+    updatePayoutDisplay();
 }
 
 
-/* ==========================================================================
-   13. UPDATE BALANCE
-   ========================================================================== */
+/* ============================================================
+   15. BALANCE DISPLAY
+   ============================================================ */
 
 function updateBalanceDisplay() {
 
     const elements =
         document.querySelectorAll(
-            ".balance, #userBalanceDisplay, [data-balance]"
+            "#userBalanceDisplay"
         );
-
-
-    const safeBalance =
-        Number.isFinite(
-            playerBalance
-        )
-            ? Math.max(
-                0,
-                playerBalance
-            )
-            : 0;
-
-
-    const formatted =
-        safeBalance.toFixed(2) +
-        " " +
-        CURRENCY;
-
 
     elements.forEach(
         function (element) {
 
             element.textContent =
-                formatted;
+                Number(playerBalance || 0)
+                    .toFixed(2) +
+                " USDT";
 
         }
     );
 }
 
 
-/* ==========================================================================
-   14. UPDATE USER EMAIL
-   ========================================================================== */
+/* ============================================================
+   16. PLAYER EMAIL DISPLAY
+   ============================================================ */
 
 function updatePlayerEmail() {
 
@@ -884,12 +684,10 @@ function updatePlayerEmail() {
         return;
     }
 
-
     const elements =
         document.querySelectorAll(
-            "#userEmail, #playerEmail, [data-user-email]"
+            "#userEmailDisplay"
         );
-
 
     elements.forEach(
         function (element) {
@@ -902,9 +700,9 @@ function updatePlayerEmail() {
 }
 
 
-/* ==========================================================================
-   15. RESET LOCAL STATE
-   ========================================================================== */
+/* ============================================================
+   17. RESET LOCAL WALLET STATE
+   ============================================================ */
 
 function resetLocalWalletState() {
 
@@ -912,196 +710,146 @@ function resetLocalWalletState() {
 
     weeklyWins = 0;
 
-    weeklySprintStartedAt =
-        null;
+    weeklySprintStartedAt = null;
 
-    selectedGame =
-        "Penalty Shootout";
+    weeklyWeekKey = null;
 
-    selectedStake =
-        0.50;
+    penaltyMatchId = null;
 
+    penaltyRoundActive = false;
 
-    updateDashboard();
+    penaltyTimeLeft = 15;
+
+    penaltyPlayerScore = 0;
+
+    penaltyOpponentScore = 0;
+
+    stopPenaltyTimer();
+
+    updateBalanceDisplay();
 }
 
 
-/* ==========================================================================
-   16. GET BALANCE
-   ========================================================================== */
+/* ============================================================
+   18. GET PLAYER BALANCE
+   ============================================================ */
 
 function getPlayerBalance() {
 
     return Number(
-        Number(
-            playerBalance || 0
-        ).toFixed(2)
+        playerBalance || 0
     );
 }
 
 
-/* ==========================================================================
-   17. CALCULATE WINNER PAYOUT
-   ========================================================================== */
+/* ============================================================
+   19. CALCULATE WINNER PAYOUT
+   ============================================================ */
 
 function calculateWinnerPayout(
     stake
 ) {
 
-    const numericStake =
-        Number(stake);
-
-
-    if (
-        !CYBERSTRIKE_STAKES.includes(
-            numericStake
-        )
-    ) {
-        return 0;
-    }
-
+    const amount =
+        Number(stake || 0);
 
     const totalPot =
-        numericStake * 2;
-
+        amount * 2;
 
     const platformFee =
         totalPot *
-        (
-            PLATFORM_FEE_PERCENT /
-            100
-        );
+        (PLATFORM_FEE_PERCENT / 100);
 
-
-    const winnerAmount =
+    const winnerPayout =
         totalPot -
         platformFee;
 
-
     return Number(
-        winnerAmount.toFixed(2)
+        winnerPayout.toFixed(2)
     );
 }
 
 
-/* ==========================================================================
-   18. SELECT GAME
-   ========================================================================== */
+/* ============================================================
+   20. SELECT GAME
+   ============================================================ */
 
 function selectGame(game) {
 
     if (
-        !CYBERSTRIKE_GAMES.includes(
-            game
-        )
+        !CYBERSTRIKE_GAMES.includes(game)
     ) {
-
-        showMessage(
-            "Invalid game selected.",
-            "error"
-        );
-
         return;
     }
 
-
-    selectedGame =
-        game;
-
+    selectedGame = game;
 
     updateSelectedGameDisplay();
 
+    updatePayoutDisplay();
 
-    showMessage(
-        game +
-        " selected. Stake: " +
-        selectedStake.toFixed(2) +
-        " USDT",
-        "success"
+    console.log(
+        "Selected game:",
+        selectedGame
     );
 }
 
 
-/* ==========================================================================
-   19. SELECT STAKE
-   ========================================================================== */
+/* ============================================================
+   21. SELECT STAKE
+   ============================================================ */
 
 function selectStake(
     button,
     amount
 ) {
 
-    const numericAmount =
+    const stake =
         Number(amount);
 
-
     if (
-        !CYBERSTRIKE_STAKES.includes(
-            numericAmount
-        )
+        !CYBERSTRIKE_STAKES.includes(stake)
     ) {
-
-        showMessage(
-            "Invalid stake amount.",
-            "error"
-        );
-
         return;
     }
 
-
-    selectedStake =
-        numericAmount;
-
+    selectedStake = stake;
 
     document
-        .querySelectorAll(
-            ".stake, [data-stake]"
-        )
+        .querySelectorAll(".stake")
         .forEach(
-            function (element) {
+            function (item) {
 
-                element.classList.remove(
-                    "active",
-                    "selected"
+                item.classList.remove(
+                    "active"
                 );
 
             }
         );
 
-
     if (button) {
 
         button.classList.add(
-            "active",
-            "selected"
+            "active"
         );
     }
 
-
     updateSelectedStakeDisplay();
 
-
-    showMessage(
-        "Stake selected: " +
-        numericAmount.toFixed(2) +
-        " USDT",
-        "success"
-    );
+    updatePayoutDisplay();
 }
 
 
-/* ==========================================================================
-   20. UPDATE SELECTED GAME
-   ========================================================================== */
+/* ============================================================
+   22. SELECTED GAME DISPLAY
+   ============================================================ */
 
 function updateSelectedGameDisplay() {
 
     const elements =
         document.querySelectorAll(
-            "#selectedGame, [data-selected-game]"
+            "#selectedGameDisplay"
         );
-
 
     elements.forEach(
         function (element) {
@@ -1114,638 +862,871 @@ function updateSelectedGameDisplay() {
 }
 
 
-/* ==========================================================================
-   21. UPDATE SELECTED STAKE
-   ========================================================================== */
+/* ============================================================
+   23. SELECTED STAKE DISPLAY
+   ============================================================ */
 
 function updateSelectedStakeDisplay() {
 
     const elements =
         document.querySelectorAll(
-            "#selectedStake, [data-selected-stake]"
+            "#selectedStakeDisplay"
         );
-
 
     elements.forEach(
         function (element) {
 
             element.textContent =
-                selectedStake.toFixed(2) +
+                Number(selectedStake)
+                    .toFixed(2) +
                 " USDT";
 
         }
     );
+}/* ============================================================
+   CYBERSTRIKE — SCRIPT.JS
+   PART 2 OF 5
+   WEEKLY SPRINT + DASHBOARD + MATCHMAKING
+   ============================================================ */
 
 
-    const payout =
-        calculateWinnerPayout(
-            selectedStake
-        );
+/* ============================================================
+   24. FIXED CALENDAR WEEK
+   MONDAY 00:00 → SUNDAY 23:59
+   ============================================================ */
 
+function getMondayStart(date = new Date()) {
 
-    const payoutElements =
-        document.querySelectorAll(
-            "#potentialPayout, [data-potential-payout]"
-        );
+    const d = new Date(date);
 
+    d.setHours(0, 0, 0, 0);
 
-    payoutElements.forEach(
-        function (element) {
+    const day = d.getDay();
 
-            element.textContent =
-                payout.toFixed(2) +
-                " USDT";
+    /*
+      Sunday = 0
+      Monday = 1
+      Tuesday = 2
+      ...
+      Saturday = 6
+    */
 
-        }
+    const daysSinceMonday =
+        day === 0 ? 6 : day - 1;
+
+    d.setDate(
+        d.getDate() - daysSinceMonday
     );
-               }/* ==========================================================================
-   CYBERSTRIKE | SCRIPT.JS
-   PART 2 OF 4
 
-   WEEKLY SPRINT
-   COUNTDOWN
-   UI HELPERS
-   AUTH UI
-   MESSAGES
-   ========================================================================== */
+    return d;
+}
 
 
-/* ==========================================================================
-   1. WEEKLY SPRINT
-   ========================================================================== */
+/* ============================================================
+   25. GET NEXT MONDAY
+   ============================================================ */
+
+function getNextMondayStart(date = new Date()) {
+
+    const monday =
+        getMondayStart(date);
+
+    const nextMonday =
+        new Date(monday);
+
+    nextMonday.setDate(
+        nextMonday.getDate() + 7
+    );
+
+    return nextMonday;
+}
+
+
+/* ============================================================
+   26. WEEK KEY
+   ============================================================ */
+
+function getCurrentWeekKey(date = new Date()) {
+
+    const monday =
+        getMondayStart(date);
+
+    const year =
+        monday.getFullYear();
+
+    const month =
+        String(
+            monday.getMonth() + 1
+        ).padStart(2, "0");
+
+    const day =
+        String(
+            monday.getDate()
+        ).padStart(2, "0");
+
+    return (
+        year +
+        "-" +
+        month +
+        "-" +
+        day
+    );
+}
+
+
+/* ============================================================
+   27. WEEKLY SPRINT INFORMATION
+   ============================================================ */
+
+function getWeeklySprintInfo() {
+
+    const now =
+        new Date();
+
+    const monday =
+        getMondayStart(now);
+
+    const nextMonday =
+        getNextMondayStart(now);
+
+    const weekKey =
+        getCurrentWeekKey(now);
+
+    const totalMilliseconds =
+        nextMonday.getTime() -
+        monday.getTime();
+
+    const remainingMilliseconds =
+        Math.max(
+            0,
+            nextMonday.getTime() -
+            now.getTime()
+        );
+
+    return {
+
+        weekKey: weekKey,
+
+        start: monday,
+
+        end: nextMonday,
+
+        totalMilliseconds:
+            totalMilliseconds,
+
+        remainingMilliseconds:
+            remainingMilliseconds
+    };
+}
+
+
+/* ============================================================
+   28. UPDATE WEEKLY SPRINT
+   ============================================================ */
 
 function updateWeeklySprint() {
 
-    const winsElement = document.getElementById("weeklyWins");
-    const rewardElement = document.getElementById("nextRewardLabel");
-    const progressElement = document.getElementById("weeklyProgressPercent");
-    const progressBar = document.getElementById("weeklyProgressBar");
+    const sprint =
+        getWeeklySprintInfo();
 
-    if (winsElement) {
-        winsElement.textContent = String(weeklyWins);
-    }
+    weeklyWeekKey =
+        sprint.weekKey;
 
-    let nextReward = "2.00 USDT";
-    let targetWins = 20;
+    /*
+      IMPORTANT:
 
-    if (weeklyWins >= 1000) {
-        nextReward = "100.00 USDT";
-        targetWins = 1000;
-    } else if (weeklyWins >= 100) {
-        nextReward = "100.00 USDT";
-        targetWins = 1000;
-    } else if (weeklyWins >= 50) {
-        nextReward = "10.00 USDT";
-        targetWins = 100;
-    } else if (weeklyWins >= 20) {
-        nextReward = "5.00 USDT";
-        targetWins = 50;
-    }
+      The browser only displays the current
+      calendar week.
 
-    if (rewardElement) {
-        rewardElement.textContent = "NEXT REWARD: " + nextReward;
-    }
+      Actual weekly-win reset and milestone
+      eligibility must still be verified by
+      the Supabase backend.
+    */
 
-    const percentage = Math.min(
-        100,
-        Math.floor((weeklyWins / targetWins) * 100)
+    const wins =
+        Number(
+            weeklyWins || 0
+        );
+
+    const weeklyWinsElements =
+        document.querySelectorAll(
+            "#weeklyWins"
+        );
+
+    weeklyWinsElements.forEach(
+        function (element) {
+
+            element.textContent =
+                wins.toString();
+
+        }
     );
 
-    if (progressElement) {
-        progressElement.textContent = percentage + "%";
+
+    /* --------------------------------------------------------
+       PROGRESS
+       -------------------------------------------------------- */
+
+    let progressPercent = 0;
+
+    if (wins >= 1000) {
+
+        progressPercent = 100;
+
+    } else {
+
+        progressPercent =
+            Math.min(
+                100,
+                (wins / 1000) * 100
+            );
     }
 
-    if (progressBar) {
-        progressBar.style.width = percentage + "%";
+
+    const progressElements =
+        document.querySelectorAll(
+            "#weeklyProgressPercent"
+        );
+
+    progressElements.forEach(
+        function (element) {
+
+            element.textContent =
+                Math.floor(
+                    progressPercent
+                ) +
+                "%";
+
+        }
+    );
+
+
+    const bars =
+        document.querySelectorAll(
+            "#weeklyProgressBar"
+        );
+
+    bars.forEach(
+        function (bar) {
+
+            bar.style.width =
+                progressPercent +
+                "%";
+
+        }
+    );
+
+
+    /* --------------------------------------------------------
+       NEXT REWARD
+       -------------------------------------------------------- */
+
+    let nextRewardText =
+        "NEXT REWARD: 2.00 USDT";
+
+    if (wins >= 1000) {
+
+        nextRewardText =
+            "ALL WEEKLY REWARDS REACHED";
+
+    } else if (wins >= 100) {
+
+        nextRewardText =
+            "NEXT REWARD: 100.00 USDT";
+
+    } else if (wins >= 50) {
+
+        nextRewardText =
+            "NEXT REWARD: 10.00 USDT";
+
+    } else if (wins >= 20) {
+
+        nextRewardText =
+            "NEXT REWARD: 5.00 USDT";
     }
 
-    updateMilestoneButtons();
+
+    const rewardLabels =
+        document.querySelectorAll(
+            "#nextRewardLabel"
+        );
+
+    rewardLabels.forEach(
+        function (element) {
+
+            element.textContent =
+                nextRewardText;
+
+        }
+    );
+
+
+    updateCountdownDisplay();
 }
 
 
-/* ==========================================================================
-   2. MILESTONE BUTTONS
-   ========================================================================== */
+/* ============================================================
+   29. UPDATE MILESTONE BUTTONS
+   ============================================================ */
 
 function updateMilestoneButtons() {
 
-    const claim20 = document.getElementById("claim20Btn");
-    const claim50 = document.getElementById("claim50Btn");
-    const claim100 = document.getElementById("claim100Btn");
-    const claim1000 = document.getElementById("claim1000Btn");
-
-    updateMilestoneButton(claim20, weeklyWins >= 20);
-    updateMilestoneButton(claim50, weeklyWins >= 50);
-    updateMilestoneButton(claim100, weeklyWins >= 100);
-    updateMilestoneButton(claim1000, weeklyWins >= 1000);
-}
-
-
-function updateMilestoneButton(button, unlocked) {
-
-    if (!button) return;
-
-    button.disabled = !unlocked;
-
-    if (unlocked) {
-        button.style.opacity = "1";
-        button.style.cursor = "pointer";
-    } else {
-        button.style.opacity = "0.45";
-        button.style.cursor = "not-allowed";
-    }
-}
-
-
-/* ==========================================================================
-   3. MILESTONE CLAIM
-   ========================================================================== */
-
-async function claimMilestone(requiredWins, rewardAmount) {
-
-    if (!currentUser) {
-        showMessage("Please login first.", "error");
-        return;
-    }
-
-    if (weeklyWins < requiredWins) {
-        showMessage(
-            "You need " + requiredWins + " verified wins to unlock this reward.",
-            "error"
-        );
-        return;
-    }
-
-    showMessage(
-        "Milestone rewards are verified by the CYBERSTRIKE server.",
-        "info"
+    updateMilestoneButton(
+        "claim20Btn",
+        20
     );
 
-    /*
-       IMPORTANT:
+    updateMilestoneButton(
+        "claim50Btn",
+        50
+    );
 
-       The reward should NOT be added directly from the browser.
+    updateMilestoneButton(
+        "claim100Btn",
+        100
+    );
 
-       The final production version should call a Supabase Edge Function
-       which checks the player's verified wins and makes the reward credit
-       server-side.
-
-       This prevents players from changing weeklyWins in browser tools.
-    */
-
-    const rewardFunction = "cyberstrike-milestone";
-
-    if (!supabaseClient) {
-        showMessage("Supabase is not connected.", "error");
-        return;
-    }
-
-    try {
-
-        showLoading(true);
-
-        const { data, error } =
-            await supabaseClient.functions.invoke(
-                rewardFunction,
-                {
-                    body: {
-                        required_wins: requiredWins,
-                        reward_amount: rewardAmount
-                    }
-                }
-            );
-
-        showLoading(false);
-
-        if (error) {
-            console.error("Milestone error:", error);
-            showMessage(
-                "Milestone verification failed.",
-                "error"
-            );
-            return;
-        }
-
-        if (!data) {
-            showMessage(
-                "No response from milestone server.",
-                "error"
-            );
-            return;
-        }
-
-        if (data.success === false) {
-            showMessage(
-                data.message || "Milestone could not be claimed.",
-                "error"
-            );
-            return;
-        }
-
-        if (typeof data.balance !== "undefined") {
-            playerBalance = Number(data.balance) || 0;
-            updateBalanceDisplay();
-        }
-
-        if (typeof data.weekly_wins !== "undefined") {
-            weeklyWins = Number(data.weekly_wins) || weeklyWins;
-            updateWeeklySprint();
-        }
-
-        showMessage(
-            data.message ||
-            ("Milestone reward of " +
-                rewardAmount.toFixed(2) +
-                " USDT credited."),
-            "success"
-        );
-
-    } catch (err) {
-
-        showLoading(false);
-
-        console.error("Milestone exception:", err);
-
-        showMessage(
-            "Unable to contact the milestone server.",
-            "error"
-        );
-    }
-}
-
-
-/* ==========================================================================
-   4. WEEKLY COUNTDOWN
-   ========================================================================== */
-
-function startWeeklyCountdown() {
-
-    if (countdownTimer) {
-        clearInterval(countdownTimer);
-    }
-
-    updateCountdownDisplay();
-
-    countdownTimer = setInterval(
-        updateCountdownDisplay,
+    updateMilestoneButton(
+        "claim1000Btn",
         1000
     );
 }
 
 
+/* ============================================================
+   30. MILESTONE BUTTON STATE
+   ============================================================ */
+
+function updateMilestoneButton(
+    elementId,
+    requiredWins
+) {
+
+    const button =
+        document.getElementById(
+            elementId
+        );
+
+    if (!button) {
+        return;
+    }
+
+    const wins =
+        Number(
+            weeklyWins || 0
+        );
+
+    if (wins >= requiredWins) {
+
+        button.disabled = false;
+
+        button.classList.add(
+            "milestone-ready"
+        );
+
+    } else {
+
+        button.disabled = true;
+
+        button.classList.remove(
+            "milestone-ready"
+        );
+    }
+}
+
+
+/* ============================================================
+   31. CLAIM WEEKLY MILESTONE
+   ============================================================ */
+
+async function claimMilestone(
+    requiredWins,
+    rewardAmount
+) {
+
+    if (!currentUser) {
+
+        showMessage(
+            "Please login first.",
+            "error"
+        );
+
+        return;
+    }
+
+    const wins =
+        Number(
+            weeklyWins || 0
+        );
+
+    if (wins < requiredWins) {
+
+        showMessage(
+            "You need " +
+            requiredWins +
+            " verified wins first.",
+            "error"
+        );
+
+        return;
+    }
+
+    showMessage(
+        "Verifying milestone...",
+        "info"
+    );
+
+    try {
+
+        const result =
+            await supabaseClient.functions.invoke(
+                MILESTONE_FUNCTION_NAME,
+                {
+                    body: {
+
+                        user_id:
+                            currentUser.id,
+
+                        required_wins:
+                            requiredWins,
+
+                        reward_amount:
+                            rewardAmount,
+
+                        week_key:
+                            getCurrentWeekKey()
+                    }
+                }
+            );
+
+        if (result.error) {
+
+            console.error(
+                "Milestone error:",
+                result.error
+            );
+
+            showMessage(
+                getFunctionErrorMessage(
+                    result.error
+                ),
+                "error"
+            );
+
+            return;
+        }
+
+        const data =
+            result.data || {};
+
+        if (
+            data.success === false
+        ) {
+
+            showMessage(
+                data.message ||
+                "Milestone could not be claimed.",
+                "error"
+            );
+
+            return;
+        }
+
+        showMessage(
+            data.message ||
+            (
+                "Milestone claimed: +" +
+                Number(rewardAmount)
+                    .toFixed(2) +
+                " USDT"
+            ),
+            "success"
+        );
+
+        await loadPlayerData();
+
+    } catch (error) {
+
+        console.error(
+            "Milestone exception:",
+            error
+        );
+
+        showMessage(
+            error.message ||
+            "Milestone request failed.",
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   32. START WEEKLY COUNTDOWN
+   ============================================================ */
+
+function startWeeklyCountdown() {
+
+    if (countdownTimer) {
+
+        clearInterval(
+            countdownTimer
+        );
+    }
+
+    updateCountdownDisplay();
+
+    countdownTimer =
+        setInterval(
+            function () {
+
+                updateCountdownDisplay();
+
+            },
+            1000
+        );
+}
+
+
+/* ============================================================
+   33. COUNTDOWN DISPLAY
+   ============================================================ */
+
 function updateCountdownDisplay() {
 
-    const countdownElement =
-        document.getElementById("countdown");
-
-    if (!countdownElement) return;
-
-    if (!weeklySprintStartedAt) {
-        countdownElement.textContent = "7 DAYS";
-        return;
-    }
-
-    const startTime =
-        new Date(weeklySprintStartedAt).getTime();
-
-    if (!Number.isFinite(startTime)) {
-        countdownElement.textContent = "7 DAYS";
-        return;
-    }
-
-    const sprintDuration =
-        7 * 24 * 60 * 60 * 1000;
-
-    const endTime =
-        startTime + sprintDuration;
+    const sprint =
+        getWeeklySprintInfo();
 
     const remaining =
-        endTime - Date.now();
-
-    if (remaining <= 0) {
-
-        countdownElement.textContent =
-            "RESETTING...";
-
-        return;
-    }
+        sprint.remainingMilliseconds;
 
     const totalSeconds =
-        Math.floor(remaining / 1000);
+        Math.max(
+            0,
+            Math.floor(
+                remaining / 1000
+            )
+        );
 
     const days =
-        Math.floor(totalSeconds / 86400);
+        Math.floor(
+            totalSeconds / 86400
+        );
 
     const hours =
         Math.floor(
-            (totalSeconds % 86400) / 3600
+            (totalSeconds % 86400) /
+            3600
         );
 
     const minutes =
         Math.floor(
-            (totalSeconds % 3600) / 60
+            (totalSeconds % 3600) /
+            60
         );
 
     const seconds =
         totalSeconds % 60;
 
-    countdownElement.textContent =
-        String(days).padStart(2, "0") +
+
+    const formatted =
+        String(days) +
         "D " +
         String(hours).padStart(2, "0") +
-        "H " +
+        ":" +
         String(minutes).padStart(2, "0") +
-        "M " +
-        String(seconds).padStart(2, "0") +
-        "S";
-}
+        ":" +
+        String(seconds).padStart(2, "0");
 
 
-/* ==========================================================================
-   5. GENERIC LOADING STATE
-   ========================================================================== */
-
-function showLoading(isLoading) {
-
-    const button =
-        document.getElementById("loginButton");
-
-    if (!button) return;
-
-    if (isLoading) {
-
-        if (!button.dataset.originalText) {
-            button.dataset.originalText =
-                button.textContent;
-        }
-
-        button.disabled = true;
-        button.textContent = "CONNECTING...";
-
-    } else {
-
-        button.disabled = false;
-
-        if (button.dataset.originalText) {
-            button.textContent =
-                button.dataset.originalText;
-        }
-    }
-}
-
-
-/* ==========================================================================
-   6. MESSAGE SYSTEM
-   ========================================================================== */
-
-function showMessage(message, type = "info") {
-
-    const messageElement =
-        document.getElementById("cyberMessage");
-
-    if (!messageElement) {
-        console.log(
-            "[" + type.toUpperCase() + "]",
-            message
+    const countdownElements =
+        document.querySelectorAll(
+            "#countdown"
         );
-        return;
-    }
 
-    messageElement.textContent = message;
+    countdownElements.forEach(
+        function (element) {
 
-    messageElement.style.display = "block";
+            element.textContent =
+                formatted;
 
-    messageElement.dataset.type = type;
-
-    if (type === "error") {
-        messageElement.style.borderColor =
-            "#ef4444";
-    } else if (type === "success") {
-        messageElement.style.borderColor =
-            "#22c55e";
-    } else {
-        messageElement.style.borderColor =
-            "#06b6d4";
-    }
-
-    clearTimeout(
-        messageElement._hideTimer
+        }
     );
 
-    messageElement._hideTimer =
-        setTimeout(() => {
 
-            messageElement.style.display =
-                "none";
+    /*
+      When Monday arrives, refresh player data.
 
-        }, 5000);
+      This does NOT award or reset anything locally.
+      The backend remains authoritative.
+    */
+
+    if (
+        remaining <= 1000
+    ) {
+
+        setTimeout(
+            async function () {
+
+                if (currentUser) {
+
+                    await loadPlayerData();
+
+                }
+
+            },
+            1500
+        );
+    }
 }
 
 
-/* ==========================================================================
-   7. AUTH SCREEN
-   ========================================================================== */
+/* ============================================================
+   34. SHOW LOGIN SCREEN
+   ============================================================ */
 
 function showLoginScreen() {
 
     const authGate =
-        document.getElementById("authGate");
+        document.getElementById(
+            "authGate"
+        );
 
     const appContainer =
-        document.getElementById("appContainer");
+        document.getElementById(
+            "appContainer"
+        );
 
     if (authGate) {
-        authGate.style.display = "flex";
+
+        authGate.style.display =
+            "flex";
+
     }
 
     if (appContainer) {
-        appContainer.style.display = "none";
+
+        appContainer.style.display =
+            "none";
+
     }
-
-    const emailInput =
-        document.getElementById("loginEmail");
-
-    const passwordInput =
-        document.getElementById("loginPassword");
-
-    if (emailInput) {
-        emailInput.disabled = false;
-    }
-
-    if (passwordInput) {
-        passwordInput.disabled = false;
-    }
-
-    showAuthMessage("");
 }
 
 
-/* ==========================================================================
-   8. DASHBOARD SCREEN
-   ========================================================================== */
+/* ============================================================
+   35. SHOW DASHBOARD
+   ============================================================ */
 
 function showDashboard() {
 
     const authGate =
-        document.getElementById("authGate");
+        document.getElementById(
+            "authGate"
+        );
 
     const appContainer =
-        document.getElementById("appContainer");
+        document.getElementById(
+            "appContainer"
+        );
 
     if (authGate) {
-        authGate.style.display = "none";
+
+        authGate.style.display =
+            "none";
+
     }
 
     if (appContainer) {
-        appContainer.style.display = "block";
+
+        appContainer.style.display =
+            "block";
+
     }
 
     updateDashboard();
-
-    startWeeklyCountdown();
 }
 
 
-/* ==========================================================================
-   9. AUTH MESSAGE
-   ========================================================================== */
+/* ============================================================
+   36. AUTH MESSAGE
+   ============================================================ */
 
-function showAuthMessage(message, type = "error") {
+function showAuthMessage(
+    message
+) {
 
     const element =
-        document.getElementById("authMessage");
+        document.getElementById(
+            "authMessage"
+        );
 
-    if (!element) {
-        if (message) {
-            console.log(
-                "[" + type.toUpperCase() + "]",
-                message
-            );
-        }
-        return;
+    if (element) {
+
+        element.textContent =
+            message;
     }
 
-    element.textContent = message;
+    console.log(
+        "AUTH:",
+        message
+    );
+}
 
-    if (!message) {
-        element.style.display = "none";
-        return;
-    }
 
-    element.style.display = "block";
+/* ============================================================
+   37. GENERAL MESSAGE
+   ============================================================ */
 
-    if (type === "success") {
-        element.style.color = "#22c55e";
+function showMessage(
+    message,
+    type = "info"
+) {
+
+    const element =
+        document.getElementById(
+            "cyberMessage"
+        );
+
+    if (element) {
+
+        element.textContent =
+            message;
+
+        element.className =
+            "cyber-message " +
+            type;
+
+        element.style.display =
+            "block";
+
+        setTimeout(
+            function () {
+
+                element.style.display =
+                    "none";
+
+            },
+            5000
+        );
+
     } else {
-        element.style.color = "#ef4444";
+
+        console.log(
+            "[" +
+            type.toUpperCase() +
+            "] " +
+            message
+        );
     }
 }
 
 
-/* ==========================================================================
-   10. FIND OPPONENT
-   ========================================================================== */
+/* ============================================================
+   38. FIND OPPONENT
+   ============================================================ */
 
 async function findOpponent() {
 
     if (!currentUser) {
+
         showMessage(
-            "Please login before finding an opponent.",
+            "Please login first.",
             "error"
         );
+
         return;
     }
 
-    if (!CYBERSTRIKE_GAMES.includes(selectedGame)) {
-        showMessage(
-            "Please select a valid game.",
-            "error"
-        );
-        return;
-    }
-
-    if (!CYBERSTRIKE_STAKES.includes(selectedStake)) {
-        showMessage(
-            "Please select a valid stake.",
-            "error"
-        );
-        return;
-    }
-
-    const requiredBalance =
+    const stake =
         Number(selectedStake);
 
-    if (playerBalance < requiredBalance) {
+    if (
+        !CYBERSTRIKE_STAKES.includes(
+            stake
+        )
+    ) {
+
+        showMessage(
+            "Invalid stake amount.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (
+        playerBalance < stake
+    ) {
+
         showMessage(
             "Insufficient USDT balance.",
             "error"
         );
+
         return;
     }
+
 
     /*
-       Matchmaking will be handled by the secure
-       CYBERSTRIKE Edge Function.
+      The browser does NOT deduct the stake.
 
-       The browser must never decide:
-       - who the opponent is
-       - whether money is deducted
-       - who wins
-       - the final payout
-
-       Those decisions belong on the server.
+      The matchmaking Edge Function must:
+      1. Verify the user.
+      2. Verify balance.
+      3. Lock/deduct the stake.
+      4. Create or join a match.
+      5. Return the secure match information.
     */
 
-    if (!supabaseClient) {
-        showMessage(
-            "Supabase is not connected.",
-            "error"
-        );
-        return;
-    }
+    showMessage(
+        "Searching for an opponent...",
+        "info"
+    );
+
 
     try {
 
-        showMessage(
-            "Searching for an opponent...",
-            "info"
-        );
-
-        const { data, error } =
+        const result =
             await supabaseClient.functions.invoke(
-                "cyberstrike-matchmaking",
+                MATCHMAKING_FUNCTION_NAME,
                 {
                     body: {
-                        game: selectedGame,
-                        stake: selectedStake
+
+                        game:
+                            selectedGame,
+
+                        stake:
+                            stake,
+
+                        currency:
+                            CURRENCY
+
                     }
                 }
             );
 
-        if (error) {
+
+        if (result.error) {
 
             console.error(
                 "Matchmaking error:",
-                error
+                result.error
             );
 
             showMessage(
-                "MATCHMAKING ERROR",
+                getFunctionErrorMessage(
+                    result.error
+                ),
                 "error"
             );
 
             return;
         }
 
-        if (!data) {
 
-            showMessage(
-                "No matchmaking response.",
-                "error"
-            );
+        const data =
+            result.data || {};
 
-            return;
-        }
 
         if (data.success === false) {
 
@@ -1758,21 +1739,50 @@ async function findOpponent() {
             return;
         }
 
+
+        /*
+          Refresh wallet because the server
+          may have locked the stake.
+        */
+
+        await loadPlayerData();
+
+
+        /*
+          Save match ID if returned.
+        */
+
         if (data.match_id) {
 
-            showMessage(
-                "Opponent found. Match starting...",
-                "success"
-            );
-
-            /*
-               The actual game screen will use
-               data.match_id in the next part.
-            */
-
-            window.CYBERSTRIKE_MATCH_ID =
+            penaltyMatchId =
                 data.match_id;
         }
+
+
+        /*
+          If Penalty Shootout has been matched,
+          launch the secure game screen.
+        */
+
+        if (
+            selectedGame ===
+            "Penalty Shootout"
+        ) {
+
+            startPenaltyShootout(
+                data
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            data.message ||
+            "Opponent found.",
+            "success"
+        );
+
 
     } catch (error) {
 
@@ -1782,16 +1792,17 @@ async function findOpponent() {
         );
 
         showMessage(
-            "Unable to connect to matchmaking.",
+            error.message ||
+            "Matchmaking failed.",
             "error"
         );
     }
 }
 
 
-/* ==========================================================================
-   11. LOGOUT UI
-   ========================================================================== */
+/* ============================================================
+   39. HANDLE LOGOUT
+   ============================================================ */
 
 async function handleLogout() {
 
@@ -1799,91 +1810,145 @@ async function handleLogout() {
 }
 
 
-/* ==========================================================================
-   12. KEYBOARD LOGIN SUPPORT
-   ========================================================================== */
+/* ============================================================
+   40. LOGIN FORM SUPPORT
+   ============================================================ */
+
+async function handleLogin() {
+
+    const emailInput =
+        document.getElementById(
+            "loginEmail"
+        );
+
+    const passwordInput =
+        document.getElementById(
+            "loginPassword"
+        );
+
+    if (!emailInput || !passwordInput) {
+
+        showAuthMessage(
+            "Login fields were not found."
+        );
+
+        return;
+    }
+
+    await loginUser(
+        emailInput.value,
+        passwordInput.value
+    );
+}
+
+
+/* ============================================================
+   41. ENTER KEY LOGIN
+   ============================================================ */
 
 document.addEventListener(
     "keydown",
     function (event) {
 
-        if (event.key !== "Enter") return;
+        if (
+            event.key !== "Enter"
+        ) {
+            return;
+        }
 
-        const email =
-            document.getElementById("loginEmail");
-
-        const password =
-            document.getElementById("loginPassword");
-
-        if (!email || !password) return;
+        const activeElement =
+            document.activeElement;
 
         if (
-            document.activeElement === email ||
-            document.activeElement === password
+            activeElement &&
+            (
+                activeElement.id ===
+                "loginEmail" ||
+                activeElement.id ===
+                "loginPassword"
+            )
         ) {
 
-            event.preventDefault();
-
-            loginUser(
-                email.value,
-                password.value
-            );
+            handleLogin();
         }
     }
 );
 
 
-/* ==========================================================================
+/* ============================================================
    END OF PART 2
-
-   PART 3 WILL CONTAIN:
-
-   - DEPOSIT MODAL
-   - CASHOUT MODAL
-   - USDT WALLET UI
-   - SUPABASE EDGE FUNCTION CALLS
-   - DEPOSIT CHECKOUT REDIRECT
-   - WITHDRAWAL REQUEST
-   ========================================================================== */
-/* ==========================================================================
-   CYBERSTRIKE | SCRIPT.JS
-   PART 3 OF 4
-
-   DEPOSIT
-   CASHOUT
-   WALLET MODALS
-   SUPABASE EDGE FUNCTIONS
-   ========================================================================== */
+   ============================================================ *//* ============================================================
+   CYBERSTRIKE — SCRIPT.JS
+   PART 3 OF 5
+   WALLET + DEPOSIT + WITHDRAWAL
+   ============================================================ */
 
 
-/* ==========================================================================
-   1. OPEN DEPOSIT MODAL
-   ========================================================================== */
+/* ============================================================
+   42. UPDATE POTENTIAL PAYOUT
+   ============================================================ */
+
+function updatePayoutDisplay() {
+
+    const payout =
+        calculateWinnerPayout(
+            selectedStake
+        );
+
+    const elements =
+        document.querySelectorAll(
+            "#potentialPayout"
+        );
+
+    elements.forEach(
+        function (element) {
+
+            element.textContent =
+                payout.toFixed(2) +
+                " USDT";
+
+        }
+    );
+}
+
+
+/* ============================================================
+   43. OPEN DEPOSIT MODAL
+   ============================================================ */
 
 function openDepositModal() {
 
     if (!currentUser) {
+
         showMessage(
-            "Please login before making a deposit.",
+            "Please login first.",
             "error"
         );
+
         return;
     }
 
     removeWalletModal();
 
-    const modal = document.createElement("div");
+    const modal =
+        document.createElement(
+            "div"
+        );
 
-    modal.id = "cyberDepositModal";
-    modal.className = "cyber-wallet-modal";
+    modal.id =
+        "cyberDepositModal";
+
+    modal.className =
+        "cyber-wallet-modal";
+
 
     modal.innerHTML = `
         <div class="cyber-wallet-box">
 
             <button
-                class="cyber-wallet-close"
-                onclick="closeWalletModal()"
                 type="button"
+                class="cyber-close-wallet"
+                onclick="closeWalletModal()"
             >
                 ×
             </button>
@@ -1893,7 +1958,7 @@ function openDepositModal() {
             </div>
 
             <div class="cyber-wallet-subtitle">
-                ADD FUNDS TO YOUR CYBERSTRIKE WALLET
+                Secure CYBERSTRIKE Deposit
             </div>
 
             <label class="cyber-wallet-label">
@@ -1904,212 +1969,179 @@ function openDepositModal() {
                 id="depositAmount"
                 class="cyber-wallet-input"
                 type="number"
-                min="${MIN_DEPOSIT}"
-                step="0.01"
+                min="0.50"
+                step="0.50"
                 placeholder="0.50"
-                inputmode="decimal"
             >
 
             <div class="cyber-wallet-info">
                 Minimum deposit:
-                <strong>${MIN_DEPOSIT.toFixed(2)} USDT</strong>
+                <strong>0.50 USDT</strong>
             </div>
-
-            <div class="cyber-wallet-network">
-                USDT NETWORK IS DETERMINED BY THE
-                CYBERSTRIKE PAYMENT SERVER.
-            </div>
-
-            <button
-                class="cyber-wallet-primary"
-                type="button"
-                onclick="createDeposit()"
-            >
-                CONTINUE TO PAYMENT
-            </button>
 
             <div
                 id="depositStatus"
                 class="cyber-wallet-status"
             ></div>
 
+            <button
+                type="button"
+                class="cyber-wallet-primary"
+                onclick="createDeposit()"
+            >
+                CONTINUE TO PAYMENT
+            </button>
+
+            <button
+                type="button"
+                class="cyber-wallet-secondary"
+                onclick="closeWalletModal()"
+            >
+                CANCEL
+            </button>
+
+            <div class="cyber-wallet-note">
+                Your balance is credited only after
+                the payment is verified by the server.
+            </div>
+
         </div>
     `;
 
-    document.body.appendChild(modal);
-
-    addWalletModalStyles();
-
-    setTimeout(() => {
-
-        const input =
-            document.getElementById("depositAmount");
-
-        if (input) {
-            input.focus();
-        }
-
-    }, 100);
+    document.body.appendChild(
+        modal
+    );
 }
 
 
-/* ==========================================================================
-   2. CREATE DEPOSIT
-   ========================================================================== */
+/* ============================================================
+   44. CREATE DEPOSIT
+   ============================================================ */
 
 async function createDeposit() {
 
     if (!currentUser) {
+
         showMessage(
-            "Your session has expired. Please login again.",
+            "Please login first.",
             "error"
         );
+
         return;
     }
 
+
     const input =
-        document.getElementById("depositAmount");
+        document.getElementById(
+            "depositAmount"
+        );
 
-    const status =
-        document.getElementById("depositStatus");
+    if (!input) {
+        return;
+    }
 
-    if (!input) return;
 
     const amount =
         Number(input.value);
 
-    if (!Number.isFinite(amount)) {
+
+    if (
+        !Number.isFinite(amount) ||
+        amount < MIN_DEPOSIT
+    ) {
 
         setWalletStatus(
-            status,
-            "Enter a valid USDT amount.",
+            "Minimum deposit is 0.50 USDT.",
             "error"
         );
 
         return;
     }
 
-    if (amount < MIN_DEPOSIT) {
 
-        setWalletStatus(
-            status,
-            "Minimum deposit is " +
-            MIN_DEPOSIT.toFixed(2) +
-            " USDT.",
-            "error"
+    const roundedAmount =
+        Number(
+            amount.toFixed(2)
         );
 
-        return;
-    }
 
-    if (status) {
-        setWalletStatus(
-            status,
-            "Creating secure payment...",
-            "info"
-        );
-    }
+    setWalletStatus(
+        "Creating secure payment...",
+        "loading"
+    );
 
-    const button =
-        document.querySelector(
-            "#cyberDepositModal .cyber-wallet-primary"
-        );
-
-    if (button) {
-        button.disabled = true;
-        button.textContent = "CREATING PAYMENT...";
-    }
 
     try {
 
-        const { data, error } =
+        const result =
             await supabaseClient.functions.invoke(
                 DEPOSIT_FUNCTION_NAME,
                 {
                     body: {
-                        amount: Number(
-                            amount.toFixed(2)
-                        ),
-                        currency: CURRENCY
+
+                        amount:
+                            roundedAmount,
+
+                        currency:
+                            CURRENCY
+
                     }
                 }
             );
 
-        if (error) {
+
+        if (result.error) {
 
             console.error(
                 "Deposit function error:",
-                error
+                result.error
             );
-
-            const errorText =
-                await getFunctionErrorMessage(error);
 
             setWalletStatus(
-                status,
-                errorText ||
-                "Unable to create deposit.",
+                getFunctionErrorMessage(
+                    result.error
+                ),
                 "error"
             );
-
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "CONTINUE TO PAYMENT";
-            }
 
             return;
         }
 
-        if (!data) {
+
+        const data =
+            result.data || {};
+
+
+        if (
+            data.success === false
+        ) {
 
             setWalletStatus(
-                status,
-                "Payment server returned no response.",
-                "error"
-            );
-
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "CONTINUE TO PAYMENT";
-            }
-
-            return;
-        }
-
-        if (data.success === false) {
-
-            setWalletStatus(
-                status,
                 data.message ||
                 "Deposit could not be created.",
                 "error"
             );
 
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "CONTINUE TO PAYMENT";
-            }
-
             return;
         }
 
-        /*
-           Different server implementations may return
-           the checkout URL under different names.
 
-           We support the common response names here.
+        /*
+          The backend should return the hosted
+          payment URL.
+
+          We accept several common field names
+          so the frontend is flexible.
         */
 
-        const checkoutUrl =
+        const paymentUrl =
             data.checkout_url ||
             data.payment_url ||
             data.redirect_url ||
             data.url;
 
-        if (!checkoutUrl) {
+
+        if (!paymentUrl) {
 
             console.error(
                 "Deposit response:",
@@ -2117,41 +2149,28 @@ async function createDeposit() {
             );
 
             setWalletStatus(
-                status,
                 "Payment link was not returned by the server.",
                 "error"
             );
 
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "CONTINUE TO PAYMENT";
-            }
-
             return;
         }
 
+
         setWalletStatus(
-            status,
-            "Redirecting to secure payment...",
+            "Opening secure payment...",
             "success"
         );
 
+
         /*
-           IMPORTANT:
-
-           The browser does NOT credit the wallet.
-
-           FaucetPay/payment confirmation must reach
-           the secure backend first.
+          Open payment in the current browser tab.
+          This avoids popup blocking on mobile.
         */
 
-        setTimeout(() => {
+        window.location.href =
+            paymentUrl;
 
-            window.location.href =
-                checkoutUrl;
-
-        }, 500);
 
     } catch (error) {
 
@@ -2161,64 +2180,70 @@ async function createDeposit() {
         );
 
         setWalletStatus(
-            status,
-            "Unable to connect to payment server.",
+            error.message ||
+            "Deposit request failed.",
             "error"
         );
-
-        if (button) {
-            button.disabled = false;
-            button.textContent =
-                "CONTINUE TO PAYMENT";
-        }
     }
 }
 
 
-/* ==========================================================================
-   3. OPEN WITHDRAW / CASHOUT MODAL
-   ========================================================================== */
+/* ============================================================
+   45. OPEN WITHDRAW MODAL
+   ============================================================ */
 
 function openWithdrawModal() {
 
     if (!currentUser) {
+
         showMessage(
-            "Please login before requesting a withdrawal.",
+            "Please login first.",
             "error"
         );
+
         return;
     }
 
+
     removeWalletModal();
 
-    const modal = document.createElement("div");
 
-    modal.id = "cyberWithdrawModal";
-    modal.className = "cyber-wallet-modal";
+    const modal =
+        document.createElement(
+            "div"
+        );
+
+    modal.id =
+        "cyberWithdrawModal";
+
+    modal.className =
+        "cyber-wallet-modal";
+
 
     modal.innerHTML = `
         <div class="cyber-wallet-box">
 
             <button
-                class="cyber-wallet-close"
-                onclick="closeWalletModal()"
                 type="button"
+                class="cyber-close-wallet"
+                onclick="closeWalletModal()"
             >
                 ×
             </button>
 
             <div class="cyber-wallet-title">
-                CASHOUT USDT
+                CASHOUT WINNINGS
             </div>
 
             <div class="cyber-wallet-subtitle">
-                WITHDRAW YOUR AVAILABLE BALANCE
+                FaucetPay USDT Withdrawal
             </div>
 
             <div class="cyber-wallet-balance">
                 AVAILABLE:
                 <strong>
-                    ${playerBalance.toFixed(2)} USDT
+                    ${Number(playerBalance || 0).toFixed(2)}
+                    USDT
                 </strong>
             </div>
 
@@ -2230,11 +2255,9 @@ function openWithdrawModal() {
                 id="withdrawAmount"
                 class="cyber-wallet-input"
                 type="number"
-                min="${MIN_WITHDRAWAL}"
-                max="${playerBalance.toFixed(2)}"
-                step="0.01"
+                min="0.50"
+                step="0.50"
                 placeholder="0.50"
-                inputmode="decimal"
             >
 
             <label class="cyber-wallet-label">
@@ -2245,126 +2268,126 @@ function openWithdrawModal() {
                 id="withdrawDestination"
                 class="cyber-wallet-input"
                 type="text"
-                placeholder="FaucetPay username/email"
-                autocomplete="off"
+                placeholder="Your FaucetPay destination"
             >
 
             <div class="cyber-wallet-warning">
-                Make sure your FaucetPay destination is correct.
-                Withdrawals cannot be reversed after processing.
+                Make sure your destination is correct.
+                Withdrawals are processed by the secure
+                CYBERSTRIKE server.
             </div>
-
-            <button
-                class="cyber-wallet-primary"
-                type="button"
-                onclick="requestWithdrawal()"
-            >
-                REQUEST CASHOUT
-            </button>
 
             <div
                 id="withdrawStatus"
                 class="cyber-wallet-status"
             ></div>
 
+            <button
+                type="button"
+                class="cyber-wallet-primary"
+                onclick="requestWithdrawal()"
+            >
+                REQUEST CASHOUT
+            </button>
+
+            <button
+                type="button"
+                class="cyber-wallet-secondary"
+                onclick="closeWalletModal()"
+            >
+                CANCEL
+            </button>
+
         </div>
     `;
 
-    document.body.appendChild(modal);
 
-    addWalletModalStyles();
-
-    setTimeout(() => {
-
-        const input =
-            document.getElementById("withdrawAmount");
-
-        if (input) {
-            input.focus();
-        }
-
-    }, 100);
+    document.body.appendChild(
+        modal
+    );
 }
 
 
-/* ==========================================================================
-   4. REQUEST WITHDRAWAL
-   ========================================================================== */
+/* ============================================================
+   46. REQUEST WITHDRAWAL
+   ============================================================ */
 
 async function requestWithdrawal() {
 
     if (!currentUser) {
 
         showMessage(
-            "Your session has expired. Please login again.",
+            "Please login first.",
             "error"
         );
 
         return;
     }
 
+
     const amountInput =
-        document.getElementById("withdrawAmount");
+        document.getElementById(
+            "withdrawAmount"
+        );
 
     const destinationInput =
         document.getElementById(
             "withdrawDestination"
         );
 
-    const status =
-        document.getElementById(
-            "withdrawStatus"
-        );
 
-    if (!amountInput || !destinationInput) {
+    if (
+        !amountInput ||
+        !destinationInput
+    ) {
+
         return;
     }
+
 
     const amount =
-        Number(amountInput.value);
+        Number(
+            amountInput.value
+        );
+
 
     const destination =
-        destinationInput.value.trim();
+        String(
+            destinationInput.value || ""
+        ).trim();
 
-    if (!Number.isFinite(amount)) {
+
+    if (
+        !Number.isFinite(amount) ||
+        amount < MIN_WITHDRAWAL
+    ) {
 
         setWalletStatus(
-            status,
-            "Enter a valid withdrawal amount.",
+            "Minimum withdrawal is 0.50 USDT.",
             "error"
         );
 
         return;
     }
 
-    if (amount < MIN_WITHDRAWAL) {
+
+    if (
+        amount >
+        Number(playerBalance || 0)
+    ) {
 
         setWalletStatus(
-            status,
-            "Minimum cashout is " +
-            MIN_WITHDRAWAL.toFixed(2) +
-            " USDT.",
+            "Insufficient available balance.",
             "error"
         );
 
         return;
     }
 
-    if (amount > playerBalance) {
-
-        setWalletStatus(
-            status,
-            "Insufficient USDT balance.",
-            "error"
-        );
-
-        return;
-    }
 
     if (!destination) {
 
         setWalletStatus(
-            status,
             "Enter your FaucetPay destination.",
             "error"
         );
@@ -2372,132 +2395,101 @@ async function requestWithdrawal() {
         return;
     }
 
-    const button =
-        document.querySelector(
-            "#cyberWithdrawModal .cyber-wallet-primary"
+
+    const roundedAmount =
+        Number(
+            amount.toFixed(2)
         );
 
-    if (button) {
-        button.disabled = true;
-        button.textContent = "PROCESSING...";
-    }
 
     setWalletStatus(
-        status,
-        "Sending secure withdrawal request...",
-        "info"
+        "Submitting secure withdrawal...",
+        "loading"
     );
+
 
     try {
 
-        const { data, error } =
+        const result =
             await supabaseClient.functions.invoke(
                 WITHDRAW_FUNCTION_NAME,
                 {
                     body: {
-                        amount: Number(
-                            amount.toFixed(2)
-                        ),
-                        currency: CURRENCY,
-                        destination: destination
+
+                        amount:
+                            roundedAmount,
+
+                        destination:
+                            destination,
+
+                        currency:
+                            CURRENCY
+
                     }
                 }
             );
 
-        if (error) {
+
+        if (result.error) {
 
             console.error(
                 "Withdrawal function error:",
-                error
+                result.error
             );
-
-            const errorText =
-                await getFunctionErrorMessage(error);
 
             setWalletStatus(
-                status,
-                errorText ||
-                "Withdrawal request failed.",
+                getFunctionErrorMessage(
+                    result.error
+                ),
                 "error"
             );
-
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "REQUEST CASHOUT";
-            }
 
             return;
         }
 
-        if (!data) {
 
-            setWalletStatus(
-                status,
-                "Withdrawal server returned no response.",
-                "error"
-            );
+        const data =
+            result.data || {};
 
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "REQUEST CASHOUT";
-            }
-
-            return;
-        }
-
-        if (data.success === false) {
-
-            setWalletStatus(
-                status,
-                data.message ||
-                "Withdrawal was rejected.",
-                "error"
-            );
-
-            if (button) {
-                button.disabled = false;
-                button.textContent =
-                    "REQUEST CASHOUT";
-            }
-
-            return;
-        }
-
-        /*
-           If the backend returns the authoritative
-           balance, update the UI with it.
-        */
 
         if (
-            typeof data.balance !== "undefined"
+            data.success === false
         ) {
 
-            playerBalance =
-                Number(data.balance) || 0;
+            setWalletStatus(
+                data.message ||
+                "Withdrawal failed.",
+                "error"
+            );
 
-            updateBalanceDisplay();
+            return;
         }
+
+
+        /*
+          The server must deduct/lock the funds
+          atomically before sending the payout.
+        */
 
         setWalletStatus(
-            status,
             data.message ||
-            "Withdrawal request submitted successfully.",
+            "Withdrawal submitted successfully.",
             "success"
         );
 
-        showMessage(
-            data.message ||
-            "Cashout request submitted.",
-            "success"
+
+        await loadPlayerData();
+
+
+        setTimeout(
+            function () {
+
+                closeWalletModal();
+
+            },
+            1800
         );
 
-        if (button) {
-            button.disabled = true;
-            button.textContent =
-                "REQUEST SUBMITTED";
-        }
 
     } catch (error) {
 
@@ -2507,104 +2499,108 @@ async function requestWithdrawal() {
         );
 
         setWalletStatus(
-            status,
-            "Unable to contact withdrawal server.",
+            error.message ||
+            "Withdrawal request failed.",
             "error"
         );
-
-        if (button) {
-            button.disabled = false;
-            button.textContent =
-                "REQUEST CASHOUT";
-        }
     }
 }
 
 
-/* ==========================================================================
-   5. FUNCTION ERROR HELPER
-   ========================================================================== */
+/* ============================================================
+   47. FUNCTION ERROR MESSAGE
+   ============================================================ */
 
-async function getFunctionErrorMessage(error) {
+function getFunctionErrorMessage(
+    error
+) {
 
     if (!error) {
-        return "";
+
+        return "Request failed.";
     }
 
-    try {
 
-        if (error.context) {
+    if (
+        error.context &&
+        error.context.body
+    ) {
 
-            const response =
-                error.context;
+        try {
 
             if (
-                typeof response.json === "function"
+                typeof error.context.body ===
+                "string"
             ) {
 
-                const body =
-                    await response.json();
-
-                if (body) {
-
-                    return (
-                        body.message ||
-                        body.error ||
-                        body.error_description ||
-                        ""
-                    );
-                }
+                return error.context.body;
             }
+
+        } catch (_) {
+
+            // Ignore parsing problem.
         }
-
-    } catch (parseError) {
-
-        console.warn(
-            "Could not parse function error:",
-            parseError
-        );
     }
 
-    return (
-        error.message ||
-        ""
-    );
+
+    if (error.message) {
+
+        return error.message;
+    }
+
+
+    return "Request failed. Please try again.";
 }
 
 
-/* ==========================================================================
-   6. WALLET STATUS
-   ========================================================================== */
+/* ============================================================
+   48. WALLET STATUS
+   ============================================================ */
 
 function setWalletStatus(
-    element,
     message,
     type = "info"
 ) {
 
-    if (!element) return;
+    const depositStatus =
+        document.getElementById(
+            "depositStatus"
+        );
 
-    element.textContent = message;
-    element.style.display = "block";
+    const withdrawStatus =
+        document.getElementById(
+            "withdrawStatus"
+        );
 
-    if (type === "error") {
 
-        element.style.color = "#ef4444";
+    const elements = [
+        depositStatus,
+        withdrawStatus
+    ];
 
-    } else if (type === "success") {
 
-        element.style.color = "#22c55e";
+    elements.forEach(
+        function (element) {
 
-    } else {
+            if (!element) {
+                return;
+            }
 
-        element.style.color = "#06b6d4";
-    }
+            element.textContent =
+                message;
+
+            element.className =
+                "cyber-wallet-status " +
+                type;
+
+        }
+    );
 }
 
 
-/* ==========================================================================
-   7. CLOSE WALLET MODAL
-   ========================================================================== */
+/* ============================================================
+   49. CLOSE WALLET MODAL
+   ============================================================ */
 
 function closeWalletModal() {
 
@@ -2612,9 +2608,9 @@ function closeWalletModal() {
 }
 
 
-/* ==========================================================================
-   8. REMOVE WALLET MODAL
-   ========================================================================== */
+/* ============================================================
+   50. REMOVE WALLET MODAL
+   ============================================================ */
 
 function removeWalletModal() {
 
@@ -2628,75 +2624,98 @@ function removeWalletModal() {
             "cyberWithdrawModal"
         );
 
+
     if (depositModal) {
+
         depositModal.remove();
     }
 
+
     if (withdrawModal) {
+
         withdrawModal.remove();
     }
 }
 
 
-/* ==========================================================================
-   9. CLOSE MODAL WHEN CLICKING OUTSIDE
-   ========================================================================== */
+/* ============================================================
+   51. CLICK OUTSIDE WALLET MODAL
+   ============================================================ */
 
 document.addEventListener(
     "click",
     function (event) {
 
-        const modal =
-            event.target.closest(
-                ".cyber-wallet-modal"
-            );
+        const target =
+            event.target;
 
-        if (!modal) return;
 
-        if (event.target === modal) {
+        if (
+            target &&
+            target.classList &&
+            target.classList.contains(
+                "cyber-wallet-modal"
+            )
+        ) {
+
             closeWalletModal();
         }
     }
 );
 
 
-/* ==========================================================================
-   10. ESC KEY CLOSE
-   ========================================================================== */
+/* ============================================================
+   52. ESCAPE CLOSE
+   ============================================================ */
 
 document.addEventListener(
     "keydown",
     function (event) {
 
-        if (event.key === "Escape") {
-            closeWalletModal();
+        if (
+            event.key === "Escape"
+        ) {
+
+            const modal =
+                document.querySelector(
+                    ".cyber-wallet-modal"
+                );
+
+            if (modal) {
+
+                closeWalletModal();
+            }
         }
     }
 );
 
 
-/* ==========================================================================
-   11. WALLET MODAL CSS
-   ========================================================================== */
+/* ============================================================
+   53. WALLET MODAL CSS
+   ============================================================ */
 
-function addWalletModalStyles() {
+function injectWalletStyles() {
 
     if (
         document.getElementById(
-            "cyberWalletModalStyles"
+            "cyberWalletStyles"
         )
     ) {
+
         return;
     }
 
+
     const style =
-        document.createElement("style");
+        document.createElement(
+            "style"
+        );
 
     style.id =
-        "cyberWalletModalStyles";
+        "cyberWalletStyles";
+
 
     style.textContent = `
-
         .cyber-wallet-modal {
             position: fixed;
             inset: 0;
@@ -2705,8 +2724,7 @@ function addWalletModalStyles() {
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: rgba(0, 0, 0, 0.82);
-            backdrop-filter: blur(8px);
+            background: rgba(0,0,0,.82);
         }
 
         .cyber-wallet-box {
@@ -2715,61 +2733,50 @@ function addWalletModalStyles() {
             max-width: 430px;
             max-height: 90vh;
             overflow-y: auto;
-            padding: 26px;
-            border: 1px solid rgba(6, 182, 212, 0.45);
+            padding: 24px;
             border-radius: 18px;
-            background:
-                linear-gradient(
-                    145deg,
-                    #0f172a,
-                    #020617
-                );
+            background: #07111f;
+            border: 1px solid rgba(34,211,238,.45);
             box-shadow:
-                0 0 35px
-                rgba(6, 182, 212, 0.18);
+                0 0 40px rgba(0,0,0,.65);
         }
 
-        .cyber-wallet-close {
+        .cyber-close-wallet {
             position: absolute;
             top: 10px;
             right: 14px;
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
             border: 0;
             border-radius: 50%;
             background: transparent;
-            color: #94a3b8;
+            color: #fff;
             font-size: 28px;
             cursor: pointer;
         }
 
-        .cyber-wallet-close:hover {
-            color: #ffffff;
-        }
-
         .cyber-wallet-title {
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             color: #22d3ee;
             font-size: 22px;
             font-weight: 800;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
         .cyber-wallet-subtitle {
             margin-bottom: 22px;
-            color: #64748b;
-            font-size: 11px;
-            letter-spacing: 1px;
+            color: #94a3b8;
+            font-size: 13px;
         }
 
         .cyber-wallet-label {
             display: block;
-            margin-top: 14px;
+            margin-top: 15px;
             margin-bottom: 7px;
-            color: #94a3b8;
-            font-size: 11px;
+            color: #cbd5e1;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: .8px;
         }
 
         .cyber-wallet-input {
@@ -2779,423 +2786,1327 @@ function addWalletModalStyles() {
             border: 1px solid #334155;
             border-radius: 10px;
             outline: none;
-            background: #020617;
-            color: #f8fafc;
+            background: #0f172a;
+            color: #fff;
             font-size: 15px;
         }
 
         .cyber-wallet-input:focus {
-            border-color: #06b6d4;
-            box-shadow:
-                0 0 0 2px
-                rgba(6, 182, 212, 0.12);
+            border-color: #22d3ee;
         }
 
-        .cyber-wallet-info {
-            margin-top: 10px;
-            color: #64748b;
-            font-size: 12px;
-        }
-
-        .cyber-wallet-network {
-            margin-top: 14px;
-            padding: 10px;
-            border-radius: 8px;
-            background: rgba(6, 182, 212, 0.06);
-            color: #94a3b8;
-            font-size: 10px;
-            line-height: 1.5;
-        }
-
+        .cyber-wallet-info,
         .cyber-wallet-balance {
-            margin-bottom: 14px;
-            padding: 12px;
-            border-radius: 10px;
-            background: rgba(34, 197, 94, 0.06);
+            margin-top: 10px;
             color: #94a3b8;
-            font-size: 12px;
+            font-size: 13px;
         }
 
-        .cyber-wallet-balance strong {
-            color: #22c55e;
+        .cyber-wallet-balance strong,
+        .cyber-wallet-info strong {
+            color: #22d3ee;
         }
 
         .cyber-wallet-warning {
             margin-top: 12px;
-            color: #f59e0b;
-            font-size: 11px;
-            line-height: 1.5;
-        }
-
-        .cyber-wallet-primary {
-            width: 100%;
-            margin-top: 20px;
-            padding: 14px;
-            border: 0;
-            border-radius: 10px;
-            background: #06b6d4;
-            color: #001018;
-            font-weight: 900;
-            letter-spacing: 1px;
-            cursor: pointer;
-        }
-
-        .cyber-wallet-primary:hover {
-            filter: brightness(1.08);
-        }
-
-        .cyber-wallet-primary:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-
-        .cyber-wallet-status {
-            display: none;
-            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(245,158,11,.08);
+            color: #fbbf24;
             font-size: 12px;
             line-height: 1.5;
         }
+
+        .cyber-wallet-status {
+            min-height: 20px;
+            margin: 14px 0;
+            font-size: 13px;
+        }
+
+        .cyber-wallet-status.error {
+            color: #fb7185;
+        }
+
+        .cyber-wallet-status.success {
+            color: #34d399;
+        }
+
+        .cyber-wallet-status.loading {
+            color: #22d3ee;
+        }
+
+        .cyber-wallet-status.info {
+            color: #cbd5e1;
+        }
+
+        .cyber-wallet-primary,
+        .cyber-wallet-secondary {
+            width: 100%;
+            margin-top: 9px;
+            padding: 13px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 800;
+            letter-spacing: .5px;
+        }
+
+        .cyber-wallet-primary {
+            border: 1px solid #22d3ee;
+            background: #0891b2;
+            color: #fff;
+        }
+
+        .cyber-wallet-secondary {
+            border: 1px solid #334155;
+            background: transparent;
+            color: #cbd5e1;
+        }
+
+        .cyber-wallet-note {
+            margin-top: 16px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.5;
+            text-align: center;
+        }
     `;
 
-    document.head.appendChild(style);
+
+    document.head.appendChild(
+        style
+    );
 }
 
 
-/* ==========================================================================
+/* ============================================================
+   54. INJECT WALLET STYLES
+   ============================================================ */
+
+injectWalletStyles();
+
+
+/* ============================================================
    END OF PART 3
-
-   PART 4 WILL CONTAIN:
-
-   - FINAL GLOBAL FUNCTIONS
-   - BUTTON EXPORTS
-   - FINAL INITIALIZATION
-   - SAFE PAGE STARTUP
-   - FINAL SCRIPT.JS CLOSING SECTION
-   ========================================================================== *//* ==========================================================================
-   CYBERSTRIKE | SCRIPT.JS
-   PART 4 OF 4
-
-   FINAL INITIALIZATION
-   GLOBAL FUNCTIONS
-   BUTTON EXPORTS
-   SAFETY HELPERS
-   ========================================================================== */
+   ============================================================ *//* ============================================================
+   CYBERSTRIKE — SCRIPT.JS
+   PART 4 OF 5
+   PENALTY SHOOTOUT — 15 SECOND GAME
+   ============================================================ */
 
 
-/* ==========================================================================
-   1. SAFE NUMBER HELPER
-   ========================================================================== */
+/* ============================================================
+   55. START PENALTY SHOOTOUT
+   ============================================================ */
 
-function safeNumber(value, fallback = 0) {
+function startPenaltyShootout(matchData = {}) {
 
-    const number = Number(value);
-
-    if (!Number.isFinite(number)) {
-        return fallback;
-    }
-
-    return number;
-}
+    penaltyMatchId =
+        matchData.match_id ||
+        matchData.id ||
+        penaltyMatchId;
 
 
-/* ==========================================================================
-   2. FORMAT USDT
-   ========================================================================== */
+    if (!penaltyMatchId) {
 
-function formatUSDT(value) {
+        showMessage(
+            "Match ID was not returned by the server.",
+            "error"
+        );
 
-    const amount =
-        safeNumber(value, 0);
-
-    return amount.toFixed(2) + " USDT";
-}
-
-
-/* ==========================================================================
-   3. REFRESH PLAYER WALLET
-   ========================================================================== */
-
-async function refreshWallet() {
-
-    if (!currentUser) {
         return;
     }
+
+
+    penaltyPlayerScore = 0;
+
+    penaltyOpponentScore = 0;
+
+    penaltyTimeLeft = 15;
+
+    penaltyRoundActive = true;
+
+    penaltyActionLocked = false;
+
+
+    stopPenaltyTimer();
+
+    createPenaltyGameUI();
+
+    updatePenaltyGameUI();
+
+    startPenaltyTimer();
+
+
+    showMessage(
+        "Penalty Shootout started!",
+        "success"
+    );
+}
+
+
+/* ============================================================
+   56. CREATE PENALTY GAME UI
+   ============================================================ */
+
+function createPenaltyGameUI() {
+
+    removePenaltyGameUI();
+
+
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+    overlay.id =
+        "penaltyGameOverlay";
+
+
+    overlay.innerHTML = `
+        <div class="penalty-game-box">
+
+            <div class="penalty-game-header">
+
+                <div class="penalty-game-title">
+                    PENALTY SHOOTOUT
+                </div>
+
+                <div class="penalty-game-subtitle">
+                    1v1 • 15 SECOND ROUND
+                </div>
+
+            </div>
+
+
+            <div class="penalty-scoreboard">
+
+                <div class="penalty-player-card">
+
+                    <div class="penalty-player-label">
+                        YOU
+                    </div>
+
+                    <div
+                        id="penaltyPlayerScore"
+                        class="penalty-score"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+                <div class="penalty-vs">
+                    VS
+                </div>
+
+
+                <div class="penalty-player-card">
+
+                    <div class="penalty-player-label">
+                        OPPONENT
+                    </div>
+
+                    <div
+                        id="penaltyOpponentScore"
+                        class="penalty-score"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="penalty-timer-label">
+                TIME
+            </div>
+
+
+            <div
+                id="penaltyTimer"
+                class="penalty-timer"
+            >
+                15
+            </div>
+
+
+            <div
+                id="penaltyGameMessage"
+                class="penalty-game-message"
+            >
+                SHOOT!
+            </div>
+
+
+            <div class="penalty-shot-area">
+
+                <button
+                    id="penaltyShootButton"
+                    type="button"
+                    class="penalty-shoot-button"
+                    onclick="takePenaltyShot()"
+                >
+                    ⚽ SHOOT
+                </button>
+
+            </div>
+
+
+            <div class="penalty-game-note">
+
+                Every successful shot gives
+                <strong>1 point</strong>.
+
+                <br>
+
+                Highest verified score wins.
+
+            </div>
+
+
+            <button
+                type="button"
+                class="penalty-cancel-button"
+                onclick="leavePenaltyGame()"
+            >
+                LEAVE MATCH
+            </button>
+
+        </div>
+    `;
+
+
+    document.body.appendChild(
+        overlay
+    );
+
+
+    injectPenaltyStyles();
+}
+
+
+/* ============================================================
+   57. UPDATE PENALTY UI
+   ============================================================ */
+
+function updatePenaltyGameUI() {
+
+    const playerScore =
+        document.getElementById(
+            "penaltyPlayerScore"
+        );
+
+    const opponentScore =
+        document.getElementById(
+            "penaltyOpponentScore"
+        );
+
+    const timer =
+        document.getElementById(
+            "penaltyTimer"
+        );
+
+
+    if (playerScore) {
+
+        playerScore.textContent =
+            String(
+                penaltyPlayerScore
+            );
+    }
+
+
+    if (opponentScore) {
+
+        opponentScore.textContent =
+            String(
+                penaltyOpponentScore
+            );
+    }
+
+
+    if (timer) {
+
+        timer.textContent =
+            String(
+                Math.max(
+                    0,
+                    penaltyTimeLeft
+                )
+            );
+    }
+}
+
+
+/* ============================================================
+   58. START 15 SECOND TIMER
+   ============================================================ */
+
+function startPenaltyTimer() {
+
+    stopPenaltyTimer();
+
+
+    penaltyTimeLeft = 15;
+
+    updatePenaltyGameUI();
+
+
+    penaltyTimer =
+        setInterval(
+            function () {
+
+                if (!penaltyRoundActive) {
+
+                    stopPenaltyTimer();
+
+                    return;
+                }
+
+
+                penaltyTimeLeft--;
+
+                updatePenaltyGameUI();
+
+
+                if (
+                    penaltyTimeLeft <= 0
+                ) {
+
+                    penaltyTimeLeft = 0;
+
+                    updatePenaltyGameUI();
+
+                    stopPenaltyTimer();
+
+                    finishPenaltyRound();
+                }
+
+            },
+            1000
+        );
+}
+
+
+/* ============================================================
+   59. STOP PENALTY TIMER
+   ============================================================ */
+
+function stopPenaltyTimer() {
+
+    if (penaltyTimer) {
+
+        clearInterval(
+            penaltyTimer
+        );
+
+        penaltyTimer = null;
+    }
+}
+
+
+/* ============================================================
+   60. TAKE PENALTY SHOT
+   ============================================================ */
+
+async function takePenaltyShot() {
+
+    if (!penaltyRoundActive) {
+
+        return;
+    }
+
+
+    if (penaltyActionLocked) {
+
+        return;
+    }
+
+
+    if (
+        penaltyTimeLeft <= 0
+    ) {
+
+        return;
+    }
+
+
+    if (!penaltyMatchId) {
+
+        showPenaltyMessage(
+            "Match is not ready."
+        );
+
+        return;
+    }
+
+
+    penaltyActionLocked = true;
+
+    setPenaltyShootButton(
+        false
+    );
+
+
+    showPenaltyMessage(
+        "Verifying shot..."
+    );
+
+
+    try {
+
+        const result =
+            await supabaseClient.functions.invoke(
+                PENALTY_ACTION_FUNCTION_NAME,
+                {
+                    body: {
+
+                        match_id:
+                            penaltyMatchId,
+
+                        action:
+                            "shoot"
+
+                    }
+                }
+            );
+
+
+        if (result.error) {
+
+            console.error(
+                "Penalty action error:",
+                result.error
+            );
+
+            showPenaltyMessage(
+                "Shot could not be verified."
+            );
+
+            penaltyActionLocked = false;
+
+            setPenaltyShootButton(
+                true
+            );
+
+            return;
+        }
+
+
+        const data =
+            result.data || {};
+
+
+        if (
+            data.success === false
+        ) {
+
+            showPenaltyMessage(
+                data.message ||
+                "Shot rejected."
+            );
+
+            penaltyActionLocked = false;
+
+            setPenaltyShootButton(
+                true
+            );
+
+            return;
+        }
+
+
+        /*
+          IMPORTANT:
+
+          The score comes from the server.
+
+          The browser does NOT add a point itself.
+        */
+
+        if (
+            data.player_score !== undefined
+        ) {
+
+            penaltyPlayerScore =
+                Number(
+                    data.player_score
+                );
+        }
+
+
+        if (
+            data.opponent_score !== undefined
+        ) {
+
+            penaltyOpponentScore =
+                Number(
+                    data.opponent_score
+                );
+        }
+
+
+        if (
+            data.time_left !== undefined
+        ) {
+
+            penaltyTimeLeft =
+                Math.max(
+                    0,
+                    Number(
+                        data.time_left
+                    )
+                );
+        }
+
+
+        updatePenaltyGameUI();
+
+
+        if (
+            data.shot_result === "goal"
+        ) {
+
+            showPenaltyMessage(
+                "⚽ GOAL! +1"
+            );
+
+        } else if (
+            data.shot_result === "miss"
+        ) {
+
+            showPenaltyMessage(
+                "MISS"
+            );
+
+        } else {
+
+            showPenaltyMessage(
+                data.message ||
+                "Shot verified."
+            );
+        }
+
+
+        /*
+          If the server says the match is finished,
+          finish immediately.
+        */
+
+        if (
+            data.match_finished === true ||
+            data.finished === true
+        ) {
+
+            penaltyRoundActive = false;
+
+            stopPenaltyTimer();
+
+            updatePenaltyGameUI();
+
+            finishPenaltyRound(
+                data
+            );
+
+            return;
+        }
+
+
+        penaltyActionLocked = false;
+
+        setPenaltyShootButton(
+            true
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Penalty shot exception:",
+            error
+        );
+
+
+        showPenaltyMessage(
+            error.message ||
+            "Shot request failed."
+        );
+
+
+        penaltyActionLocked = false;
+
+        setPenaltyShootButton(
+            true
+        );
+    }
+}
+
+
+/* ============================================================
+   61. FINISH PENALTY ROUND
+   ============================================================ */
+
+async function finishPenaltyRound(
+    finalData = {}
+) {
+
+    if (!penaltyMatchId) {
+
+        return;
+    }
+
+
+    penaltyRoundActive = false;
+
+    stopPenaltyTimer();
+
+    setPenaltyShootButton(
+        false
+    );
+
+
+    showPenaltyMessage(
+        "FINAL SCORE: " +
+        penaltyPlayerScore +
+        " - " +
+        penaltyOpponentScore
+    );
+
+
+    /*
+      The server must verify the final score and
+      determine the actual winner.
+
+      We do not calculate the wallet result here.
+    */
+
+
+    try {
+
+        const result =
+            await supabaseClient.functions.invoke(
+                PENALTY_ACTION_FUNCTION_NAME,
+                {
+                    body: {
+
+                        match_id:
+                            penaltyMatchId,
+
+                        action:
+                            "finish",
+
+                        client_player_score:
+                            penaltyPlayerScore,
+
+                        client_opponent_score:
+                            penaltyOpponentScore
+
+                    }
+                }
+            );
+
+
+        if (result.error) {
+
+            console.error(
+                "Penalty finish error:",
+                result.error
+            );
+
+
+            showPenaltyMessage(
+                "Final result is being verified..."
+            );
+
+
+            setTimeout(
+                async function () {
+
+                    await loadPlayerData();
+
+                },
+                1500
+            );
+
+
+            return;
+        }
+
+
+        const data =
+            result.data || {};
+
+
+        /*
+          Server-authoritative result.
+        */
+
+        if (
+            data.player_score !== undefined
+        ) {
+
+            penaltyPlayerScore =
+                Number(
+                    data.player_score
+                );
+        }
+
+
+        if (
+            data.opponent_score !== undefined
+        ) {
+
+            penaltyOpponentScore =
+                Number(
+                    data.opponent_score
+                );
+        }
+
+
+        updatePenaltyGameUI();
+
+
+        if (
+            data.result === "win" ||
+            data.winner === "player"
+        ) {
+
+            showPenaltyResult(
+                "YOU WIN!",
+                data.message ||
+                "Match completed successfully."
+            );
+
+        } else if (
+            data.result === "loss" ||
+            data.winner === "opponent"
+        ) {
+
+            showPenaltyResult(
+                "YOU LOST",
+                data.message ||
+                "Match completed."
+            );
+
+        } else if (
+            data.result === "draw"
+        ) {
+
+            showPenaltyResult(
+                "DRAW",
+                data.message ||
+                "The match ended in a draw."
+            );
+
+        } else {
+
+            showPenaltyResult(
+                "MATCH COMPLETE",
+                data.message ||
+                "Final result verified by server."
+            );
+        }
+
+
+        /*
+          Refresh balance and weekly wins.
+
+          If the server verified a win, the backend
+          is responsible for increasing weekly_wins.
+        */
+
+        await loadPlayerData();
+
+
+    } catch (error) {
+
+        console.error(
+            "Penalty finish exception:",
+            error
+        );
+
+
+        showPenaltyResult(
+            "RESULT PENDING",
+            "The server is verifying the final result."
+        );
+
+
+        await loadPlayerData();
+    }
+}
+
+
+/* ============================================================
+   62. PENALTY MESSAGE
+   ============================================================ */
+
+function showPenaltyMessage(
+    message
+) {
+
+    const element =
+        document.getElementById(
+            "penaltyGameMessage"
+        );
+
+
+    if (!element) {
+        return;
+    }
+
+
+    element.textContent =
+        message;
+}
+
+
+/* ============================================================
+   63. PENALTY RESULT
+   ============================================================ */
+
+function showPenaltyResult(
+    title,
+    message
+) {
+
+    const element =
+        document.getElementById(
+            "penaltyGameMessage"
+        );
+
+
+    if (element) {
+
+        element.innerHTML =
+            "<strong>" +
+            title +
+            "</strong><br>" +
+            message;
+    }
+
+
+    setPenaltyShootButton(
+        false
+    );
+
+
+    setTimeout(
+        function () {
+
+            removePenaltyGameUI();
+
+            penaltyMatchId = null;
+
+            penaltyRoundActive = false;
+
+            penaltyPlayerScore = 0;
+
+            penaltyOpponentScore = 0;
+
+            penaltyTimeLeft = 15;
+
+        },
+        4000
+    );
+}
+
+
+/* ============================================================
+   64. ENABLE / DISABLE SHOOT BUTTON
+   ============================================================ */
+
+function setPenaltyShootButton(
+    enabled
+) {
+
+    const button =
+        document.getElementById(
+            "penaltyShootButton"
+        );
+
+
+    if (!button) {
+        return;
+    }
+
+
+    button.disabled =
+        !enabled;
+
+
+    button.style.opacity =
+        enabled
+            ? "1"
+            : "0.45";
+
+
+    button.style.pointerEvents =
+        enabled
+            ? "auto"
+            : "none";
+}
+
+
+/* ============================================================
+   65. LEAVE PENALTY GAME
+   ============================================================ */
+
+function leavePenaltyGame() {
+
+    if (
+        penaltyRoundActive
+    ) {
+
+        const confirmed =
+            window.confirm(
+                "Leave this match? The server will determine the match result according to its rules."
+            );
+
+
+        if (!confirmed) {
+
+            return;
+        }
+    }
+
+
+    penaltyRoundActive = false;
+
+    stopPenaltyTimer();
+
+    penaltyActionLocked = false;
+
+    penaltyMatchId = null;
+
+    removePenaltyGameUI();
+
+
+    showMessage(
+        "You left the game screen.",
+        "info"
+    );
+}
+
+
+/* ============================================================
+   66. REMOVE PENALTY GAME UI
+   ============================================================ */
+
+function removePenaltyGameUI() {
+
+    const overlay =
+        document.getElementById(
+            "penaltyGameOverlay"
+        );
+
+
+    if (overlay) {
+
+        overlay.remove();
+    }
+}
+
+
+/* ============================================================
+   67. PENALTY GAME CSS
+   ============================================================ */
+
+function injectPenaltyStyles() {
+
+    if (
+        document.getElementById(
+            "cyberPenaltyStyles"
+        )
+    ) {
+
+        return;
+    }
+
+
+    const style =
+        document.createElement(
+            "style"
+        );
+
+
+    style.id =
+        "cyberPenaltyStyles";
+
+
+    style.textContent = `
+        #penaltyGameOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(0,0,0,.90);
+        }
+
+        .penalty-game-box {
+            width: 100%;
+            max-width: 520px;
+            padding: 24px;
+            border: 1px solid rgba(34,211,238,.5);
+            border-radius: 20px;
+            background: #06111f;
+            box-shadow:
+                0 0 45px rgba(0,0,0,.8);
+            text-align: center;
+        }
+
+        .penalty-game-header {
+            margin-bottom: 20px;
+        }
+
+        .penalty-game-title {
+            color: #22d3ee;
+            font-size: 25px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .penalty-game-subtitle {
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .penalty-scoreboard {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .penalty-player-card {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #1e3a4a;
+            border-radius: 14px;
+            background: #0b1728;
+        }
+
+        .penalty-player-label {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .penalty-score {
+            margin-top: 4px;
+            color: #fff;
+            font-size: 42px;
+            font-weight: 900;
+        }
+
+        .penalty-vs {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .penalty-timer-label {
+            margin-top: 25px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .penalty-timer {
+            margin-top: 3px;
+            color: #22d3ee;
+            font-size: 52px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .penalty-game-message {
+            min-height: 42px;
+            margin-top: 18px;
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .penalty-shot-area {
+            margin-top: 15px;
+        }
+
+        .penalty-shoot-button {
+            width: 100%;
+            min-height: 68px;
+            border: 1px solid #22d3ee;
+            border-radius: 14px;
+            background: #0891b2;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: transform .12s ease;
+        }
+
+        .penalty-shoot-button:active {
+            transform: scale(.97);
+        }
+
+        .penalty-shoot-button:disabled {
+            cursor: not-allowed;
+        }
+
+        .penalty-game-note {
+            margin-top: 15px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .penalty-game-note strong {
+            color: #cbd5e1;
+        }
+
+        .penalty-cancel-button {
+            margin-top: 20px;
+            padding: 10px 18px;
+            border: 1px solid #334155;
+            border-radius: 9px;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+        }
+    `;
+
+
+    document.head.appendChild(
+        style
+    );
+}
+
+
+/* ============================================================
+   68. PENALTY PAGE VISIBILITY SAFETY
+   ============================================================ */
+
+document.addEventListener(
+    "visibilitychange",
+    function () {
+
+        /*
+          We intentionally DO NOT pause the
+          penalty timer when the browser is hidden.
+
+          The server must remain authoritative.
+        */
+
+        if (
+            document.visibilityState ===
+            "visible"
+        ) {
+
+            updatePenaltyGameUI();
+        }
+    }
+);
+
+
+/* ============================================================
+   END OF PART 4
+   ============================================================ *//* ============================================================
+   CYBERSTRIKE — SCRIPT.JS
+   PART 5 OF 5
+   FINAL CONTROLS + REFRESH + EXPORTS
+   ============================================================ */
+
+
+/* ============================================================
+   69. REFRESH PLAYER WALLET
+   ============================================================ */
+
+async function refreshPlayerWallet() {
+
+    if (!currentUser) {
+
+        return;
+    }
+
+
+    if (walletLoading) {
+
+        return;
+    }
+
+
+    walletLoading = true;
+
 
     try {
 
         await loadPlayerData();
 
-        updateDashboard();
-
     } catch (error) {
 
         console.error(
-            "Wallet refresh error:",
+            "Wallet refresh failed:",
             error
         );
+
+    } finally {
+
+        walletLoading = false;
     }
 }
 
 
-/* ==========================================================================
-   4. REFRESH BUTTON
-   ========================================================================== */
+/* ============================================================
+   70. MANUAL REFRESH BUTTON
+   ============================================================ */
 
-function addRefreshButton() {
+async function refreshBalance() {
 
-    const existing =
-        document.getElementById(
-            "cyberWalletRefresh"
-        );
-
-    if (existing) {
-        return;
-    }
-
-    const balanceElement =
-        document.getElementById(
-            "userBalanceDisplay"
-        );
-
-    if (!balanceElement) {
-        return;
-    }
-
-    const button =
-        document.createElement("button");
-
-    button.id =
-        "cyberWalletRefresh";
-
-    button.type = "button";
-
-    button.textContent = "↻";
-
-    button.title = "Refresh balance";
-
-    button.style.marginLeft = "8px";
-    button.style.border = "0";
-    button.style.background = "transparent";
-    button.style.color = "#22d3ee";
-    button.style.fontSize = "18px";
-    button.style.cursor = "pointer";
-
-    button.onclick =
-        refreshWallet;
-
-    balanceElement.parentNode.appendChild(
-        button
-    );
-}
-
-
-/* ==========================================================================
-   5. PROTECT AGAINST INVALID STAKES
-   ========================================================================== */
-
-function validateStake(stake) {
-
-    const amount =
-        Number(stake);
-
-    return CYBERSTRIKE_STAKES.includes(
-        amount
-    );
-}
-
-
-/* ==========================================================================
-   6. PROTECT AGAINST INVALID GAMES
-   ========================================================================== */
-
-function validateGame(game) {
-
-    return CYBERSTRIKE_GAMES.includes(
-        game
-    );
-}
-
-
-/* ==========================================================================
-   7. SELECT STAKE SAFELY
-   ========================================================================== */
-
-function selectStake(button, amount) {
-
-    const stake =
-        Number(amount);
-
-    if (!validateStake(stake)) {
+    if (!currentUser) {
 
         showMessage(
-            "Invalid stake selected.",
+            "Please login first.",
             "error"
         );
 
         return;
     }
 
-    selectedStake = stake;
-
-    document
-        .querySelectorAll(".stake")
-        .forEach(
-            function (element) {
-
-                element.classList.remove(
-                    "active"
-                );
-
-                element.style.borderColor =
-                    "";
-
-                element.style.boxShadow =
-                    "";
-            }
-        );
-
-    if (button) {
-
-        button.classList.add("active");
-
-        button.style.borderColor =
-            "#06b6d4";
-
-        button.style.boxShadow =
-            "0 0 15px rgba(6,182,212,0.25)";
-    }
-
-    updateSelectedStakeDisplay();
 
     showMessage(
-        "Stake selected: " +
-        stake.toFixed(2) +
-        " USDT",
+        "Refreshing wallet...",
         "info"
     );
-}
 
 
-/* ==========================================================================
-   8. SELECT GAME SAFELY
-   ========================================================================== */
+    await refreshPlayerWallet();
 
-function selectGame(game) {
-
-    if (!validateGame(game)) {
-
-        showMessage(
-            "Invalid game selected.",
-            "error"
-        );
-
-        return;
-    }
-
-    selectedGame = game;
-
-    document
-        .querySelectorAll(
-            "[data-game]"
-        )
-        .forEach(
-            function (element) {
-
-                element.classList.remove(
-                    "active"
-                );
-            }
-        );
-
-    updateSelectedGameDisplay();
 
     showMessage(
-        game + " selected.",
-        "info"
+        "Wallet updated.",
+        "success"
     );
 }
 
 
-/* ==========================================================================
-   9. UPDATE PAYOUT DISPLAY
-   ========================================================================== */
-
-function updatePayoutDisplay() {
-
-    const payoutElement =
-        document.getElementById(
-            "potentialPayout"
-        );
-
-    if (!payoutElement) {
-        return;
-    }
-
-    const payout =
-        calculateWinnerPayout(
-            selectedStake
-        );
-
-    payoutElement.textContent =
-        payout.toFixed(2) +
-        " USDT";
-}
-
-
-/* ==========================================================================
-   10. UPDATE SELECTED STAKE DISPLAY
-   ========================================================================== */
-
-function updateSelectedStakeDisplay() {
-
-    const stakeElements =
-        document.querySelectorAll(
-            "[data-selected-stake]"
-        );
-
-    stakeElements.forEach(
-        function (element) {
-
-            element.textContent =
-                selectedStake.toFixed(2) +
-                " USDT";
-        }
-    );
-
-    updatePayoutDisplay();
-}
-
-
-/* ==========================================================================
-   11. UPDATE SELECTED GAME DISPLAY
-   ========================================================================== */
-
-function updateSelectedGameDisplay() {
-
-    const gameElements =
-        document.querySelectorAll(
-            "[data-selected-game]"
-        );
-
-    gameElements.forEach(
-        function (element) {
-
-            element.textContent =
-                selectedGame;
-        }
-    );
-
-    updatePayoutDisplay();
-}
-
-
-/* ==========================================================================
-   12. BALANCE REFRESH AFTER RETURNING TO PAGE
-   ========================================================================== */
+/* ============================================================
+   71. REFRESH WHEN PAGE BECOMES VISIBLE
+   ============================================================ */
 
 document.addEventListener(
     "visibilitychange",
-    function () {
+    async function () {
 
         if (
             document.visibilityState ===
@@ -3203,48 +4114,214 @@ document.addEventListener(
         ) {
 
             if (currentUser) {
-                refreshWallet();
+
+                await refreshPlayerWallet();
             }
         }
     }
 );
 
 
-/* ==========================================================================
-   13. BEFORE PAGE LEAVES
-   ========================================================================== */
+/* ============================================================
+   72. REFRESH WHEN WINDOW GETS FOCUS
+   ============================================================ */
 
 window.addEventListener(
-    "beforeunload",
-    function () {
+    "focus",
+    async function () {
 
-        if (countdownTimer) {
+        if (currentUser) {
 
-            clearInterval(
-                countdownTimer
-            );
-
-            countdownTimer = null;
+            await refreshPlayerWallet();
         }
     }
 );
 
 
-/* ==========================================================================
-   14. GLOBAL WINDOW FUNCTIONS
-   ========================================================================== */
+/* ============================================================
+   73. SAFE NUMBER HELPER
+   ============================================================ */
 
-window.loginUser =
-    loginUser;
+function safeNumber(
+    value,
+    fallback = 0
+) {
+
+    const number =
+        Number(value);
+
+
+    if (
+        Number.isFinite(number)
+    ) {
+
+        return number;
+    }
+
+
+    return fallback;
+}
+
+
+/* ============================================================
+   74. FORMAT USDT
+   ============================================================ */
+
+function formatUSDT(
+    value
+) {
+
+    return (
+        safeNumber(value)
+            .toFixed(2) +
+        " USDT"
+    );
+}
+
+
+/* ============================================================
+   75. FORMAT STAKE
+   ============================================================ */
+
+function formatStake(
+    value
+) {
+
+    return (
+        safeNumber(value)
+            .toFixed(2) +
+        " USDT"
+    );
+}
+
+
+/* ============================================================
+   76. SAFE GAME SELECTION
+   ============================================================ */
+
+function handleGameSelection(
+    game
+) {
+
+    selectGame(game);
+
+    updateSelectedGameDisplay();
+
+    updatePayoutDisplay();
+}
+
+
+/* ============================================================
+   77. SAFE STAKE SELECTION
+   ============================================================ */
+
+function handleStakeSelection(
+    button,
+    amount
+) {
+
+    selectStake(
+        button,
+        amount
+    );
+
+    updatePayoutDisplay();
+}
+
+
+/* ============================================================
+   78. START MATCH BUTTON SUPPORT
+   ============================================================ */
+
+async function startMatch() {
+
+    await findOpponent();
+}
+
+
+/* ============================================================
+   79. CANCEL MATCHMAKING
+   ============================================================ */
+
+async function cancelMatchmaking() {
+
+    /*
+      This only cancels the waiting screen locally.
+
+      If the backend has already locked funds,
+      the backend must provide its own cancellation/
+      refund mechanism.
+
+      We never refund money from the browser.
+    */
+
+    showMessage(
+        "Matchmaking cancellation is controlled by the server.",
+        "info"
+    );
+}
+
+
+/* ============================================================
+   80. GAME CARD CLICK SUPPORT
+   ============================================================ */
+
+function selectGameMode(
+    game
+) {
+
+    handleGameSelection(
+        game
+    );
+}
+
+
+/* ============================================================
+   81. STAKE BUTTON CLICK SUPPORT
+   ============================================================ */
+
+function chooseStake(
+    button,
+    amount
+) {
+
+    handleStakeSelection(
+        button,
+        amount
+    );
+}
+
+
+/* ============================================================
+   82. LOGIN BUTTON COMPATIBILITY
+   ============================================================ */
+
+window.handleLogin =
+    handleLogin;
+
+
+/* ============================================================
+   83. REGISTER COMPATIBILITY
+   ============================================================ */
 
 window.registerUser =
     registerUser;
 
-window.logoutUser =
-    logoutUser;
+
+/* ============================================================
+   84. LOGOUT COMPATIBILITY
+   ============================================================ */
 
 window.handleLogout =
     handleLogout;
+
+window.logoutUser =
+    logoutUser;
+
+
+/* ============================================================
+   85. WALLET COMPATIBILITY
+   ============================================================ */
 
 window.openDepositModal =
     openDepositModal;
@@ -3261,85 +4338,148 @@ window.requestWithdrawal =
 window.closeWalletModal =
     closeWalletModal;
 
-window.findOpponent =
-    findOpponent;
+
+/* ============================================================
+   86. GAME COMPATIBILITY
+   ============================================================ */
 
 window.selectGame =
     selectGame;
 
+window.selectGameMode =
+    selectGameMode;
+
 window.selectStake =
     selectStake;
+
+window.chooseStake =
+    chooseStake;
+
+window.findOpponent =
+    findOpponent;
+
+window.startMatch =
+    startMatch;
+
+
+/* ============================================================
+   87. WEEKLY SPRINT COMPATIBILITY
+   ============================================================ */
 
 window.claimMilestone =
     claimMilestone;
 
-window.showMessage =
-    showMessage;
-
-window.refreshWallet =
-    refreshWallet;
+window.updateWeeklySprint =
+    updateWeeklySprint;
 
 
-/* ==========================================================================
-   15. FINAL PAGE INITIALIZATION
-   ========================================================================== */
+/* ============================================================
+   88. PENALTY SHOOTOUT COMPATIBILITY
+   ============================================================ */
 
-async function initializeCyberStrikePage() {
+window.startPenaltyShootout =
+    startPenaltyShootout;
 
-    console.log(
-        "CYBERSTRIKE initializing..."
-    );
+window.takePenaltyShot =
+    takePenaltyShot;
+
+window.leavePenaltyGame =
+    leavePenaltyGame;
+
+
+/* ============================================================
+   89. REFRESH COMPATIBILITY
+   ============================================================ */
+
+window.refreshBalance =
+    refreshBalance;
+
+window.refreshPlayerWallet =
+    refreshPlayerWallet;
+
+
+/* ============================================================
+   90. DEBUG INFORMATION
+   ============================================================ */
+
+window.CYBERSTRIKE =
+    {
+
+        version:
+            "1.0.0",
+
+        currency:
+            CURRENCY,
+
+        selectedGame:
+            function () {
+
+                return selectedGame;
+            },
+
+        selectedStake:
+            function () {
+
+                return selectedStake;
+            },
+
+        balance:
+            function () {
+
+                return playerBalance;
+            },
+
+        weeklyWins:
+            function () {
+
+                return weeklyWins;
+            },
+
+        weeklyWeekKey:
+            function () {
+
+                return getCurrentWeekKey();
+            },
+
+        penaltyMatchId:
+            function () {
+
+                return penaltyMatchId;
+            }
+
+    };
+
+
+/* ============================================================
+   91. INITIAL UI SAFETY
+   ============================================================ */
+
+function initializeCyberstrikeUI() {
 
     /*
-       Make sure the basic UI is in a known state.
+      These calls are safe even when the corresponding
+      elements do not exist in the current HTML.
     */
+
+    updateBalanceDisplay();
+
+    updatePlayerEmail();
 
     updateSelectedGameDisplay();
 
     updateSelectedStakeDisplay();
 
+    updatePayoutDisplay();
+
     updateWeeklySprint();
 
-    updateBalanceDisplay();
-
-    addRefreshButton();
-
-    /*
-       Supabase authentication and player
-       loading are handled here.
-    */
-
-    if (!initializeSupabase()) {
-
-        console.warn(
-            "CYBERSTRIKE Supabase is not configured yet."
-        );
-
-        showMessage(
-            "Supabase configuration is required.",
-            "error"
-        );
-
-        return;
-    }
-
-    try {
-
-        await checkCurrentSession();
-
-    } catch (error) {
-
-        console.error(
-            "Initial session check failed:",
-            error
-        );
-    }
+    updateMilestoneButtons();
 }
 
 
-/* ==========================================================================
-   16. SECONDARY STARTUP SAFETY
-   ========================================================================== */
+/* ============================================================
+   92. FINAL INITIALIZATION
+   ============================================================ */
 
 if (
     document.readyState ===
@@ -3350,29 +4490,59 @@ if (
         "DOMContentLoaded",
         function () {
 
-            initializeCyberStrikePage();
+            initializeCyberstrikeUI();
 
-        },
-        {
-            once: true
         }
     );
 
 } else {
 
-    initializeCyberStrikePage();
+    initializeCyberstrikeUI();
 }
 
 
-/* ==========================================================================
-   17. FINAL CYBERSTRIKE LOG
-   ========================================================================== */
+/* ============================================================
+   93. CONSOLE STATUS
+   ============================================================ */
 
 console.log(
-    "CYBERSTRIKE | 1v1 COMPETITIVE ARENA | SCRIPT LOADED"
+    "=============================================="
+);
+
+console.log(
+    "CYBERSTRIKE SCRIPT LOADED"
+);
+
+console.log(
+    "Game:",
+    selectedGame
+);
+
+console.log(
+    "Stake:",
+    formatStake(selectedStake)
+);
+
+console.log(
+    "Weekly system:",
+    "MONDAY → SUNDAY"
+);
+
+console.log(
+    "Penalty timer:",
+    "15 seconds"
+);
+
+console.log(
+    "Currency:",
+    CURRENCY
+);
+
+console.log(
+    "=============================================="
 );
 
 
-/* ==========================================================================
-   END OF COMPLETE SCRIPT.JS
-   ========================================================================== */
+/* ============================================================
+   END OF SCRIPT.JS
+   ============================================================ */

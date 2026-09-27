@@ -1,4407 +1,1847 @@
 /* ==========================================================================
-   CYBERSTRIKE | 1v1 USDT ARENA
-   SCRIPT.JS — PART 1 OF 4
+   CYBERSTRIKE | 1v1 COMPETITIVE ARENA
+   COMPLETE SCRIPT.JS
+   PART 1 OF 4
+
+   AUTHENTICATION
+   SUPABASE
+   PLAYER WALLET
+   GAME SELECTION
+   STAKE SELECTION
+   WEEKLY SPRINT
    ========================================================================== */
+
 
 /* ==========================================================================
    1. SUPABASE CONFIGURATION
    ========================================================================== */
 
-const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
 let supabaseClient = null;
 
-/* ==========================================================================
-   2. INITIALIZE SUPABASE
-   ========================================================================== */
-
-if (
-  typeof supabase !== "undefined" &&
-  SUPABASE_URL &&
-  SUPABASE_ANON_KEY
-) {
-  supabaseClient = supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
-}
 
 /* ==========================================================================
-   3. GLOBAL STATE
+   2. CYBERSTRIKE STATE
    ========================================================================== */
 
 let currentUser = null;
-let profileChannel = null;
 
-let userProfile = {
-  balance: 0,
-  sprint_wins: 0,
-  claimed_milestones: []
-};
+let playerBalance = 0;
+
+let weeklyWins = 0;
+
+let weeklySprintStartedAt = null;
+
+let selectedGame = "Penalty Shootout";
 
 let selectedStake = 0.50;
 
-/*
-  Available games:
-  - penalty_shootout
-  - ludo
-*/
-let selectedGameMode = "penalty_shootout";
+let countdownTimer = null;
 
-let currentMatchId = null;
-let matchActive = false;
+let walletLoading = false;
 
-let playerScore = 0;
-let opponentScore = 0;
 
 /* ==========================================================================
-   LUDO STATE
+   3. CONSTANTS
    ========================================================================== */
 
-let ludoPlayerTokens = [0, 0, 0, 0];
-let ludoOpponentTokens = [0, 0, 0, 0];
+const CYBERSTRIKE_GAMES = [
+    "Penalty Shootout",
+    "Ludo Race",
+    "Chess",
+    "Fighting"
+];
 
-let ludoPlayerHome = 0;
-let ludoOpponentHome = 0;
+const CYBERSTRIKE_STAKES = [
+    0.50,
+    1.00,
+    2.00,
+    5.00
+];
 
-let ludoTurn = "player";
-let ludoDice = 0;
-let ludoWaitingForToken = false;
-let ludoGameOver = false;
+const PLATFORM_FEE_PERCENT = 20;
 
-let ludoPlayerPath = [];
-let ludoOpponentPath = [];
+const CURRENCY = "USDT";
 
-let ludoLastMessage = "Roll the dice to begin.";
+const MIN_DEPOSIT = 0.50;
+
+const MIN_WITHDRAWAL = 0.50;
+
+const DEPOSIT_FUNCTION_NAME =
+    "cyberstrike-deposit";
+
+const WITHDRAW_FUNCTION_NAME =
+    "cyberstrike-withdraw";
+
 
 /* ==========================================================================
-   4. PAGE INITIALIZATION
+   4. INITIALIZE SUPABASE
    ========================================================================== */
 
-document.addEventListener("DOMContentLoaded", async () => {
+function initializeSupabase() {
 
-  if (!supabaseClient) {
-    console.error("Supabase failed to initialize.");
+    if (
+        typeof supabase === "undefined"
+    ) {
+        console.error(
+            "CYBERSTRIKE: Supabase library not loaded."
+        );
 
-    const message = document.getElementById("authMessage");
+        showMessage(
+            "Supabase library failed to load.",
+            "error"
+        );
 
-    if (message) {
-      message.textContent = "Supabase connection unavailable.";
-      message.classList.remove("hidden");
+        return false;
     }
 
-    return;
-  }
 
-  /*
-    Add the Ludo selector to the existing HTML.
-    This means you do NOT need to manually add another game card.
-  */
-  createGameModeSelector();
+    if (
+        SUPABASE_URL ===
+        "YOUR_SUPABASE_URL" ||
 
-  try {
+        SUPABASE_ANON_KEY ===
+        "YOUR_SUPABASE_ANON_KEY"
+    ) {
 
-    const {
-      data: { session }
-    } = await supabaseClient.auth.getSession();
+        console.error(
+            "CYBERSTRIKE: Add your Supabase URL and anon key."
+        );
 
-    if (session && session.user) {
+        showMessage(
+            "Supabase configuration is missing.",
+            "error"
+        );
 
-      currentUser = session.user;
-
-      await fetchUserProfile();
-
-      showApplication();
-
-    } else {
-
-      showLoginScreen();
-
+        return false;
     }
 
-  } catch (error) {
 
-    console.error(
-      "Initial authentication error:",
-      error
-    );
+    try {
 
-    showLoginScreen();
-  }
+        supabaseClient =
+            supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_ANON_KEY
+            );
 
-  checkPaymentRedirect();
 
-  initSprintCountdown();
+        console.log(
+            "CYBERSTRIKE: Supabase connected."
+        );
 
-  setupDepositInputListener();
+        return true;
 
-  setupDepositListener();
-});
+    } catch (error) {
+
+        console.error(
+            "Supabase initialization error:",
+            error
+        );
+
+        showMessage(
+            "Unable to connect to Supabase.",
+            "error"
+        );
+
+        return false;
+    }
+}
+
 
 /* ==========================================================================
-   5. AUTH STATE LISTENER
+   5. PAGE START
    ========================================================================== */
 
-if (supabaseClient) {
+document.addEventListener(
+    "DOMContentLoaded",
+    async function () {
 
-  supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
+        console.log(
+            "CYBERSTRIKE starting..."
+        );
 
-      console.log("Auth event:", event);
 
-      if (session && session.user) {
+        const connected =
+            initializeSupabase();
 
-        currentUser = session.user;
 
-        await fetchUserProfile();
+        if (!connected) {
+            return;
+        }
 
-        showApplication();
 
-      } else {
+        setupAuthListener();
+
+
+        await checkCurrentSession();
+
+
+        startCountdown();
+
+
+        updateDashboard();
+
+    }
+);
+
+
+/* ==========================================================================
+   6. CHECK CURRENT SESSION
+   ========================================================================== */
+
+async function checkCurrentSession() {
+
+    if (!supabaseClient) {
+        return;
+    }
+
+
+    try {
+
+        showLoading();
+
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.auth.getSession();
+
+
+        if (error) {
+
+            console.error(
+                "Session error:",
+                error
+            );
+
+            currentUser = null;
+
+            showLoginScreen();
+
+            return;
+        }
+
+
+        if (
+            data &&
+            data.session &&
+            data.session.user
+        ) {
+
+            currentUser =
+                data.session.user;
+
+
+            console.log(
+                "Logged in:",
+                currentUser.email
+            );
+
+
+            await loadPlayerData();
+
+
+            showDashboard();
+
+        } else {
+
+            currentUser = null;
+
+            resetLocalWalletState();
+
+            showLoginScreen();
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Session check failed:",
+            error
+        );
 
         currentUser = null;
 
-        userProfile = {
-          balance: 0,
-          sprint_wins: 0,
-          claimed_milestones: []
-        };
+        showLoginScreen();
+    }
+}
+
+
+/* ==========================================================================
+   7. AUTH STATE LISTENER
+   ========================================================================== */
+
+function setupAuthListener() {
+
+    if (!supabaseClient) {
+        return;
+    }
+
+
+    supabaseClient.auth.onAuthStateChange(
+        async function (event, session) {
+
+            console.log(
+                "Auth event:",
+                event
+            );
+
+
+            if (
+                session &&
+                session.user
+            ) {
+
+                currentUser =
+                    session.user;
+
+
+                await loadPlayerData();
+
+
+                showDashboard();
+
+            } else {
+
+                currentUser = null;
+
+
+                resetLocalWalletState();
+
+
+                showLoginScreen();
+            }
+
+        }
+    );
+}
+
+
+/* ==========================================================================
+   8. LOGIN
+   ========================================================================== */
+
+async function loginUser(
+    email,
+    password
+) {
+
+    if (!supabaseClient) {
+
+        showMessage(
+            "Supabase is not connected.",
+            "error"
+        );
+
+        return false;
+    }
+
+
+    email =
+        String(
+            email || ""
+        ).trim();
+
+
+    password =
+        String(
+            password || ""
+        );
+
+
+    if (
+        !email ||
+        !password
+    ) {
+
+        showMessage(
+            "Enter your email and password.",
+            "error"
+        );
+
+        return false;
+    }
+
+
+    try {
+
+        showLoading();
+
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.auth
+                .signInWithPassword({
+
+                    email:
+                        email,
+
+                    password:
+                        password
+
+                });
+
+
+        if (error) {
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+
+            showLoginScreen();
+
+
+            showMessage(
+                error.message ||
+                "Login failed.",
+                "error"
+            );
+
+
+            return false;
+        }
+
+
+        if (
+            !data ||
+            !data.user
+        ) {
+
+            showLoginScreen();
+
+
+            showMessage(
+                "Login failed.",
+                "error"
+            );
+
+
+            return false;
+        }
+
+
+        currentUser =
+            data.user;
+
+
+        await loadPlayerData();
+
+
+        showDashboard();
+
+
+        showMessage(
+            "Login successful.",
+            "success"
+        );
+
+
+        return true;
+
+
+    } catch (error) {
+
+        console.error(
+            "Unexpected login error:",
+            error
+        );
+
 
         showLoginScreen();
-      }
+
+
+        showMessage(
+            "Unable to login right now.",
+            "error"
+        );
+
+
+        return false;
     }
-  );
 }
 
-/* ==========================================================================
-   6. SHOW LOGIN SCREEN
-   ========================================================================== */
-
-function showLoginScreen() {
-
-  const authGate =
-    document.getElementById("authGate");
-
-  const appContainer =
-    document.getElementById("appContainer");
-
-  if (authGate) {
-    authGate.style.display = "flex";
-  }
-
-  if (appContainer) {
-    appContainer.style.display = "none";
-  }
-}
 
 /* ==========================================================================
-   7. SHOW APPLICATION
+   9. REGISTER
    ========================================================================== */
 
-function showApplication() {
+async function registerUser(
+    email,
+    password
+) {
 
-  const authGate =
-    document.getElementById("authGate");
+    if (!supabaseClient) {
 
-  const appContainer =
-    document.getElementById("appContainer");
+        showMessage(
+            "Supabase is not connected.",
+            "error"
+        );
 
-  if (authGate) {
-    authGate.style.display = "none";
-  }
-
-  if (appContainer) {
-    appContainer.style.display = "flex";
-  }
-
-  updateBalanceDisplay();
-
-  updateSprintProgress();
-
-  setupDepositListener();
-
-  updateGameModeUI();
-}
-
-/* ==========================================================================
-   8. LOAD USER PROFILE
-   ========================================================================== */
-
-async function fetchUserProfile() {
-
-  if (!supabaseClient) return;
-
-  if (!currentUser) {
-
-    const {
-      data: { session }
-    } = await supabaseClient.auth.getSession();
-
-    if (session) {
-      currentUser = session.user;
-    }
-  }
-
-  if (!currentUser) return;
-
-  /* Sync FaucetPay withdrawal email */
-
-  const withdrawEmailInput =
-    document.getElementById(
-      "withdrawEmailInput"
-    );
-
-  if (
-    withdrawEmailInput &&
-    currentUser.email
-  ) {
-
-    withdrawEmailInput.value =
-      currentUser.email;
-  }
-
-  /* Sync deposit user ID */
-
-  const userIdField =
-    document.getElementById(
-      "custom_user_id"
-    );
-
-  if (userIdField) {
-
-    userIdField.value =
-      currentUser.id;
-  }
-
-  try {
-
-    const {
-      data,
-      error
-    } = await supabaseClient
-      .from("profiles")
-      .select(
-        "balance, sprint_wins, claimed_milestones"
-      )
-      .eq("id", currentUser.id)
-      .single();
-
-    if (error) {
-      throw error;
+        return false;
     }
 
-    userProfile = {
 
-      balance:
-        Number(data.balance || 0),
+    email =
+        String(
+            email || ""
+        ).trim();
 
-      sprint_wins:
-        Number(data.sprint_wins || 0),
 
-      claimed_milestones:
-        Array.isArray(
-          data.claimed_milestones
-        )
-          ? data.claimed_milestones
-          : []
-    };
+    password =
+        String(
+            password || ""
+        );
+
+
+    if (
+        !email ||
+        !password
+    ) {
+
+        showMessage(
+            "Enter an email and password.",
+            "error"
+        );
+
+        return false;
+    }
+
+
+    if (
+        password.length < 6
+    ) {
+
+        showMessage(
+            "Password must contain at least 6 characters.",
+            "error"
+        );
+
+        return false;
+    }
+
+
+    try {
+
+        showLoading();
+
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.auth
+                .signUp({
+
+                    email:
+                        email,
+
+                    password:
+                        password
+
+                });
+
+
+        if (error) {
+
+            console.error(
+                "Registration error:",
+                error
+            );
+
+
+            showLoginScreen();
+
+
+            showMessage(
+                error.message ||
+                "Registration failed.",
+                "error"
+            );
+
+
+            return false;
+        }
+
+
+        if (
+            data &&
+            data.session &&
+            data.user
+        ) {
+
+            currentUser =
+                data.user;
+
+
+            await loadPlayerData();
+
+
+            showDashboard();
+
+
+            showMessage(
+                "Account created successfully.",
+                "success"
+            );
+
+
+            return true;
+        }
+
+
+        showLoginScreen();
+
+
+        showMessage(
+            "Account created. Check your email if confirmation is required.",
+            "success"
+        );
+
+
+        return true;
+
+
+    } catch (error) {
+
+        console.error(
+            "Registration error:",
+            error
+        );
+
+
+        showLoginScreen();
+
+
+        showMessage(
+            "Unable to create account.",
+            "error"
+        );
+
+
+        return false;
+    }
+}
+
+
+/* ==========================================================================
+   10. LOGOUT
+   ========================================================================== */
+
+async function logoutUser() {
+
+    if (!supabaseClient) {
+        return;
+    }
+
+
+    try {
+
+        await supabaseClient.auth.signOut();
+
+
+        currentUser = null;
+
+
+        resetLocalWalletState();
+
+
+        showLoginScreen();
+
+
+    } catch (error) {
+
+        console.error(
+            "Logout error:",
+            error
+        );
+
+
+        showMessage(
+            "Unable to logout.",
+            "error"
+        );
+    }
+}
+
+
+/* ==========================================================================
+   11. LOAD PLAYER DATA
+   ========================================================================== */
+
+async function loadPlayerData() {
+
+    if (
+        !supabaseClient ||
+        !currentUser
+    ) {
+        return;
+    }
+
+
+    if (walletLoading) {
+        return;
+    }
+
+
+    walletLoading = true;
+
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("players")
+                .select(
+                    "id,email,balance,weekly_wins,weekly_sprint_started_at"
+                )
+                .eq(
+                    "id",
+                    currentUser.id
+                )
+                .maybeSingle();
+
+
+        if (error) {
+
+            console.error(
+                "Player data error:",
+                error
+            );
+
+
+            playerBalance = 0;
+
+            weeklyWins = 0;
+
+            weeklySprintStartedAt =
+                null;
+
+
+            updateDashboard();
+
+
+            showMessage(
+                "Wallet data could not be loaded.",
+                "error"
+            );
+
+
+            return;
+        }
+
+
+        if (!data) {
+
+            console.warn(
+                "No player record found."
+            );
+
+
+            playerBalance = 0;
+
+            weeklyWins = 0;
+
+            weeklySprintStartedAt =
+                null;
+
+
+            updateDashboard();
+
+
+            return;
+        }
+
+
+        playerBalance =
+            Number(
+                data.balance || 0
+            );
+
+
+        weeklyWins =
+            Number(
+                data.weekly_wins || 0
+            );
+
+
+        weeklySprintStartedAt =
+            data.weekly_sprint_started_at ||
+            null;
+
+
+        updateDashboard();
+
+
+        console.log(
+            "Wallet:",
+            playerBalance,
+            CURRENCY
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "loadPlayerData error:",
+            error
+        );
+
+
+        playerBalance = 0;
+
+        weeklyWins = 0;
+
+        weeklySprintStartedAt =
+            null;
+
+
+        updateDashboard();
+
+
+    } finally {
+
+        walletLoading = false;
+    }
+}
+
+
+/* ==========================================================================
+   12. UPDATE DASHBOARD
+   ========================================================================== */
+
+function updateDashboard() {
 
     updateBalanceDisplay();
 
-    updateSprintProgress();
+    updatePlayerEmail();
 
-  } catch (error) {
+    updateWeeklySprint();
 
-    console.error(
-      "Profile loading error:",
-      error
-    );
+    updateSelectedGameDisplay();
 
-    /*
-      IMPORTANT:
-      Never create demo money.
-      If the profile cannot load,
-      balance remains 0.
-    */
-
-    userProfile = {
-      balance: 0,
-      sprint_wins: 0,
-      claimed_milestones: []
-    };
-
-    updateBalanceDisplay();
-  }
+    updateSelectedStakeDisplay();
 }
 
+
 /* ==========================================================================
-   9. UPDATE BALANCE DISPLAY
+   13. UPDATE BALANCE
    ========================================================================== */
 
 function updateBalanceDisplay() {
 
-  const balance =
-    Number(userProfile.balance || 0);
+    const elements =
+        document.querySelectorAll(
+            ".balance, #userBalanceDisplay, [data-balance]"
+        );
 
-  const balanceDisplay =
-    document.getElementById(
-      "userBalanceDisplay"
-    );
 
-  if (balanceDisplay) {
+    const safeBalance =
+        Number.isFinite(
+            playerBalance
+        )
+            ? Math.max(
+                0,
+                playerBalance
+            )
+            : 0;
 
-    balanceDisplay.textContent =
-      balance.toFixed(2);
-  }
 
-  const withdrawBalanceDisplay =
-    document.getElementById(
-      "withdrawBalanceDisplay"
-    );
+    const formatted =
+        safeBalance.toFixed(2) +
+        " " +
+        CURRENCY;
 
-  if (withdrawBalanceDisplay) {
 
-    withdrawBalanceDisplay.textContent =
-      `${balance.toFixed(2)} USDT`;
-  }
-}
+    elements.forEach(
+        function (element) {
 
-/* ==========================================================================
-   10. HANDLE LOGIN
-   ========================================================================== */
+            element.textContent =
+                formatted;
 
-async function handleLogin() {
-
-  const emailInput =
-    document.getElementById(
-      "loginEmail"
-    );
-
-  const passwordInput =
-    document.getElementById(
-      "loginPassword"
-    );
-
-  const message =
-    document.getElementById(
-      "authMessage"
-    );
-
-  const button =
-    document.getElementById(
-      "loginButton"
-    );
-
-  const email =
-    emailInput
-      ? emailInput.value.trim()
-      : "";
-
-  const password =
-    passwordInput
-      ? passwordInput.value
-      : "";
-
-  if (!email || !password) {
-
-    if (message) {
-
-      message.textContent =
-        "Please enter your email and password.";
-
-      message.classList.remove(
-        "hidden"
-      );
-    }
-
-    return;
-  }
-
-  if (!supabaseClient) {
-
-    if (message) {
-
-      message.textContent =
-        "Supabase connection unavailable.";
-
-      message.classList.remove(
-        "hidden"
-      );
-    }
-
-    return;
-  }
-
-  try {
-
-    if (button) {
-
-      button.disabled = true;
-
-      button.textContent =
-        "CONNECTING...";
-    }
-
-    if (message) {
-
-      message.textContent =
-        "CONNECTING TO CYBERSTRIKE...";
-
-      message.classList.remove(
-        "hidden"
-      );
-    }
-
-    /*
-      First try normal login.
-    */
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      });
-
-    /*
-      If login fails, try creating the account.
-      This preserves your previous auto-registration
-      behavior.
-    */
-
-    if (error) {
-
-      const signup =
-        await supabaseClient.auth.signUp({
-          email,
-          password
-        });
-
-      if (signup.error) {
-
-        throw error;
-      }
-
-      if (
-        signup.data &&
-        signup.data.user
-      ) {
-
-        currentUser =
-          signup.data.user;
-
-        if (signup.data.session) {
-
-          await fetchUserProfile();
-
-          showApplication();
-
-          if (message) {
-
-            message.textContent =
-              "ACCOUNT CREATED. WELCOME TO CYBERSTRIKE.";
-          }
-
-        } else {
-
-          if (message) {
-
-            message.textContent =
-              "ACCOUNT CREATED. CHECK YOUR EMAIL TO CONFIRM YOUR ACCOUNT.";
-          }
         }
-      }
-
-      return;
-    }
-
-    if (
-      data &&
-      data.user
-    ) {
-
-      currentUser =
-        data.user;
-    }
-
-    await fetchUserProfile();
-
-    showApplication();
-
-  } catch (error) {
-
-    console.error(
-      "Login error:",
-      error
     );
-
-    if (message) {
-
-      message.textContent =
-        error.message ||
-        "Login failed. Please try again.";
-
-      message.classList.remove(
-        "hidden"
-      );
-    }
-
-  } finally {
-
-    if (button) {
-
-      button.disabled = false;
-
-      button.textContent =
-        "LOGIN / ENTER ARENA";
-    }
-  }
-}
-
-/* ==========================================================================
-   11. LOGOUT
-   ========================================================================== */
-
-async function logout() {
-
-  if (
-    profileChannel &&
-    supabaseClient
-  ) {
-
-    try {
-
-      await supabaseClient.removeChannel(
-        profileChannel
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Channel removal error:",
-        error
-      );
-    }
-
-    profileChannel = null;
-  }
-
-  try {
-
-    if (supabaseClient) {
-
-      await supabaseClient.auth.signOut();
-    }
-
-  } catch (error) {
-
-    console.error(
-      "Logout error:",
-      error
-    );
-  }
-
-  currentUser = null;
-
-  userProfile = {
-    balance: 0,
-    sprint_wins: 0,
-    claimed_milestones: []
-  };
-
-  matchActive = false;
-
-  currentMatchId = null;
-
-  showLoginScreen();
-}
-
-/* ==========================================================================
-   12. CREATE GAME MODE SELECTOR
-   ========================================================================== */
-
-function createGameModeSelector() {
-
-  const gameArena =
-    document.querySelector(
-      "h2"
-    );
-
-  /*
-    Find the section containing
-    "2. Game Arena".
-  */
-
-  const headings =
-    document.querySelectorAll(
-      "h2"
-    );
-
-  let arenaHeading = null;
-
-  headings.forEach(
-    heading => {
-
-      if (
-        heading.textContent
-          .trim()
-          .includes("Game Arena")
-      ) {
-
-        arenaHeading = heading;
-      }
-    }
-  );
-
-  if (!arenaHeading) return;
-
-  const container =
-    arenaHeading.parentElement;
-
-  if (!container) return;
-
-  /*
-    Prevent duplicate creation.
-  */
-
-  if (
-    document.getElementById(
-      "cyberGameModeSelector"
-    )
-  ) {
-
-    return;
-  }
-
-  /*
-    Find the existing Penalty card.
-  */
-
-  const existingCard =
-    container.querySelector(
-      ".p-3\\.5"
-    );
-
-  if (!existingCard) return;
-
-  /*
-    Create new game mode container.
-  */
-
-  const selector =
-    document.createElement("div");
-
-  selector.id =
-    "cyberGameModeSelector";
-
-  selector.className =
-    "grid grid-cols-1 sm:grid-cols-2 gap-3";
-
-  /*
-    Penalty button.
-  */
-
-  const penalty =
-    document.createElement("button");
-
-  penalty.type = "button";
-
-  penalty.id =
-    "gameModePenalty";
-
-  penalty.onclick =
-    () => selectGameMode(
-      "penalty_shootout"
-    );
-
-  penalty.innerHTML = `
-    <div class="text-left">
-      <div class="font-bold text-sm text-slate-100">
-        Penalty Shootout 1v1
-      </div>
-      <div class="text-xs text-slate-400 mt-1">
-        Timing & reaction shooter duel
-      </div>
-    </div>
-    <i class="fa-solid fa-futbol text-cyan-400 text-lg"></i>
-  `;
-
-  /*
-    Ludo button.
-  */
-
-  const ludo =
-    document.createElement("button");
-
-  ludo.type = "button";
-
-  ludo.id =
-    "gameModeLudo";
-
-  ludo.onclick =
-    () => selectGameMode("ludo");
-
-  ludo.innerHTML = `
-    <div class="text-left">
-      <div class="font-bold text-sm text-slate-100">
-        Ludo 1v1
-      </div>
-      <div class="text-xs text-slate-400 mt-1">
-        Dice strategy & token race
-      </div>
-    </div>
-    <i class="fa-solid fa-dice text-emerald-400 text-lg"></i>
-  `;
-
-  selector.appendChild(penalty);
-
-  selector.appendChild(ludo);
-
-  /*
-    Replace the old single card
-    with the two game choices.
-  */
-
-  existingCard.replaceWith(
-    selector
-  );
-
-  updateGameModeUI();
-}
-
-/* ==========================================================================
-   13. SELECT GAME MODE
-   ========================================================================== */
-
-function selectGameMode(mode) {
-
-  if (
-    mode !== "penalty_shootout" &&
-    mode !== "ludo"
-  ) {
-
-    mode =
-      "penalty_shootout";
-  }
-
-  selectedGameMode =
-    mode;
-
-  updateGameModeUI();
-
-  /*
-    Reset the arena display.
-  */
-
-  const overlay =
-    document.getElementById(
-      "canvasOverlay"
-    );
-
-  if (overlay) {
-
-    overlay.style.display =
-      "flex";
-  }
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (canvas) {
-
-    canvas.onclick = null;
-
-    const ctx =
-      canvas.getContext("2d");
-
-    if (ctx) {
-
-      ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-    }
-  }
-
-  updateMatchOverlay();
-}
-
-/* ==========================================================================
-   14. UPDATE GAME MODE UI
-   ========================================================================== */
-
-function updateGameModeUI() {
-
-  const penalty =
-    document.getElementById(
-      "gameModePenalty"
-    );
-
-  const ludo =
-    document.getElementById(
-      "gameModeLudo"
-    );
-
-  const title =
-    document.getElementById(
-      "currentModeTitle"
-    );
-
-  if (selectedGameMode === "ludo") {
-
-    if (penalty) {
-
-      penalty.className =
-        "p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between text-left hover:border-cyan-500/60 transition";
-    }
-
-    if (ludo) {
-
-      ludo.className =
-        "p-3.5 rounded-xl border border-emerald-500 bg-emerald-950/30 flex items-center justify-between text-left shadow-[0_0_15px_rgba(16,185,129,0.12)] transition";
-    }
-
-    if (title) {
-
-      title.textContent =
-        "Ludo 1v1";
-    }
-
-  } else {
-
-    if (penalty) {
-
-      penalty.className =
-        "p-3.5 rounded-xl border border-cyan-500 bg-cyan-950/30 flex items-center justify-between text-left shadow-[0_0_15px_rgba(6,182,212,0.12)] transition";
-    }
-
-    if (ludo) {
-
-      ludo.className =
-        "p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between text-left hover:border-emerald-500/60 transition";
-    }
-
-    if (title) {
-
-      title.textContent =
-        "Penalty Shootout 1v1";
-    }
-  }
-}
-
-/* ==========================================================================
-   15. UPDATE MATCH OVERLAY
-   ========================================================================== */
-
-function updateMatchOverlay() {
-
-  const description =
-    document.getElementById(
-      "matchOverlayDesc"
-    );
-
-  if (!description) return;
-
-  const prize =
-    (
-      selectedStake * 1.6
-    ).toFixed(2);
-
-  if (
-    selectedGameMode === "ludo"
-  ) {
-
-    description.innerHTML =
-      `Entry Stake: <strong class="text-cyan-400">$${selectedStake.toFixed(2)} USDT</strong>. ` +
-      `Winner takes <strong class="text-emerald-400">$${prize} USDT</strong>. ` +
-      `<br><span class="text-slate-500">Ludo 1v1 • First player to finish wins.</span>`;
-
-  } else {
-
-    description.innerHTML =
-      `Entry Stake: <strong class="text-cyan-400">$${selectedStake.toFixed(2)} USDT</strong>. ` +
-      `Winner takes <strong class="text-emerald-400">$${prize} USDT</strong> (20% rake).`;
-  }
-}
-
-/* ==========================================================================
-   END OF PART 1 OF 4
-   ========================================================================== *//* ==========================================================================
-   CYBERSTRIKE | SCRIPT.JS — PART 2 OF 4
-   MATCHMAKING + PENALTY SHOOTOUT + LUDO ENGINE
-   ========================================================================== */
-
-/* ==========================================================================
-   16. CYBER ALERT MODAL
-   ========================================================================== */
-
-function showCyberAlert(
-  title,
-  message,
-  iconClass = "fa-gift text-cyan-400"
-) {
-  const titleElement =
-    document.getElementById("cyberAlertTitle");
-
-  const messageElement =
-    document.getElementById("cyberAlertMessage");
-
-  const iconElement =
-    document.getElementById("cyberAlertIcon");
-
-  if (titleElement) {
-    titleElement.textContent = title;
-  }
-
-  if (messageElement) {
-    messageElement.textContent = message;
-  }
-
-  if (iconElement) {
-    iconElement.className =
-      `fa-solid ${iconClass}`;
-  }
-
-  openModal("cyberAlertModal");
-}
-
-/* ==========================================================================
-   17. OPEN / CLOSE MODALS
-   ========================================================================== */
-
-async function openModal(modalId) {
-
-  const modal =
-    document.getElementById(modalId);
-
-  if (modalId === "withdrawModal") {
-
-    try {
-
-      if (supabaseClient) {
-
-        const {
-          data: { user }
-        } = await supabaseClient.auth.getUser();
-
-        if (user) {
-          currentUser = user;
-        }
-      }
-
-    } catch (error) {
-
-      console.error(
-        "User fetch error:",
-        error
-      );
-    }
-
-    const withdrawEmailInput =
-      document.getElementById(
-        "withdrawEmailInput"
-      );
-
-    if (
-      withdrawEmailInput &&
-      currentUser &&
-      currentUser.email
-    ) {
-
-      withdrawEmailInput.value =
-        currentUser.email;
-    }
-
-    const withdrawBalanceDisplay =
-      document.getElementById(
-        "withdrawBalanceDisplay"
-      );
-
-    if (withdrawBalanceDisplay) {
-
-      const balance =
-        Number(
-          userProfile.balance || 0
-        );
-
-      withdrawBalanceDisplay.textContent =
-        `${balance.toFixed(2)} USDT`;
-    }
-  }
-
-  if (modal) {
-
-    modal.classList.remove("hidden");
-  }
 }
 
 
-function closeModal(modalId) {
-
-  const modal =
-    document.getElementById(modalId);
-
-  if (modal) {
-
-    modal.classList.add("hidden");
-  }
-}
-
 /* ==========================================================================
-   18. SELECT STAKE TIER
+   14. UPDATE USER EMAIL
    ========================================================================== */
 
-function selectStakeTier(stake) {
+function updatePlayerEmail() {
 
-  selectedStake =
-    Number(stake);
-
-  [
-    0.50,
-    1.00,
-    5.00
-  ].forEach(tier => {
-
-    const btn =
-      document.getElementById(
-        `stake-tier-${tier.toFixed(2)}`
-      );
-
-    if (!btn) return;
-
-    if (
-      tier === selectedStake
-    ) {
-
-      btn.className =
-        "stake-tier-btn bg-cyan-500 text-slate-950 font-bold py-2 px-3 rounded text-sm shadow-glow transition-all";
-
-    } else {
-
-      btn.className =
-        "stake-tier-btn bg-slate-800 border border-slate-700 hover:border-cyan-500 text-white font-bold py-2 px-3 rounded text-sm transition-all";
-    }
-  });
-
-  const overviewStake =
-    document.getElementById(
-      "matchOverviewStake"
-    );
-
-  if (overviewStake) {
-
-    overviewStake.innerHTML =
-      `Entry Stake: <strong class="text-cyan-400">$${selectedStake.toFixed(2)} USDT</strong>`;
-  }
-
-  updateMatchOverlay();
-}
-
-/* ==========================================================================
-   19. START MATCHMAKING
-   ========================================================================== */
-
-async function startMatchmaking() {
-
-  if (!currentUser) {
-
-    showCyberAlert(
-      "LOGIN REQUIRED",
-      "Please log in before entering the arena.",
-      "fa-lock text-amber-400"
-    );
-
-    return;
-  }
-
-  if (!supabaseClient) {
-
-    showCyberAlert(
-      "CONNECTION ERROR",
-      "Supabase connection unavailable.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  if (
-    Number(userProfile.balance || 0)
-    < selectedStake
-  ) {
-
-    showCyberAlert(
-      "INSUFFICIENT BALANCE",
-      `You need at least $${selectedStake.toFixed(2)} USDT to enter this match.`,
-      "fa-wallet text-rose-400"
-    );
-
-    return;
-  }
-
-  try {
-
-    showCyberAlert(
-      "SEARCHING",
-      `Searching for a ${selectedGameMode === "ludo" ? "Ludo" : "Penalty Shootout"} opponent...`,
-      "fa-spinner fa-spin text-cyan-400"
-    );
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient.functions.invoke(
-        "match",
-        {
-          body: {
-            action: "START",
-            stake: selectedStake,
-            gameMode: selectedGameMode
-          }
-        }
-      );
-
-    if (error) {
-      throw new Error(
-        error.message ||
-        "Match initialization failed."
-      );
-    }
-
-    if (
-      !data ||
-      !data.success
-    ) {
-
-      throw new Error(
-        data?.error ||
-        data?.message ||
-        "Could not start match."
-      );
-    }
-
-    currentMatchId =
-      data.matchId ||
-      data.match_id ||
-      null;
-
-    closeModal(
-      "cyberAlertModal"
-    );
-
-    showCyberAlert(
-      "MATCH FOUND",
-      "Opponent connected. Prepare for battle!",
-      "fa-crosshairs text-cyan-400"
-    );
-
-    setTimeout(() => {
-
-      closeModal(
-        "cyberAlertModal"
-      );
-
-      if (
-        selectedGameMode === "ludo"
-      ) {
-
-        startLudoGame();
-
-      } else {
-
-        startPenaltyShootout();
-      }
-
-    }, 1200);
-
-  } catch (error) {
-
-    console.error(
-      "Matchmaking error:",
-      error
-    );
-
-    showCyberAlert(
-      "MATCHMAKING ERROR",
-      error.message ||
-      "Could not connect to match server.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-  }
-}
-
-/* ==========================================================================
-   20. START PENALTY SHOOTOUT
-   ========================================================================== */
-
-function startPenaltyShootout() {
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  const overlay =
-    document.getElementById(
-      "canvasOverlay"
-    );
-
-  if (!canvas) {
-
-    showCyberAlert(
-      "GAME ERROR",
-      "Game canvas element missing.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  matchActive = true;
-
-  playerScore = 0;
-
-  opponentScore = 0;
-
-  if (overlay) {
-    overlay.style.display = "none";
-  }
-
-  const ctx =
-    canvas.getContext("2d");
-
-  if (!ctx) return;
-
-  canvas.onclick =
-    handlePenaltyShot;
-
-  drawPenaltyField(ctx);
-
-  startPenaltyRound();
-}
-
-/* ==========================================================================
-   21. DRAW PENALTY FIELD
-   ========================================================================== */
-
-function drawPenaltyField(ctx) {
-
-  const width =
-    ctx.canvas.width;
-
-  const height =
-    ctx.canvas.height;
-
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-  /*
-    Background
-  */
-
-  ctx.fillStyle =
-    "#020617";
-
-  ctx.fillRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-  /*
-    Field area
-  */
-
-  ctx.fillStyle =
-    "rgba(6,182,212,0.05)";
-
-  ctx.fillRect(
-    40,
-    30,
-    width - 80,
-    height - 60
-  );
-
-  ctx.strokeStyle =
-    "rgba(34,211,238,0.45)";
-
-  ctx.lineWidth = 3;
-
-  /*
-    Goal
-  */
-
-  const goalWidth = 260;
-
-  const goalHeight = 100;
-
-  const goalX =
-    (width - goalWidth) / 2;
-
-  const goalY = 45;
-
-  ctx.strokeRect(
-    goalX,
-    goalY,
-    goalWidth,
-    goalHeight
-  );
-
-  /*
-    Penalty box
-  */
-
-  ctx.strokeRect(
-    goalX - 70,
-    goalY + goalHeight,
-    goalWidth + 140,
-    150
-  );
-
-  /*
-    Penalty spot
-  */
-
-  ctx.beginPath();
-
-  ctx.arc(
-    width / 2,
-    height - 115,
-    7,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fillStyle =
-    "rgba(255,255,255,0.8)";
-
-  ctx.fill();
-
-  /*
-    Scoreboard
-  */
-
-  ctx.fillStyle =
-    "#e2e8f0";
-
-  ctx.font =
-    "bold 24px Orbitron, sans-serif";
-
-  ctx.textAlign = "center";
-
-  ctx.fillText(
-    `YOU ${playerScore}  -  ${opponentScore} OPPONENT`,
-    width / 2,
-    height - 35
-  );
-}
-
-/* ==========================================================================
-   22. START PENALTY ROUND
-   ========================================================================== */
-
-function startPenaltyRound() {
-
-  if (!matchActive) return;
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (!canvas) return;
-
-  const ctx =
-    canvas.getContext("2d");
-
-  drawPenaltyField(ctx);
-
-  const centerX =
-    canvas.width / 2;
-
-  const goalkeeperY = 105;
-
-  /*
-    Goalkeeper
-  */
-
-  ctx.fillStyle =
-    "rgba(16,185,129,0.85)";
-
-  ctx.fillRect(
-    centerX - 35,
-    goalkeeperY,
-    70,
-    18
-  );
-
-  ctx.beginPath();
-
-  ctx.arc(
-    centerX,
-    goalkeeperY - 12,
-    10,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fill();
-
-  /*
-    Ball
-  */
-
-  ctx.fillStyle =
-    "#ffffff";
-
-  ctx.beginPath();
-
-  ctx.arc(
-    centerX,
-    canvas.height - 115,
-    11,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fill();
-
-  /*
-    Instruction
-  */
-
-  ctx.fillStyle =
-    "#22d3ee";
-
-  ctx.font =
-    "bold 18px Rajdhani, sans-serif";
-
-  ctx.textAlign =
-    "center";
-
-  ctx.fillText(
-    "TAP INSIDE THE GOAL TO SHOOT",
-    centerX,
-    canvas.height - 70
-  );
-
-  canvas.onclick =
-    handlePenaltyShot;
-}
-
-/* ==========================================================================
-   23. HANDLE PENALTY SHOT
-   ========================================================================== */
-
-function handlePenaltyShot(event) {
-
-  if (!matchActive) return;
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (!canvas) return;
-
-  const rect =
-    canvas.getBoundingClientRect();
-
-  const scaleX =
-    canvas.width /
-    rect.width;
-
-  const scaleY =
-    canvas.height /
-    rect.height;
-
-  const x =
-    (event.clientX - rect.left)
-    * scaleX;
-
-  const y =
-    (event.clientY - rect.top)
-    * scaleY;
-
-  const goalLeft =
-    (canvas.width - 260) / 2;
-
-  const goalRight =
-    goalLeft + 260;
-
-  const goalTop = 45;
-
-  const goalBottom = 145;
-
-  const scored =
-    x >= goalLeft &&
-    x <= goalRight &&
-    y >= goalTop &&
-    y <= goalBottom;
-
-  if (scored) {
-
-    playerScore++;
-
-    showCyberAlert(
-      "GOAL!",
-      "Target successfully hit!",
-      "fa-futbol text-emerald-400"
-    );
-
-  } else {
-
-    showCyberAlert(
-      "MISS!",
-      "The shot missed the goal frame.",
-      "fa-xmark text-rose-500"
-    );
-  }
-
-  /*
-    Give the opponent a simple
-    simulated result for this round.
-  */
-
-  if (Math.random() > 0.5) {
-    opponentScore++;
-  }
-
-  setTimeout(() => {
-
-    closeModal(
-      "cyberAlertModal"
-    );
-
-    finish1v1Match();
-
-  }, 800);
-}
-
-/* ==========================================================================
-   24. START LUDO GAME
-   ========================================================================== */
-
-function startLudoGame() {
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  const overlay =
-    document.getElementById(
-      "canvasOverlay"
-    );
-
-  if (!canvas) {
-
-    showCyberAlert(
-      "GAME ERROR",
-      "Game canvas element missing.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  matchActive = true;
-
-  ludoGameOver = false;
-
-  ludoPlayerTokens =
-    [0, 0, 0, 0];
-
-  ludoOpponentTokens =
-    [0, 0, 0, 0];
-
-  ludoPlayerHome = 0;
-
-  ludoOpponentHome = 0;
-
-  ludoTurn = "player";
-
-  ludoDice = 0;
-
-  ludoWaitingForToken = false;
-
-  ludoLastMessage =
-    "Your turn. Roll the dice.";
-
-  playerScore = 0;
-
-  opponentScore = 0;
-
-  if (overlay) {
-    overlay.style.display = "none";
-  }
-
-  buildLudoPaths();
-
-  drawLudoBoard();
-
-  canvas.onclick =
-    handleLudoCanvasClick;
-}
-
-/* ==========================================================================
-   25. BUILD LUDO PATHS
-   ========================================================================== */
-
-function buildLudoPaths() {
-
-  const path = [];
-
-  /*
-    A simple 40-square circular
-    Ludo-style track.
-  */
-
-  const cx = 600;
-
-  const cy = 337;
-
-  const radius = 235;
-
-  for (
-    let i = 0;
-    i < 40;
-    i++
-  ) {
-
-    const angle =
-      (
-        -Math.PI / 2
-      ) +
-      (
-        i *
-        (Math.PI * 2 / 40)
-      );
-
-    path.push({
-
-      x:
-        cx +
-        Math.cos(angle) *
-        radius,
-
-      y:
-        cy +
-        Math.sin(angle) *
-        radius
-    });
-  }
-
-  ludoPlayerPath =
-    path;
-
-  ludoOpponentPath =
-    path;
-}
-
-/* ==========================================================================
-   26. DRAW LUDO BOARD
-   ========================================================================== */
-
-function drawLudoBoard() {
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (!canvas) return;
-
-  const ctx =
-    canvas.getContext("2d");
-
-  if (!ctx) return;
-
-  const width =
-    canvas.width;
-
-  const height =
-    canvas.height;
-
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-  /*
-    Board background
-  */
-
-  ctx.fillStyle =
-    "#020617";
-
-  ctx.fillRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-  /*
-    Board center
-  */
-
-  const cx = 600;
-
-  const cy = 337;
-
-  /*
-    Outer board
-  */
-
-  ctx.beginPath();
-
-  ctx.arc(
-    cx,
-    cy,
-    270,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fillStyle =
-    "#0f172a";
-
-  ctx.fill();
-
-  ctx.strokeStyle =
-    "rgba(6,182,212,0.45)";
-
-  ctx.lineWidth = 4;
-
-  ctx.stroke();
-
-  /*
-    Home areas
-  */
-
-  drawLudoHomeArea(
-    ctx,
-    170,
-    110,
-    "rgba(6,182,212,0.12)",
-    "YOU"
-  );
-
-  drawLudoHomeArea(
-    ctx,
-    850,
-    110,
-    "rgba(236,72,153,0.12)",
-    "OPPONENT"
-  );
-
-  /*
-    Track squares
-  */
-
-  ludoPlayerPath.forEach(
-    (point, index) => {
-
-      ctx.beginPath();
-
-      ctx.arc(
-        point.x,
-        point.y,
-        18,
-        0,
-        Math.PI * 2
-      );
-
-      ctx.fillStyle =
-        index % 5 === 0
-          ? "rgba(34,211,238,0.18)"
-          : "rgba(30,41,59,0.95)";
-
-      ctx.fill();
-
-      ctx.strokeStyle =
-        "rgba(100,116,139,0.45)";
-
-      ctx.lineWidth = 1;
-
-      ctx.stroke();
-
-      ctx.fillStyle =
-        "#64748b";
-
-      ctx.font =
-        "10px Rajdhani, sans-serif";
-
-      ctx.textAlign =
-        "center";
-
-      ctx.fillText(
-        String(index + 1),
-        point.x,
-        point.y + 4
-      );
-    }
-  );
-
-  /*
-    Draw tokens
-  */
-
-  drawLudoTokens(
-    ctx
-  );
-
-  /*
-    Center
-  */
-
-  ctx.beginPath();
-
-  ctx.arc(
-    cx,
-    cy,
-    75,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fillStyle =
-    "rgba(15,23,42,0.95)";
-
-  ctx.fill();
-
-  ctx.strokeStyle =
-    "rgba(16,185,129,0.55)";
-
-  ctx.lineWidth = 3;
-
-  ctx.stroke();
-
-  /*
-    Title
-  */
-
-  ctx.fillStyle =
-    "#e2e8f0";
-
-  ctx.font =
-    "bold 24px Orbitron, sans-serif";
-
-  ctx.textAlign =
-    "center";
-
-  ctx.fillText(
-    "LUDO 1v1",
-    cx,
-    cy - 10
-  );
-
-  ctx.fillStyle =
-    "#22d3ee";
-
-  ctx.font =
-    "bold 16px Rajdhani, sans-serif";
-
-  ctx.fillText(
-    `${ludoPlayerHome}/4 HOME`,
-    cx,
-    cy + 18
-  );
-
-  /*
-    Dice display
-  */
-
-  drawLudoDice(
-    ctx
-  );
-
-  /*
-    Instructions
-  */
-
-  ctx.fillStyle =
-    "#94a3b8";
-
-  ctx.font =
-    "16px Rajdhani, sans-serif";
-
-  ctx.fillText(
-    ludoLastMessage,
-    cx,
-    height - 25
-  );
-}
-
-/* ==========================================================================
-   27. DRAW LUDO HOME AREA
-   ========================================================================== */
-
-function drawLudoHomeArea(
-  ctx,
-  x,
-  y,
-  fill,
-  label
-) {
-
-  ctx.fillStyle =
-    fill;
-
-  ctx.fillRect(
-    x,
-    y,
-    280,
-    130
-  );
-
-  ctx.strokeStyle =
-    "rgba(100,116,139,0.4)";
-
-  ctx.lineWidth = 2;
-
-  ctx.strokeRect(
-    x,
-    y,
-    280,
-    130
-  );
-
-  ctx.fillStyle =
-    "#cbd5e1";
-
-  ctx.font =
-    "bold 16px Orbitron, sans-serif";
-
-  ctx.textAlign =
-    "center";
-
-  ctx.fillText(
-    label,
-    x + 140,
-    y + 25
-  );
-}
-
-/* ==========================================================================
-   28. DRAW LUDO DICE
-   ========================================================================== */
-
-function drawLudoDice(ctx) {
-
-  const x = 600;
-
-  const y = 80;
-
-  const size = 65;
-
-  ctx.fillStyle =
-    "#111827";
-
-  ctx.fillRect(
-    x - size / 2,
-    y - size / 2,
-    size,
-    size
-  );
-
-  ctx.strokeStyle =
-    "#22d3ee";
-
-  ctx.lineWidth = 3;
-
-  ctx.strokeRect(
-    x - size / 2,
-    y - size / 2,
-    size,
-    size
-  );
-
-  ctx.fillStyle =
-    "#f8fafc";
-
-  ctx.font =
-    "bold 30px Orbitron, sans-serif";
-
-  ctx.textAlign =
-    "center";
-
-  ctx.textBaseline =
-    "middle";
-
-  ctx.fillText(
-    ludoDice
-      ? String(ludoDice)
-      : "🎲",
-    x,
-    y
-  );
-
-  ctx.textBaseline =
-    "alphabetic";
-
-  /*
-    Roll button
-  */
-
-  ctx.fillStyle =
-    ludoTurn === "player" &&
-    !ludoWaitingForToken &&
-    !ludoGameOver
-      ? "#06b6d4"
-      : "#334155";
-
-  ctx.fillRect(
-    x - 75,
-    y + 45,
-    150,
-    40
-  );
-
-  ctx.fillStyle =
-    ludoTurn === "player" &&
-    !ludoWaitingForToken &&
-    !ludoGameOver
-      ? "#020617"
-      : "#94a3b8";
-
-  ctx.font =
-    "bold 14px Orbitron, sans-serif";
-
-  ctx.fillText(
-    ludoTurn === "player" &&
-    !ludoWaitingForToken &&
-    !ludoGameOver
-      ? "ROLL DICE"
-      : ludoTurn === "opponent"
-        ? "OPPONENT TURN"
-        : "SELECT TOKEN",
-    x,
-    y + 71
-  );
-}
-
-/* ==========================================================================
-   END OF PART 2 OF 4
-   ========================================================================== *//* ==========================================================================
-   CYBERSTRIKE | SCRIPT.JS — PART 3 OF 4
-   LUDO GAMEPLAY + MATCH RESOLUTION + VICTORY SPRINT
-   ========================================================================== */
-
-/* ==========================================================================
-   29. DRAW LUDO TOKENS
-   ========================================================================== */
-
-function drawLudoTokens(ctx) {
-
-  const path =
-    ludoPlayerPath;
-
-  /*
-    PLAYER TOKENS
-    */
-
-  ludoPlayerTokens.forEach(
-    (position, index) => {
-
-      if (position <= 0) {
-
-        /*
-          Tokens still in base.
-          Put them in the player's home area.
-        */
-
-        const basePositions = [
-          { x: 235, y: 155 },
-          { x: 315, y: 155 },
-          { x: 235, y: 205 },
-          { x: 315, y: 205 }
-        ];
-
-        drawLudoToken(
-          ctx,
-          basePositions[index].x,
-          basePositions[index].y,
-          "#22d3ee",
-          index + 1
-        );
-
-      } else {
-
-        const pathIndex =
-          (position - 1) % path.length;
-
-        const point =
-          path[pathIndex];
-
-        drawLudoToken(
-          ctx,
-          point.x,
-          point.y,
-          "#22d3ee",
-          index + 1
-        );
-      }
-    }
-  );
-
-  /*
-    OPPONENT TOKENS
-    */
-
-  ludoOpponentTokens.forEach(
-    (position, index) => {
-
-      if (position <= 0) {
-
-        const basePositions = [
-          { x: 885, y: 155 },
-          { x: 965, y: 155 },
-          { x: 885, y: 205 },
-          { x: 965, y: 205 }
-        ];
-
-        drawLudoToken(
-          ctx,
-          basePositions[index].x,
-          basePositions[index].y,
-          "#ec4899",
-          index + 1
-        );
-
-      } else {
-
-        const pathIndex =
-          (position - 1) % path.length;
-
-        const point =
-          path[pathIndex];
-
-        drawLudoToken(
-          ctx,
-          point.x,
-          point.y,
-          "#ec4899",
-          index + 1
-        );
-      }
-    }
-  );
-}
-
-/* ==========================================================================
-   30. DRAW SINGLE LUDO TOKEN
-   ========================================================================== */
-
-function drawLudoToken(
-  ctx,
-  x,
-  y,
-  color,
-  number
-) {
-
-  ctx.beginPath();
-
-  ctx.arc(
-    x,
-    y,
-    13,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fillStyle =
-    color;
-
-  ctx.fill();
-
-  ctx.strokeStyle =
-    "#f8fafc";
-
-  ctx.lineWidth = 2;
-
-  ctx.stroke();
-
-  ctx.fillStyle =
-    "#020617";
-
-  ctx.font =
-    "bold 10px Rajdhani, sans-serif";
-
-  ctx.textAlign =
-    "center";
-
-  ctx.fillText(
-    String(number),
-    x,
-    y + 4
-  );
-}
-
-/* ==========================================================================
-   31. HANDLE LUDO CANVAS CLICK
-   ========================================================================== */
-
-function handleLudoCanvasClick(event) {
-
-  if (!matchActive) return;
-
-  if (ludoGameOver) return;
-
-  if (ludoTurn !== "player") return;
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (!canvas) return;
-
-  const rect =
-    canvas.getBoundingClientRect();
-
-  const scaleX =
-    canvas.width /
-    rect.width;
-
-  const scaleY =
-    canvas.height /
-    rect.height;
-
-  const x =
-    (event.clientX - rect.left) *
-    scaleX;
-
-  const y =
-    (event.clientY - rect.top) *
-    scaleY;
-
-  /*
-    Check whether the player
-    clicked the ROLL DICE button.
-    */
-
-  const diceX = 600;
-  const diceY = 80;
-
-  const rollLeft =
-    diceX - 75;
-
-  const rollRight =
-    diceX + 75;
-
-  const rollTop =
-    diceY + 45;
-
-  const rollBottom =
-    diceY + 85;
-
-  if (
-    x >= rollLeft &&
-    x <= rollRight &&
-    y >= rollTop &&
-    y <= rollBottom &&
-    !ludoWaitingForToken
-  ) {
-
-    rollLudoDice();
-
-    return;
-  }
-
-  /*
-    If a token must be selected,
-    detect which token was tapped.
-    */
-
-  if (ludoWaitingForToken) {
-
-    const tokenIndex =
-      findClickedLudoToken(
-        x,
-        y
-      );
-
-    if (
-      tokenIndex !== -1
-    ) {
-
-      moveLudoPlayerToken(
-        tokenIndex
-      );
-    }
-  }
-}
-
-/* ==========================================================================
-   32. FIND CLICKED LUDO TOKEN
-   ========================================================================== */
-
-function findClickedLudoToken(
-  x,
-  y
-) {
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (!canvas) return -1;
-
-  for (
-    let i = 0;
-    i < ludoPlayerTokens.length;
-    i++
-  ) {
-
-    const position =
-      ludoPlayerTokens[i];
-
-    let tokenX;
-    let tokenY;
-
-    if (position <= 0) {
-
-      const basePositions = [
-        { x: 235, y: 155 },
-        { x: 315, y: 155 },
-        { x: 235, y: 205 },
-        { x: 315, y: 205 }
-      ];
-
-      tokenX =
-        basePositions[i].x;
-
-      tokenY =
-        basePositions[i].y;
-
-    } else {
-
-      const pathIndex =
-        (position - 1) %
-        ludoPlayerPath.length;
-
-      tokenX =
-        ludoPlayerPath[pathIndex].x;
-
-      tokenY =
-        ludoPlayerPath[pathIndex].y;
-    }
-
-    const distance =
-      Math.sqrt(
-        Math.pow(x - tokenX, 2) +
-        Math.pow(y - tokenY, 2)
-      );
-
-    if (distance <= 30) {
-
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-/* ==========================================================================
-   33. ROLL LUDO DICE
-   ========================================================================== */
-
-function rollLudoDice() {
-
-  if (!matchActive) return;
-
-  if (ludoGameOver) return;
-
-  if (ludoTurn !== "player") return;
-
-  if (ludoWaitingForToken) return;
-
-  ludoDice =
-    Math.floor(
-      Math.random() * 6
-    ) + 1;
-
-  ludoLastMessage =
-    `You rolled ${ludoDice}.`;
-
-  drawLudoBoard();
-
-  /*
-    Find legal moves.
-    */
-
-  const legalMoves =
-    getLegalLudoMoves(
-      ludoPlayerTokens,
-      ludoDice
-    );
-
-  if (
-    legalMoves.length === 0
-  ) {
-
-    ludoLastMessage =
-      `You rolled ${ludoDice}, but there is no legal move.`;
-
-    drawLudoBoard();
-
-    setTimeout(() => {
-
-      ludoTurn =
-        "opponent";
-
-      ludoLastMessage =
-        "Opponent is thinking...";
-
-      drawLudoBoard();
-
-      setTimeout(
-        playOpponentLudoTurn,
-        900
-      );
-
-    }, 700);
-
-    return;
-  }
-
-  /*
-    If only one token can move,
-    move it automatically.
-    */
-
-  if (
-    legalMoves.length === 1
-  ) {
-
-    setTimeout(() => {
-
-      moveLudoPlayerToken(
-        legalMoves[0]
-      );
-
-    }, 350);
-
-    return;
-  }
-
-  /*
-    Otherwise let player choose
-    a token.
-    */
-
-  ludoWaitingForToken =
-    true;
-
-  ludoLastMessage =
-    "Tap one of your highlighted tokens.";
-
-  drawLudoBoard();
-}
-
-/* ==========================================================================
-   34. GET LEGAL LUDO MOVES
-   ========================================================================== */
-
-function getLegalLudoMoves(
-  tokens,
-  dice
-) {
-
-  const moves = [];
-
-  tokens.forEach(
-    (position, index) => {
-
-      /*
-        Token in base.
-        Needs a 6 to enter.
-      */
-
-      if (position === 0) {
-
-        if (dice === 6) {
-
-          moves.push(index);
-        }
-
+    if (!currentUser) {
         return;
-      }
-
-      /*
-        Finished token cannot move.
-      */
-
-      if (position >= 40) {
-        return;
-      }
-
-      /*
-        Need exact count to finish.
-      */
-
-      if (
-        position + dice <= 40
-      ) {
-
-        moves.push(index);
-      }
-    }
-  );
-
-  return moves;
-}
-
-/* ==========================================================================
-   35. MOVE PLAYER LUDO TOKEN
-   ========================================================================== */
-
-function moveLudoPlayerToken(
-  tokenIndex
-) {
-
-  if (!ludoWaitingForToken &&
-      ludoDice === 0) {
-
-    return;
-  }
-
-  const token =
-    ludoPlayerTokens[tokenIndex];
-
-  const dice =
-    ludoDice;
-
-  /*
-    Verify move.
-    */
-
-  const legalMoves =
-    getLegalLudoMoves(
-      ludoPlayerTokens,
-      dice
-    );
-
-  if (
-    !legalMoves.includes(
-      tokenIndex
-    )
-  ) {
-
-    ludoLastMessage =
-      "That token cannot move with this dice.";
-
-    drawLudoBoard();
-
-    return;
-  }
-
-  /*
-    Bring token out of base
-    on a six.
-    */
-
-  if (
-    token === 0 &&
-    dice === 6
-  ) {
-
-    ludoPlayerTokens[tokenIndex] =
-      1;
-
-  } else {
-
-    ludoPlayerTokens[tokenIndex] =
-      token + dice;
-  }
-
-  /*
-    Check whether token reached home.
-    */
-
-  if (
-    ludoPlayerTokens[tokenIndex] >= 40
-  ) {
-
-    ludoPlayerTokens[tokenIndex] =
-      40;
-
-    ludoPlayerHome++;
-
-    ludoLastMessage =
-      "Your token reached HOME!";
-
-  } else {
-
-    ludoLastMessage =
-      `Token ${tokenIndex + 1} moved ${dice} spaces.`;
-  }
-
-  /*
-    Capture opponent token.
-    */
-
-  checkLudoCapture(
-    tokenIndex
-  );
-
-  ludoWaitingForToken =
-    false;
-
-  ludoDice = 0;
-
-  /*
-    Update score.
-    */
-
-  playerScore =
-    ludoPlayerHome;
-
-  /*
-    Check victory.
-    */
-
-  if (
-    ludoPlayerHome >= 4
-  ) {
-
-    finishLudoGame(
-      true
-    );
-
-    return;
-  }
-
-  drawLudoBoard();
-
-  /*
-    A six gives another turn.
-    */
-
-  if (dice === 6) {
-
-    ludoTurn =
-      "player";
-
-    ludoLastMessage =
-      "You rolled a 6! Roll again.";
-
-    drawLudoBoard();
-
-    return;
-  }
-
-  /*
-    Opponent turn.
-    */
-
-  ludoTurn =
-    "opponent";
-
-  ludoLastMessage =
-    "Opponent is thinking...";
-
-  drawLudoBoard();
-
-  setTimeout(
-    playOpponentLudoTurn,
-    900
-  );
-}
-
-/* ==========================================================================
-   36. CHECK LUDO CAPTURE
-   ========================================================================== */
-
-function checkLudoCapture(
-  tokenIndex
-) {
-
-  const playerPosition =
-    ludoPlayerTokens[tokenIndex];
-
-  if (
-    playerPosition <= 0 ||
-    playerPosition >= 40
-  ) {
-
-    return;
-  }
-
-  for (
-    let i = 0;
-    i < ludoOpponentTokens.length;
-    i++
-  ) {
-
-    const opponentPosition =
-      ludoOpponentTokens[i];
-
-    if (
-      opponentPosition > 0 &&
-      opponentPosition < 40 &&
-      opponentPosition ===
-        playerPosition
-    ) {
-
-      /*
-        Send opponent token
-        back to base.
-        */
-
-      ludoOpponentTokens[i] =
-        0;
-
-      ludoLastMessage =
-        `You captured opponent token ${i + 1}!`;
-
-      break;
-    }
-  }
-}
-
-/* ==========================================================================
-   37. OPPONENT LUDO TURN
-   ========================================================================== */
-
-function playOpponentLudoTurn() {
-
-  if (!matchActive) return;
-
-  if (ludoGameOver) return;
-
-  if (
-    ludoTurn !== "opponent"
-  ) {
-
-    return;
-  }
-
-  const dice =
-    Math.floor(
-      Math.random() * 6
-    ) + 1;
-
-  ludoDice =
-    dice;
-
-  const legalMoves =
-    getLegalLudoMoves(
-      ludoOpponentTokens,
-      dice
-    );
-
-  /*
-    No move.
-    */
-
-  if (
-    legalMoves.length === 0
-  ) {
-
-    ludoLastMessage =
-      `Opponent rolled ${dice}. No move.`;
-
-    drawLudoBoard();
-
-    setTimeout(() => {
-
-      ludoDice = 0;
-
-      ludoTurn =
-        "player";
-
-      ludoLastMessage =
-        "Your turn. Roll the dice.";
-
-      drawLudoBoard();
-
-    }, 700);
-
-    return;
-  }
-
-  /*
-    Simple AI:
-    Prefer a token already on
-    the board, otherwise use
-    the first legal token.
-    */
-
-  let selectedToken =
-    legalMoves[0];
-
-  for (
-    let i = 0;
-    i < legalMoves.length;
-    i++
-  ) {
-
-    if (
-      ludoOpponentTokens[
-        legalMoves[i]
-      ] > 0
-    ) {
-
-      selectedToken =
-        legalMoves[i];
-
-      break;
-    }
-  }
-
-  const currentPosition =
-    ludoOpponentTokens[
-      selectedToken
-    ];
-
-  if (
-    currentPosition === 0 &&
-    dice === 6
-  ) {
-
-    ludoOpponentTokens[
-      selectedToken
-    ] = 1;
-
-  } else {
-
-    ludoOpponentTokens[
-      selectedToken
-    ] =
-      currentPosition + dice;
-  }
-
-  /*
-    Opponent reaches home.
-    */
-
-  if (
-    ludoOpponentTokens[
-      selectedToken
-    ] >= 40
-  ) {
-
-    ludoOpponentTokens[
-      selectedToken
-    ] = 40;
-
-    ludoOpponentHome++;
-
-    ludoLastMessage =
-      "Opponent reached HOME!";
-  } else {
-
-    ludoLastMessage =
-      `Opponent rolled ${dice}.`;
-  }
-
-  /*
-    Update opponent score.
-    */
-
-  opponentScore =
-    ludoOpponentHome;
-
-  /*
-    Check if opponent won.
-    */
-
-  if (
-    ludoOpponentHome >= 4
-  ) {
-
-    finishLudoGame(
-      false
-    );
-
-    return;
-  }
-
-  drawLudoBoard();
-
-  /*
-    Six gives opponent another
-    turn.
-    */
-
-  if (dice === 6) {
-
-    setTimeout(() => {
-
-      ludoDice = 0;
-
-      ludoLastMessage =
-        "Opponent rolled a 6 again.";
-
-      drawLudoBoard();
-
-      setTimeout(
-        playOpponentLudoTurn,
-        600
-      );
-
-    }, 600);
-
-    return;
-  }
-
-  /*
-    Return control to player.
-    */
-
-  setTimeout(() => {
-
-    ludoDice = 0;
-
-    ludoTurn =
-      "player";
-
-    ludoLastMessage =
-      "Your turn. Roll the dice.";
-
-    drawLudoBoard();
-
-  }, 800);
-}
-
-/* ==========================================================================
-   38. FINISH LUDO GAME
-   ========================================================================== */
-
-function finishLudoGame(
-  playerWon
-) {
-
-  if (ludoGameOver) return;
-
-  ludoGameOver =
-    true;
-
-  matchActive =
-    false;
-
-  playerScore =
-    ludoPlayerHome;
-
-  opponentScore =
-    ludoOpponentHome;
-
-  const message =
-    playerWon
-      ? "You got all 4 tokens home!"
-      : "The opponent got all 4 tokens home.";
-
-  showCyberAlert(
-    playerWon
-      ? "LUDO VICTORY!"
-      : "LUDO DEFEAT",
-    message,
-    playerWon
-      ? "fa-trophy text-emerald-400"
-      : "fa-xmark text-rose-500"
-  );
-
-  setTimeout(() => {
-
-    closeModal(
-      "cyberAlertModal"
-    );
-
-    finish1v1Match();
-
-  }, 1500);
-}
-
-/* ==========================================================================
-   39. FINISH 1v1 MATCH
-   ========================================================================== */
-
-async function finish1v1Match() {
-
-  if (
-    !currentUser ||
-    !supabaseClient
-  ) {
-
-    return;
-  }
-
-  if (
-    selectedGameMode !== "ludo" &&
-    !matchActive
-  ) {
-
-    /*
-      Penalty Shootout sets
-      matchActive false before
-      calling this function.
-      Allow resolution to continue.
-      */
-
-  }
-
-  /*
-    Prevent duplicate resolution.
-    */
-
-  const resolvingMatch =
-    currentMatchId;
-
-  if (!resolvingMatch) {
-
-    console.warn(
-      "No match ID available."
-    );
-  }
-
-  try {
-
-    showCyberAlert(
-      "RESOLVING MATCH",
-      "Calculating the match result...",
-      "fa-spinner fa-spin text-cyan-400"
-    );
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient.functions.invoke(
-        "match",
-        {
-          body: {
-            action: "RESOLVE",
-
-            matchId:
-              currentMatchId,
-
-            stake:
-              selectedStake,
-
-            gameMode:
-              selectedGameMode,
-
-            playerScore:
-              playerScore,
-
-            opponentScore:
-              opponentScore
-          }
-        }
-      );
-
-    if (error) {
-
-      throw new Error(
-        error.message ||
-        "Match resolution failed."
-      );
     }
 
-    if (
-      !data ||
-      !data.success
-    ) {
 
-      throw new Error(
-        data?.error ||
-        data?.message ||
-        "Could not resolve match."
-      );
-    }
-
-    await fetchUserProfile();
-
-    const won =
-      playerScore >
-      opponentScore;
-
-    const draw =
-      playerScore ===
-      opponentScore;
-
-    let title =
-      "MATCH COMPLETE";
-
-    let message =
-      data.message ||
-      "Match resolution completed.";
-
-    let icon =
-      "fa-circle-info text-cyan-400";
-
-    if (won) {
-
-      title =
-        "VICTORY!";
-
-      icon =
-        "fa-trophy text-emerald-400";
-
-    } else if (draw) {
-
-      title =
-        "DRAW";
-
-      icon =
-        "fa-handshake text-amber-400";
-
-    } else {
-
-      title =
-        "DEFEAT";
-
-      icon =
-        "fa-xmark text-rose-500";
-    }
-
-    showCyberAlert(
-      title,
-      message,
-      icon
-    );
-
-    setTimeout(() => {
-
-      closeModal(
-        "cyberAlertModal"
-      );
-
-      const overlay =
-        document.getElementById(
-          "canvasOverlay"
+    const elements =
+        document.querySelectorAll(
+            "#userEmail, #playerEmail, [data-user-email]"
         );
 
-      if (overlay) {
 
-        overlay.style.display =
-          "flex";
-      }
+    elements.forEach(
+        function (element) {
 
-      currentMatchId =
+            element.textContent =
+                currentUser.email || "";
+
+        }
+    );
+}
+
+
+/* ==========================================================================
+   15. RESET LOCAL STATE
+   ========================================================================== */
+
+function resetLocalWalletState() {
+
+    playerBalance = 0;
+
+    weeklyWins = 0;
+
+    weeklySprintStartedAt =
         null;
 
-      /*
-        Reset canvas.
-        */
+    selectedGame =
+        "Penalty Shootout";
 
-      const canvas =
-        document.getElementById(
-          "gameCanvas"
-        );
+    selectedStake =
+        0.50;
 
-      if (canvas) {
 
-        canvas.onclick = null;
-      }
-
-    }, 2200);
-
-  } catch (error) {
-
-    console.error(
-      "Match resolution error:",
-      error
-    );
-
-    showCyberAlert(
-      "MATCH ERROR",
-      error.message ||
-      "Resolution failure.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-  }
+    updateDashboard();
 }
 
+
 /* ==========================================================================
-   40. WEEKLY SPRINT PROGRESS
+   16. GET BALANCE
    ========================================================================== */
 
-function updateSprintProgress() {
+function getPlayerBalance() {
 
-  const wins =
-    Number(
-      userProfile.sprint_wins || 0
+    return Number(
+        Number(
+            playerBalance || 0
+        ).toFixed(2)
     );
-
-  const winsDisplay =
-    document.getElementById(
-      "sprintWinsCount"
-    );
-
-  const progressBar =
-    document.getElementById(
-      "sprintProgressBar"
-    );
-
-  const nextRewardLabel =
-    document.getElementById(
-      "nextRewardLabel"
-    );
-
-  if (winsDisplay) {
-
-    winsDisplay.textContent =
-      wins;
-  }
-
-  let nextTarget = 20;
-
-  let nextReward = 2.00;
-
-  if (
-    wins >= 20 &&
-    wins < 50
-  ) {
-
-    nextTarget = 50;
-
-    nextReward = 5.00;
-
-  } else if (
-    wins >= 50 &&
-    wins < 100
-  ) {
-
-    nextTarget = 100;
-
-    nextReward = 10.00;
-
-  } else if (
-    wins >= 100 &&
-    wins < 1000
-  ) {
-
-    nextTarget = 1000;
-
-    nextReward = 100.00;
-
-  } else if (
-    wins >= 1000
-  ) {
-
-    nextTarget = 1000;
-
-    nextReward = 100.00;
-  }
-
-  if (progressBar) {
-
-    const percentage =
-      Math.min(
-        (
-          wins /
-          nextTarget
-        ) * 100,
-        100
-      );
-
-    progressBar.style.width =
-      `${percentage}%`;
-  }
-
-  if (nextRewardLabel) {
-
-    if (wins >= 1000) {
-
-      nextRewardLabel.textContent =
-        "MAX MILESTONES CLAIMED";
-
-    } else {
-
-      nextRewardLabel.textContent =
-        `NEXT REWARD: ${nextReward.toFixed(2)} USDT`;
-    }
-  }
-
-  updateMilestoneButtons();
 }
 
+
 /* ==========================================================================
-   41. UPDATE MILESTONE BUTTONS
+   17. CALCULATE WINNER PAYOUT
+   ========================================================================== */
+
+function calculateWinnerPayout(
+    stake
+) {
+
+    const numericStake =
+        Number(stake);
+
+
+    if (
+        !CYBERSTRIKE_STAKES.includes(
+            numericStake
+        )
+    ) {
+        return 0;
+    }
+
+
+    const totalPot =
+        numericStake * 2;
+
+
+    const platformFee =
+        totalPot *
+        (
+            PLATFORM_FEE_PERCENT /
+            100
+        );
+
+
+    const winnerAmount =
+        totalPot -
+        platformFee;
+
+
+    return Number(
+        winnerAmount.toFixed(2)
+    );
+}
+
+
+/* ==========================================================================
+   18. SELECT GAME
+   ========================================================================== */
+
+function selectGame(game) {
+
+    if (
+        !CYBERSTRIKE_GAMES.includes(
+            game
+        )
+    ) {
+
+        showMessage(
+            "Invalid game selected.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    selectedGame =
+        game;
+
+
+    updateSelectedGameDisplay();
+
+
+    showMessage(
+        game +
+        " selected. Stake: " +
+        selectedStake.toFixed(2) +
+        " USDT",
+        "success"
+    );
+}
+
+
+/* ==========================================================================
+   19. SELECT STAKE
+   ========================================================================== */
+
+function selectStake(
+    button,
+    amount
+) {
+
+    const numericAmount =
+        Number(amount);
+
+
+    if (
+        !CYBERSTRIKE_STAKES.includes(
+            numericAmount
+        )
+    ) {
+
+        showMessage(
+            "Invalid stake amount.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    selectedStake =
+        numericAmount;
+
+
+    document
+        .querySelectorAll(
+            ".stake, [data-stake]"
+        )
+        .forEach(
+            function (element) {
+
+                element.classList.remove(
+                    "active",
+                    "selected"
+                );
+
+            }
+        );
+
+
+    if (button) {
+
+        button.classList.add(
+            "active",
+            "selected"
+        );
+    }
+
+
+    updateSelectedStakeDisplay();
+
+
+    showMessage(
+        "Stake selected: " +
+        numericAmount.toFixed(2) +
+        " USDT",
+        "success"
+    );
+}
+
+
+/* ==========================================================================
+   20. UPDATE SELECTED GAME
+   ========================================================================== */
+
+function updateSelectedGameDisplay() {
+
+    const elements =
+        document.querySelectorAll(
+            "#selectedGame, [data-selected-game]"
+        );
+
+
+    elements.forEach(
+        function (element) {
+
+            element.textContent =
+                selectedGame;
+
+        }
+    );
+}
+
+
+/* ==========================================================================
+   21. UPDATE SELECTED STAKE
+   ========================================================================== */
+
+function updateSelectedStakeDisplay() {
+
+    const elements =
+        document.querySelectorAll(
+            "#selectedStake, [data-selected-stake]"
+        );
+
+
+    elements.forEach(
+        function (element) {
+
+            element.textContent =
+                selectedStake.toFixed(2) +
+                " USDT";
+
+        }
+    );
+
+
+    const payout =
+        calculateWinnerPayout(
+            selectedStake
+        );
+
+
+    const payoutElements =
+        document.querySelectorAll(
+            "#potentialPayout, [data-potential-payout]"
+        );
+
+
+    payoutElements.forEach(
+        function (element) {
+
+            element.textContent =
+                payout.toFixed(2) +
+                " USDT";
+
+        }
+    );
+               }/* ==========================================================================
+   CYBERSTRIKE | SCRIPT.JS
+   PART 2 OF 4
+
+   WEEKLY SPRINT
+   COUNTDOWN
+   UI HELPERS
+   AUTH UI
+   MESSAGES
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. WEEKLY SPRINT
+   ========================================================================== */
+
+function updateWeeklySprint() {
+
+    const winsElement = document.getElementById("weeklyWins");
+    const rewardElement = document.getElementById("nextRewardLabel");
+    const progressElement = document.getElementById("weeklyProgressPercent");
+    const progressBar = document.getElementById("weeklyProgressBar");
+
+    if (winsElement) {
+        winsElement.textContent = String(weeklyWins);
+    }
+
+    let nextReward = "2.00 USDT";
+    let targetWins = 20;
+
+    if (weeklyWins >= 1000) {
+        nextReward = "100.00 USDT";
+        targetWins = 1000;
+    } else if (weeklyWins >= 100) {
+        nextReward = "100.00 USDT";
+        targetWins = 1000;
+    } else if (weeklyWins >= 50) {
+        nextReward = "10.00 USDT";
+        targetWins = 100;
+    } else if (weeklyWins >= 20) {
+        nextReward = "5.00 USDT";
+        targetWins = 50;
+    }
+
+    if (rewardElement) {
+        rewardElement.textContent = "NEXT REWARD: " + nextReward;
+    }
+
+    const percentage = Math.min(
+        100,
+        Math.floor((weeklyWins / targetWins) * 100)
+    );
+
+    if (progressElement) {
+        progressElement.textContent = percentage + "%";
+    }
+
+    if (progressBar) {
+        progressBar.style.width = percentage + "%";
+    }
+
+    updateMilestoneButtons();
+}
+
+
+/* ==========================================================================
+   2. MILESTONE BUTTONS
    ========================================================================== */
 
 function updateMilestoneButtons() {
 
-  const wins =
-    Number(
-      userProfile.sprint_wins || 0
-    );
+    const claim20 = document.getElementById("claim20Btn");
+    const claim50 = document.getElementById("claim50Btn");
+    const claim100 = document.getElementById("claim100Btn");
+    const claim1000 = document.getElementById("claim1000Btn");
 
-  const claimed =
-    Array.isArray(
-      userProfile.claimed_milestones
-    )
-      ? userProfile.claimed_milestones
-      : [];
-
-  const milestones = [
-
-    {
-      id: "claim20Btn",
-      wins: 20
-    },
-
-    {
-      id: "claim50Btn",
-      wins: 50
-    },
-
-    {
-      id: "claim100Btn",
-      wins: 100
-    },
-
-    {
-      id: "claim1000Btn",
-      wins: 1000
-    }
-
-  ];
-
-  milestones.forEach(
-    milestone => {
-
-      const button =
-        document.getElementById(
-          milestone.id
-        );
-
-      if (!button) return;
-
-      const isClaimed =
-        claimed.includes(
-          milestone.wins
-        );
-
-      if (isClaimed) {
-
-        button.disabled =
-          true;
-
-        button.textContent =
-          "CLAIMED";
-
-        button.className =
-          "sprint-claim-btn claimed-glowing";
-
-      } else if (
-        wins >= milestone.wins
-      ) {
-
-        button.disabled =
-          false;
-
-        button.textContent =
-          "CLAIM";
-
-        button.className =
-          "sprint-claim-btn ready";
-
-      } else {
-
-        button.disabled =
-          true;
-
-        button.textContent =
-          "LOCKED";
-
-        button.className =
-          "sprint-claim-btn locked";
-      }
-    }
-  );
+    updateMilestoneButton(claim20, weeklyWins >= 20);
+    updateMilestoneButton(claim50, weeklyWins >= 50);
+    updateMilestoneButton(claim100, weeklyWins >= 100);
+    updateMilestoneButton(claim1000, weeklyWins >= 1000);
 }
 
-/* ==========================================================================
-   42. CLAIM MILESTONE
-   ========================================================================== */
-async function claimMilestone(
-  eventOrWins,
-  targetWinsParam,
-  rewardAmountParam
-) {
 
-  let targetWins;
+function updateMilestoneButton(button, unlocked) {
 
-  let rewardAmount;
+    if (!button) return;
 
-  if (
-    typeof eventOrWins ===
-    "number"
-  ) {
+    button.disabled = !unlocked;
 
-    targetWins =
-      eventOrWins;
-
-    rewardAmount =
-      targetWinsParam;
-
-  } else {
-
-    if (
-      eventOrWins &&
-      eventOrWins.preventDefault
-    ) {
-
-      eventOrWins.preventDefault();
+    if (unlocked) {
+        button.style.opacity = "1";
+        button.style.cursor = "pointer";
+    } else {
+        button.style.opacity = "0.45";
+        button.style.cursor = "not-allowed";
     }
-
-    targetWins =
-      targetWinsParam;
-
-    rewardAmount =
-      rewardAmountParam;
-  }
-
-  if (!currentUser) {
-
-    showCyberAlert(
-      "NOT LOGGED IN",
-      "Please log in before claiming rewards.",
-      "fa-lock text-amber-400"
-    );
-
-    return;
-  }
-
-  const wins =
-    Number(
-      userProfile.sprint_wins || 0
-    );
-
-  const claimed =
-    Array.isArray(
-      userProfile.claimed_milestones
-    )
-      ? userProfile.claimed_milestones
-      : [];
-
-  if (
-    wins < targetWins
-  ) {
-
-    showCyberAlert(
-      "MILESTONE LOCKED",
-      `Reach ${targetWins} wins to unlock this reward.`,
-      "fa-lock text-slate-400"
-    );
-
-    return;
-  }
-
-  if (
-    claimed.includes(
-      targetWins
-    )
-  ) {
-
-    showCyberAlert(
-      "ALREADY CLAIMED",
-      "This milestone reward has already been claimed.",
-      "fa-circle-check text-cyan-400"
-    );
-
-    return;
-  }
-
-  try {
-
-    showCyberAlert(
-      "PROCESSING",
-      "Verifying milestone eligibility...",
-      "fa-spinner fa-spin text-cyan-400"
-    );
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient.functions.invoke(
-        "milestone",
-        {
-          body: {
-            targetWins,
-            rewardAmount
-          }
-        }
-      );
-
-    if (error) {
-
-      throw new Error(
-        error.message ||
-        "Milestone claim request failed."
-      );
-    }
-
-    if (
-      !data ||
-      !data.success
-    ) {
-
-      throw new Error(
-        data?.error ||
-        data?.message ||
-        "Claim request was rejected."
-      );
-    }
-
-    await fetchUserProfile();
-
-    showCyberAlert(
-      "REWARD CLAIMED",
-      `+$${Number(rewardAmount).toFixed(2)} USDT credited to your balance!`,
-      "fa-gift text-emerald-400"
-    );
-
-  } catch (error) {
-
-    console.error(
-      "Milestone error:",
-      error
-    );
-
-    showCyberAlert(
-      "CLAIM FAILED",
-      error.message ||
-      "Could not claim milestone.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-  }
 }
 
-/* ==========================================================================
-   END OF PART 3 OF 4
-   ========================================================================== *//* ==========================================================================
-   CYBERSTRIKE | SCRIPT.JS — PART 4 OF 4
-   DEPOSIT + CASHOUT + REALTIME BALANCE + SPRINT COUNTDOWN
-   ========================================================================== */
 
 /* ==========================================================================
-   43. FAUCETPAY CASHOUT / WITHDRAWAL
+   3. MILESTONE CLAIM
    ========================================================================== */
 
-async function confirmWithdrawal() {
+async function claimMilestone(requiredWins, rewardAmount) {
 
-  const amountInput =
-    document.getElementById(
-      "withdrawAmountInput"
-    );
-
-  const emailInput =
-    document.getElementById(
-      "withdrawEmailInput"
-    );
-
-  const amount =
-    parseFloat(
-      amountInput
-        ? amountInput.value
-        : 0
-    );
-
-  const recipientEmail =
-    emailInput
-      ? emailInput.value.trim()
-      : "";
-
-  if (!currentUser) {
-
-    showCyberAlert(
-      "LOGIN REQUIRED",
-      "Please log in before submitting cashouts.",
-      "fa-lock text-amber-400"
-    );
-
-    return;
-  }
-
-  if (
-    !recipientEmail ||
-    !recipientEmail.includes("@")
-  ) {
-
-    showCyberAlert(
-      "INVALID EMAIL",
-      "A valid FaucetPay email address is required.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  if (
-    !amount ||
-    amount < 0.50
-  ) {
-
-    showCyberAlert(
-      "INVALID CASHOUT",
-      "Minimum withdrawal is 0.50 USDT.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  if (
-    amount >
-    Number(userProfile.balance || 0)
-  ) {
-
-    showCyberAlert(
-      "INSUFFICIENT BALANCE",
-      "Amount exceeds your available balance.",
-      "fa-wallet text-rose-500"
-    );
-
-    return;
-  }
-
-  try {
-
-    showCyberAlert(
-      "PROCESSING",
-      "Dispatching cashout request via FaucetPay...",
-      "fa-spinner fa-spin text-emerald-400"
-    );
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient.functions.invoke(
-        "withdraw",
-        {
-          body: {
-            amount:
-              Number(amount),
-
-            recipientEmail:
-              recipientEmail
-          }
-        }
-      );
-
-    if (error) {
-
-      throw new Error(
-        error.message ||
-        "Failed to communicate with payout engine."
-      );
+    if (!currentUser) {
+        showMessage("Please login first.", "error");
+        return;
     }
 
-    if (
-      !data ||
-      !data.success
-    ) {
-
-      throw new Error(
-        data?.error ||
-        data?.message ||
-        "Cashout failed."
-      );
+    if (weeklyWins < requiredWins) {
+        showMessage(
+            "You need " + requiredWins + " verified wins to unlock this reward.",
+            "error"
+        );
+        return;
     }
+
+    showMessage(
+        "Milestone rewards are verified by the CYBERSTRIKE server.",
+        "info"
+    );
 
     /*
-      Reload the real balance
-      from Supabase.
+       IMPORTANT:
+
+       The reward should NOT be added directly from the browser.
+
+       The final production version should call a Supabase Edge Function
+       which checks the player's verified wins and makes the reward credit
+       server-side.
+
+       This prevents players from changing weeklyWins in browser tools.
     */
 
-    await fetchUserProfile();
+    const rewardFunction = "cyberstrike-milestone";
 
-    if (amountInput) {
-
-      amountInput.value = "";
+    if (!supabaseClient) {
+        showMessage("Supabase is not connected.", "error");
+        return;
     }
-
-    closeModal(
-      "withdrawModal"
-    );
-
-    showCyberAlert(
-      "CASHOUT SUCCESSFUL",
-      `${amount.toFixed(2)} USDT cashout request submitted to ${recipientEmail}.`,
-      "fa-circle-check text-emerald-400"
-    );
-
-  } catch (error) {
-
-    console.error(
-      "WITHDRAWAL ERROR:",
-      error
-    );
-
-    showCyberAlert(
-      "PAYOUT ERROR",
-      error.message ||
-      "Payout dispatch failed.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-  }
-}
-
-/* ==========================================================================
-   44. DEPOSIT INPUT LISTENER
-   ========================================================================== */
-
-function setupDepositInputListener() {
-
-  const depositInput =
-    document.getElementById(
-      "depositAmount"
-    );
-
-  const depositDisplay =
-    document.getElementById(
-      "depositAmountDisplay"
-    );
-
-  if (
-    !depositInput ||
-    !depositDisplay
-  ) {
-
-    return;
-  }
-
-  /*
-    Avoid installing the
-    same listener more than once.
-  */
-
-  if (
-    depositInput.dataset.listenerReady ===
-    "true"
-  ) {
-
-    return;
-  }
-
-  depositInput.dataset.listenerReady =
-    "true";
-
-  depositInput.addEventListener(
-    "input",
-    event => {
-
-      const value =
-        parseFloat(
-          event.target.value
-        ) || 0;
-
-      depositDisplay.textContent =
-        `${value.toFixed(2)} USDT`;
-    }
-  );
-}
-
-/* ==========================================================================
-   45. CONFIRM DEPOSIT
-   ========================================================================== */
-
-function confirmDeposit() {
-
-  const depositInput =
-    document.getElementById(
-      "depositAmount"
-    );
-
-  const amount =
-    parseFloat(
-      depositInput
-        ? depositInput.value
-        : 0
-    );
-
-  if (!currentUser) {
-
-    showCyberAlert(
-      "LOGIN REQUIRED",
-      "Please log in before making a deposit.",
-      "fa-lock text-amber-400"
-    );
-
-    return;
-  }
-
-  if (
-    !amount ||
-    amount < 0.50
-  ) {
-
-    showCyberAlert(
-      "INVALID DEPOSIT",
-      "Minimum deposit amount is 0.50 USDT.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  /*
-    Update the FaucetPay custom
-    field with the logged-in user ID.
-  */
-
-  const userIdField =
-    document.getElementById(
-      "custom_user_id"
-    );
-
-  if (
-    userIdField &&
-    currentUser
-  ) {
-
-    userIdField.value =
-      currentUser.id;
-  }
-
-  const form =
-    depositInput
-      ? depositInput.closest("form")
-      : null;
-
-  if (!form) {
-
-    showCyberAlert(
-      "DEPOSIT ERROR",
-      "Deposit form could not be found.",
-      "fa-triangle-exclamation text-rose-500"
-    );
-
-    return;
-  }
-
-  /*
-    Make sure the amount being
-    submitted is valid.
-  */
-
-  depositInput.value =
-    amount.toFixed(2);
-
-  form.submit();
-}
-
-/* ==========================================================================
-   46. REALTIME PROFILE LISTENER
-   ========================================================================== */
-
-function setupDepositListener() {
-
-  if (
-    !supabaseClient ||
-    !currentUser
-  ) {
-
-    return;
-  }
-
-  /*
-    Remove old listener first.
-  */
-
-  if (profileChannel) {
 
     try {
 
-      supabaseClient.removeChannel(
-        profileChannel
-      );
+        showLoading(true);
 
-    } catch (error) {
-
-      console.error(
-        "Old channel removal error:",
-        error
-      );
-    }
-
-    profileChannel = null;
-  }
-
-  try {
-
-    profileChannel =
-      supabaseClient
-        .channel(
-          `profile-${currentUser.id}`
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "profiles",
-            filter:
-              `id=eq.${currentUser.id}`
-          },
-          payload => {
-
-            if (!payload.new) {
-              return;
-            }
-
-            /*
-              Always use the REAL
-              database balance.
-            */
-
-            if (
-              payload.new.balance !==
-              undefined
-            ) {
-
-              userProfile.balance =
-                Number(
-                  payload.new.balance ||
-                  0
-                );
-            }
-
-            if (
-              payload.new.sprint_wins !==
-              undefined
-            ) {
-
-              userProfile.sprint_wins =
-                Number(
-                  payload.new.sprint_wins ||
-                  0
-                );
-            }
-
-            if (
-              payload.new.claimed_milestones !==
-              undefined
-            ) {
-
-              userProfile.claimed_milestones =
-                Array.isArray(
-                  payload.new.claimed_milestones
-                )
-                  ? payload.new.claimed_milestones
-                  : [];
-            }
-
-            updateBalanceDisplay();
-
-            updateSprintProgress();
-          }
-        )
-        .subscribe(
-          status => {
-
-            console.log(
-              "Profile realtime status:",
-              status
+        const { data, error } =
+            await supabaseClient.functions.invoke(
+                rewardFunction,
+                {
+                    body: {
+                        required_wins: requiredWins,
+                        reward_amount: rewardAmount
+                    }
+                }
             );
-          }
+
+        showLoading(false);
+
+        if (error) {
+            console.error("Milestone error:", error);
+            showMessage(
+                "Milestone verification failed.",
+                "error"
+            );
+            return;
+        }
+
+        if (!data) {
+            showMessage(
+                "No response from milestone server.",
+                "error"
+            );
+            return;
+        }
+
+        if (data.success === false) {
+            showMessage(
+                data.message || "Milestone could not be claimed.",
+                "error"
+            );
+            return;
+        }
+
+        if (typeof data.balance !== "undefined") {
+            playerBalance = Number(data.balance) || 0;
+            updateBalanceDisplay();
+        }
+
+        if (typeof data.weekly_wins !== "undefined") {
+            weeklyWins = Number(data.weekly_wins) || weeklyWins;
+            updateWeeklySprint();
+        }
+
+        showMessage(
+            data.message ||
+            ("Milestone reward of " +
+                rewardAmount.toFixed(2) +
+                " USDT credited."),
+            "success"
         );
 
-  } catch (error) {
+    } catch (err) {
 
-    console.error(
-      "Profile listener error:",
-      error
-    );
-  }
+        showLoading(false);
+
+        console.error("Milestone exception:", err);
+
+        showMessage(
+            "Unable to contact the milestone server.",
+            "error"
+        );
+    }
 }
 
+
 /* ==========================================================================
-   47. WEEKLY SPRINT COUNTDOWN
+   4. WEEKLY COUNTDOWN
    ========================================================================== */
 
-function initSprintCountdown() {
+function startWeeklyCountdown() {
 
-  const countdown =
-    document.getElementById(
-      "sprintCountdown"
-    );
-
-  if (!countdown) {
-    return;
-  }
-
-  /*
-    The countdown starts immediately,
-    even when the player has 0 wins.
-  */
-
-  function updateCountdown() {
-
-    const now =
-      new Date();
-
-    const day =
-      now.getDay();
-
-    /*
-      JavaScript:
-      Sunday = 0
-      Monday = 1
-      ...
-      Saturday = 6
-
-      Sprint resets every Monday
-      at 00:00.
-    */
-
-    let daysUntilMonday;
-
-    if (day === 0) {
-
-      daysUntilMonday = 1;
-
-    } else {
-
-      daysUntilMonday =
-        8 - day;
+    if (countdownTimer) {
+        clearInterval(countdownTimer);
     }
 
-    const nextMonday =
-      new Date(now);
+    updateCountdownDisplay();
 
-    nextMonday.setDate(
-      now.getDate() +
-      daysUntilMonday
+    countdownTimer = setInterval(
+        updateCountdownDisplay,
+        1000
     );
+}
 
-    nextMonday.setHours(
-      0,
-      0,
-      0,
-      0
-    );
 
-    const difference =
-      nextMonday.getTime() -
-      now.getTime();
+function updateCountdownDisplay() {
 
-    if (
-      difference <= 0
-    ) {
+    const countdownElement =
+        document.getElementById("countdown");
 
-      countdown.textContent =
-        "00d 00h 00m 00s";
+    if (!countdownElement) return;
 
-      return;
+    if (!weeklySprintStartedAt) {
+        countdownElement.textContent = "7 DAYS";
+        return;
+    }
+
+    const startTime =
+        new Date(weeklySprintStartedAt).getTime();
+
+    if (!Number.isFinite(startTime)) {
+        countdownElement.textContent = "7 DAYS";
+        return;
+    }
+
+    const sprintDuration =
+        7 * 24 * 60 * 60 * 1000;
+
+    const endTime =
+        startTime + sprintDuration;
+
+    const remaining =
+        endTime - Date.now();
+
+    if (remaining <= 0) {
+
+        countdownElement.textContent =
+            "RESETTING...";
+
+        return;
     }
 
     const totalSeconds =
-      Math.floor(
-        difference / 1000
-      );
+        Math.floor(remaining / 1000);
 
     const days =
-      Math.floor(
-        totalSeconds / 86400
-      );
+        Math.floor(totalSeconds / 86400);
 
     const hours =
-      Math.floor(
-        (totalSeconds % 86400) /
-        3600
-      );
+        Math.floor(
+            (totalSeconds % 86400) / 3600
+        );
 
     const minutes =
-      Math.floor(
-        (totalSeconds % 3600) /
-        60
-      );
+        Math.floor(
+            (totalSeconds % 3600) / 60
+        );
 
     const seconds =
-      totalSeconds % 60;
+        totalSeconds % 60;
 
-    countdown.textContent =
-      `${String(days).padStart(2, "0")}d ` +
-      `${String(hours).padStart(2, "0")}h ` +
-      `${String(minutes).padStart(2, "0")}m ` +
-      `${String(seconds).padStart(2, "0")}s`;
-  }
-
-  updateCountdown();
-
-  setInterval(
-    updateCountdown,
-    1000
-  );
+    countdownElement.textContent =
+        String(days).padStart(2, "0") +
+        "D " +
+        String(hours).padStart(2, "0") +
+        "H " +
+        String(minutes).padStart(2, "0") +
+        "M " +
+        String(seconds).padStart(2, "0") +
+        "S";
 }
 
-/* ==========================================================================
-   48. PAYMENT REDIRECT CHECK
-   ========================================================================== */
-
-function checkPaymentRedirect() {
-
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  const payment =
-    params.get("payment");
-
-  if (
-    payment === "success"
-  ) {
-
-    showCyberAlert(
-      "PAYMENT RECEIVED",
-      "Your deposit was received. Your balance will update after confirmation.",
-      "fa-circle-check text-emerald-400"
-    );
-
-  } else if (
-    payment === "cancelled"
-  ) {
-
-    showCyberAlert(
-      "PAYMENT CANCELLED",
-      "The deposit checkout process was cancelled.",
-      "fa-xmark text-rose-500"
-    );
-  }
-}
 
 /* ==========================================================================
-   49. MODAL OUTSIDE CLICK DISMISSAL
+   5. GENERIC LOADING STATE
    ========================================================================== */
 
-document.addEventListener(
-  "click",
-  event => {
+function showLoading(isLoading) {
 
-    [
-      "depositModal",
-      "withdrawModal",
-      "cyberAlertModal"
-    ].forEach(
-      modalId => {
+    const button =
+        document.getElementById("loginButton");
 
-        const modal =
-          document.getElementById(
-            modalId
-          );
+    if (!button) return;
 
-        if (
-          modal &&
-          event.target === modal
-        ) {
+    if (isLoading) {
 
-          modal.classList.add(
-            "hidden"
-          );
+        if (!button.dataset.originalText) {
+            button.dataset.originalText =
+                button.textContent;
         }
-      }
-    );
-  }
-);
+
+        button.disabled = true;
+        button.textContent = "CONNECTING...";
+
+    } else {
+
+        button.disabled = false;
+
+        if (button.dataset.originalText) {
+            button.textContent =
+                button.dataset.originalText;
+        }
+    }
+}
+
 
 /* ==========================================================================
-   50. ESC KEY CLOSES MODALS
+   6. MESSAGE SYSTEM
    ========================================================================== */
 
-document.addEventListener(
-  "keydown",
-  event => {
+function showMessage(message, type = "info") {
 
-    if (
-      event.key !== "Escape"
-    ) {
+    const messageElement =
+        document.getElementById("cyberMessage");
 
-      return;
+    if (!messageElement) {
+        console.log(
+            "[" + type.toUpperCase() + "]",
+            message
+        );
+        return;
     }
 
-    [
-      "depositModal",
-      "withdrawModal",
-      "cyberAlertModal"
-    ].forEach(
-      modalId => {
+    messageElement.textContent = message;
 
-        closeModal(
-          modalId
+    messageElement.style.display = "block";
+
+    messageElement.dataset.type = type;
+
+    if (type === "error") {
+        messageElement.style.borderColor =
+            "#ef4444";
+    } else if (type === "success") {
+        messageElement.style.borderColor =
+            "#22c55e";
+    } else {
+        messageElement.style.borderColor =
+            "#06b6d4";
+    }
+
+    clearTimeout(
+        messageElement._hideTimer
+    );
+
+    messageElement._hideTimer =
+        setTimeout(() => {
+
+            messageElement.style.display =
+                "none";
+
+        }, 5000);
+}
+
+
+/* ==========================================================================
+   7. AUTH SCREEN
+   ========================================================================== */
+
+function showLoginScreen() {
+
+    const authGate =
+        document.getElementById("authGate");
+
+    const appContainer =
+        document.getElementById("appContainer");
+
+    if (authGate) {
+        authGate.style.display = "flex";
+    }
+
+    if (appContainer) {
+        appContainer.style.display = "none";
+    }
+
+    const emailInput =
+        document.getElementById("loginEmail");
+
+    const passwordInput =
+        document.getElementById("loginPassword");
+
+    if (emailInput) {
+        emailInput.disabled = false;
+    }
+
+    if (passwordInput) {
+        passwordInput.disabled = false;
+    }
+
+    showAuthMessage("");
+}
+
+
+/* ==========================================================================
+   8. DASHBOARD SCREEN
+   ========================================================================== */
+
+function showDashboard() {
+
+    const authGate =
+        document.getElementById("authGate");
+
+    const appContainer =
+        document.getElementById("appContainer");
+
+    if (authGate) {
+        authGate.style.display = "none";
+    }
+
+    if (appContainer) {
+        appContainer.style.display = "block";
+    }
+
+    updateDashboard();
+
+    startWeeklyCountdown();
+}
+
+
+/* ==========================================================================
+   9. AUTH MESSAGE
+   ========================================================================== */
+
+function showAuthMessage(message, type = "error") {
+
+    const element =
+        document.getElementById("authMessage");
+
+    if (!element) {
+        if (message) {
+            console.log(
+                "[" + type.toUpperCase() + "]",
+                message
+            );
+        }
+        return;
+    }
+
+    element.textContent = message;
+
+    if (!message) {
+        element.style.display = "none";
+        return;
+    }
+
+    element.style.display = "block";
+
+    if (type === "success") {
+        element.style.color = "#22c55e";
+    } else {
+        element.style.color = "#ef4444";
+    }
+}
+
+
+/* ==========================================================================
+   10. FIND OPPONENT
+   ========================================================================== */
+
+async function findOpponent() {
+
+    if (!currentUser) {
+        showMessage(
+            "Please login before finding an opponent.",
+            "error"
         );
-      }
-    );
-  }
-);
+        return;
+    }
 
-/* ==========================================================================
-   51. KEEP DEPOSIT USER ID SYNCHRONIZED
-   ========================================================================== */
+    if (!CYBERSTRIKE_GAMES.includes(selectedGame)) {
+        showMessage(
+            "Please select a valid game.",
+            "error"
+        );
+        return;
+    }
 
-function syncDepositUserId() {
+    if (!CYBERSTRIKE_STAKES.includes(selectedStake)) {
+        showMessage(
+            "Please select a valid stake.",
+            "error"
+        );
+        return;
+    }
 
-  if (!currentUser) {
-    return;
-  }
+    const requiredBalance =
+        Number(selectedStake);
 
-  const field =
-    document.getElementById(
-      "custom_user_id"
-    );
-
-  if (field) {
-
-    field.value =
-      currentUser.id;
-  }
-}
-
-/* ==========================================================================
-   52. KEEP WITHDRAW EMAIL SYNCHRONIZED
-   ========================================================================== */
-
-function syncWithdrawEmail() {
-
-  if (
-    !currentUser ||
-    !currentUser.email
-  ) {
-
-    return;
-  }
-
-  const field =
-    document.getElementById(
-      "withdrawEmailInput"
-    );
-
-  if (field) {
-
-    field.value =
-      currentUser.email;
-  }
-}
-
-/* ==========================================================================
-   53. REFRESH USER DATA
-   ========================================================================== */
-
-async function refreshUserData() {
-
-  if (!currentUser) {
-    return;
-  }
-
-  await fetchUserProfile();
-
-  syncDepositUserId();
-
-  syncWithdrawEmail();
-
-  updateBalanceDisplay();
-
-  updateSprintProgress();
-}
-
-/* ==========================================================================
-   54. PREVENT STALE MATCH STATE
-   ========================================================================== */
-
-function resetMatchState() {
-
-  matchActive =
-    false;
-
-  currentMatchId =
-    null;
-
-  playerScore =
-    0;
-
-  opponentScore =
-    0;
-
-  ludoGameOver =
-    false;
-
-  ludoDice =
-    0;
-
-  ludoWaitingForToken =
-    false;
-
-  ludoTurn =
-    "player";
-
-  ludoPlayerHome =
-    0;
-
-  ludoOpponentHome =
-    0;
-
-  ludoPlayerTokens =
-    [0, 0, 0, 0];
-
-  ludoOpponentTokens =
-    [0, 0, 0, 0];
-
-  const canvas =
-    document.getElementById(
-      "gameCanvas"
-    );
-
-  if (canvas) {
-
-    canvas.onclick =
-      null;
-  }
-}
-
-/* ==========================================================================
-   55. FINAL INITIALIZATION
-   ========================================================================== */
-
-window.addEventListener(
-  "load",
-  () => {
+    if (playerBalance < requiredBalance) {
+        showMessage(
+            "Insufficient USDT balance.",
+            "error"
+        );
+        return;
+    }
 
     /*
-      Make sure the game selector
-      exists after the page has
-      completely loaded.
+       Matchmaking will be handled by the secure
+       CYBERSTRIKE Edge Function.
+
+       The browser must never decide:
+       - who the opponent is
+       - whether money is deducted
+       - who wins
+       - the final payout
+
+       Those decisions belong on the server.
     */
 
-    createGameModeSelector();
+    if (!supabaseClient) {
+        showMessage(
+            "Supabase is not connected.",
+            "error"
+        );
+        return;
+    }
 
-    updateGameModeUI();
+    try {
 
-    updateMatchOverlay();
+        showMessage(
+            "Searching for an opponent...",
+            "info"
+        );
 
-    setupDepositInputListener();
+        const { data, error } =
+            await supabaseClient.functions.invoke(
+                "cyberstrike-matchmaking",
+                {
+                    body: {
+                        game: selectedGame,
+                        stake: selectedStake
+                    }
+                }
+            );
 
-    syncDepositUserId();
+        if (error) {
 
-    syncWithdrawEmail();
-  }
-);
+            console.error(
+                "Matchmaking error:",
+                error
+            );
+
+            showMessage(
+                "MATCHMAKING ERROR",
+                "error"
+            );
+
+            return;
+        }
+
+        if (!data) {
+
+            showMessage(
+                "No matchmaking response.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (data.success === false) {
+
+            showMessage(
+                data.message ||
+                "Unable to find an opponent.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (data.match_id) {
+
+            showMessage(
+                "Opponent found. Match starting...",
+                "success"
+            );
+
+            /*
+               The actual game screen will use
+               data.match_id in the next part.
+            */
+
+            window.CYBERSTRIKE_MATCH_ID =
+                data.match_id;
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Matchmaking exception:",
+            error
+        );
+
+        showMessage(
+            "Unable to connect to matchmaking.",
+            "error"
+        );
+    }
+}
+
 
 /* ==========================================================================
-   END OF SCRIPT.JS — PART 4 OF 4
+   11. LOGOUT UI
+   ========================================================================== */
+
+async function handleLogout() {
+
+    await logoutUser();
+}
+
+
+/* ==========================================================================
+   12. KEYBOARD LOGIN SUPPORT
+   ========================================================================== */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key !== "Enter") return;
+
+        const email =
+            document.getElementById("loginEmail");
+
+        const password =
+            document.getElementById("loginPassword");
+
+        if (!email || !password) return;
+
+        if (
+            document.activeElement === email ||
+            document.activeElement === password
+        ) {
+
+            event.preventDefault();
+
+            loginUser(
+                email.value,
+                password.value
+            );
+        }
+    }
+);
+
+
+/* ==========================================================================
+   END OF PART 2
+
+   PART 3 WILL CONTAIN:
+
+   - DEPOSIT MODAL
+   - CASHOUT MODAL
+   - USDT WALLET UI
+   - SUPABASE EDGE FUNCTION CALLS
+   - DEPOSIT CHECKOUT REDIRECT
+   - WITHDRAWAL REQUEST
    ========================================================================== */

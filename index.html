@@ -1,346 +1,1099 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CYBERSTRIKE | 1v1 Penalty Arena</title>
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
 
-  <!-- Supabase JS Client SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-  <!-- Google Fonts & FontAwesome -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <title>CYBERSTRIKE | 1v1 Arena</title>
 
   <style>
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #020617; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
-    
-    .modal-backdrop { animation: fadeIn 0.2s ease-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-    canvas { touch-action: none; }
 
-    .sprint-claim-btn {
-      width: 100%;
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      transition: all 0.3s ease;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #070b12;
+      color: #ffffff;
+      min-height: 100vh;
+    }
+
+    button {
+      font: inherit;
       cursor: pointer;
     }
 
-    .sprint-claim-btn.ready {
-      background-color: #00e676;
-      color: #020617;
-      border: 1px solid #00e676;
-      box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
-    }
-    .sprint-claim-btn.ready:hover {
-      background-color: #00c853;
-      box-shadow: 0 0 16px rgba(0, 230, 118, 0.7);
+    .app {
+      max-width: 520px;
+      margin: auto;
+      padding: 16px 14px 90px;
     }
 
-    .sprint-claim-btn.locked,
-    .sprint-claim-btn:disabled:not(.claimed-glowing) {
-      background-color: #020617;
-      color: #475569;
-      border: 1px solid #1e293b;
-      cursor: not-allowed;
+    /* =========================================================
+       HEADER
+       ========================================================= */
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
     }
 
-    .sprint-claim-btn.claimed-glowing,
-    .sprint-claim-btn:disabled.claimed-glowing {
-      background-color: #0f172a !important;
-      color: #00ffcc !important;
-      border: 1px solid #00ffcc !important;
-      cursor: not-allowed !important;
-      opacity: 1 !important;
-      box-shadow: 0 0 14px rgba(0, 255, 204, 0.7), inset 0 0 8px rgba(0, 255, 204, 0.2) !important;
-      text-shadow: 0 0 6px rgba(0, 255, 204, 0.8) !important;
+    .logo {
+      font-size: 25px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #00e5ff;
     }
+
+    .subtitle {
+      font-size: 10px;
+      color: #8493a7;
+      letter-spacing: 1.5px;
+      margin-top: 3px;
+    }
+
+    .header-icons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #1d3445;
+      border-radius: 10px;
+      background: #0c131d;
+      color: white;
+    }
+
+    /* =========================================================
+       BALANCE
+       ========================================================= */
+
+    .balance-card {
+      background: linear-gradient(
+        145deg,
+        #101c29,
+        #0b111a
+      );
+
+      border: 1px solid #1b4052;
+
+      border-radius: 18px;
+
+      padding: 20px;
+
+      margin-bottom: 18px;
+
+      box-shadow:
+        0 0 25px rgba(0, 229, 255, .06);
+    }
+
+    .balance-label {
+      color: #8ea0b3;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+    }
+
+    .balance {
+      font-size: 32px;
+      font-weight: 900;
+      margin: 8px 0 18px;
+    }
+
+    .balance-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .deposit,
+    .cashout {
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 800;
+    }
+
+    .deposit {
+      background: #00d9ff;
+      color: #001018;
+      border: none;
+    }
+
+    .cashout {
+      background: #12202c;
+      color: #dce8f2;
+      border: 1px solid #294353;
+    }
+
+    .deposit:active,
+    .cashout:active {
+      transform: scale(.98);
+    }
+
+    /* =========================================================
+       SECTION
+       ========================================================= */
+
+    .section-title {
+      font-size: 18px;
+      margin: 22px 0 12px;
+      letter-spacing: .5px;
+    }
+
+    /* =========================================================
+       GAMES
+       ========================================================= */
+
+    .games {
+      display: grid;
+      gap: 12px;
+    }
+
+    .game-card {
+      background: #0d151f;
+      border: 1px solid #1b2d3c;
+      border-radius: 15px;
+      padding: 15px;
+
+      display: flex;
+      align-items: center;
+
+      gap: 13px;
+    }
+
+    .game-icon {
+      width: 48px;
+      height: 48px;
+
+      border-radius: 12px;
+
+      display: grid;
+      place-items: center;
+
+      background: #101f2d;
+
+      font-size: 24px;
+    }
+
+    .game-info {
+      flex: 1;
+    }
+
+    .game-name {
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .game-desc {
+      color: #8191a4;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .play-btn {
+      border: 1px solid #00bcd4;
+      background: transparent;
+      color: #00e5ff;
+
+      padding: 9px 10px;
+
+      border-radius: 8px;
+
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .play-btn:active {
+      transform: scale(.97);
+    }
+
+    /* =========================================================
+       STAKES
+       ========================================================= */
+
+    .stake-card {
+      background: #0d151f;
+
+      border: 1px solid #1b2d3c;
+
+      border-radius: 15px;
+
+      padding: 16px;
+    }
+
+    .stake-label {
+      color: #8798ab;
+
+      font-size: 11px;
+
+      margin-bottom: 12px;
+
+      letter-spacing: 1px;
+    }
+
+    .stakes {
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, 1fr);
+
+      gap: 8px;
+    }
+
+    .stake {
+      padding: 12px 4px;
+
+      border-radius: 9px;
+
+      border: 1px solid #29404f;
+
+      background: #0a1119;
+
+      color: #d9e6ef;
+
+      font-weight: 800;
+    }
+
+    .stake.active,
+    .stake.selected {
+      background: #00d9ff;
+
+      color: #001018;
+
+      border-color: #00d9ff;
+    }
+
+    /* =========================================================
+       PAYOUT INFORMATION
+       ========================================================= */
+
+    .payout-info {
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      margin-top: 14px;
+
+      padding-top: 12px;
+
+      border-top: 1px solid #172631;
+
+      font-size: 12px;
+
+      color: #8798ab;
+    }
+
+    .payout-value {
+      color: #65e6a1;
+
+      font-weight: 900;
+    }
+
+    /* =========================================================
+       WEEKLY SPRINT
+       ========================================================= */
+
+    .sprint {
+      background: #0d151f;
+
+      border: 1px solid #1b2d3c;
+
+      border-radius: 15px;
+
+      padding: 17px;
+    }
+
+    .sprint-top {
+      display: flex;
+
+      justify-content: space-between;
+
+      gap: 10px;
+    }
+
+    .sprint-title {
+      font-weight: 900;
+    }
+
+    .next-reward {
+      color: #00e5ff;
+
+      font-size: 11px;
+
+      margin-top: 5px;
+    }
+
+    .countdown {
+      text-align: right;
+
+      color: #9babbc;
+
+      font-size: 11px;
+    }
+
+    .progress-row {
+      display: flex;
+
+      justify-content: space-between;
+
+      margin-top: 18px;
+
+      font-size: 12px;
+    }
+
+    .progress-bar {
+      height: 9px;
+
+      background: #182532;
+
+      border-radius: 10px;
+
+      margin: 8px 0 16px;
+
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+
+      height: 100%;
+
+      background: #00d9ff;
+
+      transition:
+        width .3s ease;
+    }
+
+    .milestone {
+      display: flex;
+
+      justify-content: space-between;
+
+      padding: 10px 0;
+
+      border-top: 1px solid #172631;
+
+      font-size: 13px;
+    }
+
+    .reward {
+      color: #65e6a1;
+
+      font-weight: 800;
+    }
+
+    /* =========================================================
+       BOTTOM NAV
+       ========================================================= */
+
+    .bottom-nav {
+      position: fixed;
+
+      left: 50%;
+      bottom: 0;
+
+      transform:
+        translateX(-50%);
+
+      width: 100%;
+
+      max-width: 520px;
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, 1fr);
+
+      background: #091019;
+
+      border-top:
+        1px solid #1b2c3b;
+
+      padding:
+        9px 8px
+        calc(
+          9px +
+          env(safe-area-inset-bottom)
+        );
+    }
+
+    .nav-item {
+      border: none;
+
+      background: transparent;
+
+      color: #758596;
+
+      padding: 7px 2px;
+
+      font-size: 10px;
+    }
+
+    .nav-item.active {
+      color: #00e5ff;
+    }
+
+    .nav-icon {
+      display: block;
+
+      font-size: 18px;
+
+      margin-bottom: 3px;
+    }
+
+    /* =========================================================
+       MESSAGE
+       ========================================================= */
+
+    #cyberMessage {
+      position: fixed;
+
+      left: 50%;
+
+      bottom: 78px;
+
+      transform:
+        translateX(-50%)
+        translateY(20px);
+
+      width: calc(100% - 28px);
+
+      max-width: 490px;
+
+      padding: 13px 15px;
+
+      border-radius: 10px;
+
+      background: #111d29;
+
+      border: 1px solid #294353;
+
+      color: white;
+
+      text-align: center;
+
+      font-size: 13px;
+
+      opacity: 0;
+
+      pointer-events: none;
+
+      transition:
+        opacity .25s ease,
+        transform .25s ease;
+
+      z-index: 9999;
+    }
+
+    #cyberMessage.show {
+      opacity: 1;
+
+      transform:
+        translateX(-50%)
+        translateY(0);
+    }
+
+    #cyberMessage.success {
+      border-color: #2c9f69;
+    }
+
+    #cyberMessage.error {
+      border-color: #c84b4b;
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+
+    @media (min-width: 700px) {
+
+      .app {
+        padding-top: 30px;
+      }
+
+    }
+
   </style>
 
-  <!-- Mobile Inspector Console -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-['Rajdhani'] antialiased min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden">
 
-  <!-- AUTH GATE OVERLAY -->
-  <div id="authGate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4">
-    <div class="w-full max-w-md p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.15)] text-center relative overflow-hidden">
-      <div class="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl"></div>
-      
-      <h1 class="font-['Orbitron'] text-2xl sm:text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 mb-2">
-        CYBERSTRIKE
-      </h1>
-      <p class="text-xs tracking-widest text-slate-400 uppercase mb-6">Competitive 1v1 Skill Arena</p>
 
-      <form id="loginForm" class="space-y-4 text-left" onsubmit="event.preventDefault(); handleLogin();">
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-cyan-400 mb-1">Email / FaucetPay Account</label>
-          <input type="email" id="loginEmail" required placeholder="your-email@gmail.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition" />
-        </div>
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-cyan-400 mb-1">Security Key / Password</label>
-          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition" />
-        </div>
+<body>
 
-        <div id="authMessage" class="hidden text-xs text-rose-400 bg-rose-950/40 border border-rose-800/50 p-2.5 rounded-lg text-center"></div>
 
-        <button type="submit" id="loginButton" class="w-full mt-2 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 font-['Orbitron'] font-bold text-slate-950 text-sm tracking-widest hover:brightness-110 active:scale-[0.99] transition shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-          LOGIN / ENTER ARENA
-        </button>
-      </form>
-    </div>
-  </div>
+  <!-- =========================================================
+       MAIN APP
+       ========================================================= -->
 
-  <!-- MAIN APPLICATION CONTAINER -->
-  <div id="appContainer" class="hidden flex-1 flex flex-col min-h-screen">
-    <header class="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur sticky top-0 z-40 w-full overflow-hidden">
-      <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2 min-h-[3.25rem] flex items-center justify-between gap-1 sm:gap-2">
-        <div class="flex items-center gap-1.5 shrink-0">
-          <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-black font-['Orbitron'] text-xs sm:text-base">CS</div>
-          <span class="font-['Orbitron'] font-bold text-xs sm:text-lg tracking-wider text-slate-100 hidden md:inline-block">CYBERSTRIKE</span>
+  <main class="app" id="appContainer">
+
+
+    <!-- =======================================================
+         HEADER
+         ======================================================= -->
+
+    <header class="header">
+
+      <div>
+
+        <div class="logo">
+          CYBERSTRIKE
         </div>
 
-        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div class="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 sm:px-3 sm:py-1.5 flex items-center gap-1.5">
-            <i class="fa-solid fa-wallet text-emerald-400 text-[9px] sm:text-xs"></i>
-            <div>
-              <div class="text-[7px] sm:text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none">Balance</div>
-              <div class="text-[10px] sm:text-sm font-bold text-emerald-400 font-['Orbitron'] leading-tight">
-                <span id="userBalanceDisplay">0.00</span> <span class="text-[8px] sm:text-xs">USDT</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-0.5 shrink-0">
-            <button onclick="openModal('depositModal')" class="px-2 py-0.5 rounded border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 font-bold text-[8px] sm:text-[10px] hover:bg-cyan-500/20 transition">+ DEPOSIT</button>
-            <button onclick="openModal('withdrawModal')" class="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold text-[8px] sm:text-[10px] hover:bg-emerald-500/20 transition"><i class="fa-solid fa-arrow-up-right-from-square text-[7px] mr-0.5"></i> CASHOUT</button>
-          </div>
-
-          <button onclick="logout()" title="Logout" class="p-1.5 text-slate-500 hover:text-rose-400 transition shrink-0"><i class="fa-solid fa-power-off text-xs sm:text-base"></i></button>
+        <div class="subtitle">
+          1v1 COMPETITIVE ARENA
         </div>
+
       </div>
+
+
+      <div class="header-icons">
+
+        <button
+          class="icon-btn"
+          type="button"
+          onclick="showMessage('Notifications coming soon')"
+        >
+          🔔
+        </button>
+
+
+        <button
+          class="icon-btn"
+          type="button"
+          onclick="showMessage('Profile coming soon')"
+        >
+          👤
+        </button>
+
+      </div>
+
     </header>
 
-    <main class="max-w-7xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <section class="lg:col-span-4 space-y-6">
-        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="font-['Orbitron'] text-xs font-bold uppercase text-cyan-400 tracking-wider">1. Select Entry Stake</h2>
-            <span id="matchOverviewStake" class="text-xs font-bold text-slate-300">Entry Stake: <strong class="text-cyan-400">$0.50 USDT</strong></span>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <button id="stake-tier-0.50" onclick="selectStakeTier(0.50)" class="stake-tier-btn bg-cyan-500 text-slate-950 font-bold py-2 px-3 rounded text-sm shadow-glow transition-all">$0.50</button>
-            <button id="stake-tier-1.00" onclick="selectStakeTier(1.00)" class="stake-tier-btn bg-slate-800 border border-slate-700 hover:border-cyan-500 text-white font-bold py-2 px-3 rounded text-sm transition-all">$1.00</button>
-            <button id="stake-tier-5.00" onclick="selectStakeTier(5.00)" class="stake-tier-btn bg-slate-800 border border-slate-700 hover:border-cyan-500 text-white font-bold py-2 px-3 rounded text-sm transition-all">$5.00</button>
-          </div>
-        </div>
 
-        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
-          <h2 class="font-['Orbitron'] text-xs font-bold uppercase text-cyan-400 tracking-wider">2. Game Arena</h2>
-          <div class="p-3.5 rounded-xl border border-cyan-500 bg-cyan-950/30 flex items-center justify-between">
-            <div>
-              <div class="font-bold text-sm text-slate-100">Penalty Shootout 1v1</div>
-              <div class="text-xs text-slate-400">Timing & reaction shooter duel</div>
-            </div>
-            <i class="fa-solid fa-football text-cyan-400 text-lg"></i>
-          </div>
-        </div>
-      </section>
+    <!-- =======================================================
+         WALLET
+         ======================================================= -->
 
-      <section class="lg:col-span-8 space-y-6">
-        <div class="relative bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden min-h-[380px] sm:min-h-[460px] flex flex-col shadow-2xl">
-          <div class="px-4 py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span id="currentModeTitle" class="text-xs sm:text-sm font-bold font-['Orbitron'] text-slate-200">Penalty Shootout 1v1</span>
-            </div>
-            <span class="text-[10px] text-slate-400 font-mono uppercase bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">System: Online</span>
-          </div>
+    <section class="balance-card">
 
-          <div class="relative flex-1 bg-slate-950 flex items-center justify-center">
-            <canvas id="gameCanvas" width="1200" height="675" class="w-full h-full object-cover"></canvas>
-            
-            <div id="canvasOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3">
-              <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-3xl shadow-[0_0_20px_rgba(6,182,212,0.2)] animate-pulse">
-                <i class="fa-solid fa-gamepad"></i>
-              </div>
-              <div>
-                <h3 class="font-['Orbitron'] font-black text-xl sm:text-2xl text-slate-100 tracking-wider">ARENA STANDBY</h3>
-                <p id="matchOverlayDesc" class="text-xs sm:text-sm text-slate-400 max-w-md mt-1 leading-relaxed">
-                  Entry Stake: <strong class="text-cyan-400">$0.50 USDT</strong>. Winner takes <strong class="text-emerald-400">$0.80 USDT</strong> (20% rake).
-                </p>
-              </div>
-              <button onclick="startMatchmaking()" class="mt-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs sm:text-sm tracking-widest hover:brightness-110 active:scale-95 transition shadow-[0_0_25px_rgba(6,182,212,0.4)] flex items-center gap-2">
-                <i class="fa-solid fa-play text-sm"></i> LAUNCH MATCH
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 class="font-['Orbitron'] text-sm font-bold text-slate-100">7-Day Victory Sprint</h3>
-              <p class="text-xs text-slate-400">Win matches to unlock platform rewards</p>
-            </div>
-            <div class="text-right">
-              <div class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">RESET IN</div>
-              <span id="sprintCountdown" class="font-mono text-xs font-bold text-cyan-400">00d 00h 00m 00s</span>
-            </div>
-          </div>
-
-          <div class="space-y-1">
-            <div class="flex justify-between text-xs text-slate-400">
-              <span>Wins: <strong id="sprintWinsCount" class="text-slate-100">0</strong></span>
-              <span id="nextRewardLabel" class="text-cyan-400 font-bold">NEXT REWARD: 2.00 USDT</span>
-            </div>
-            <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-              <div id="sprintProgressBar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[0%] transition-all duration-500"></div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
-              <div>
-                <div class="text-[10px] text-slate-500 font-bold uppercase">20 Wins</div>
-                <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$2.00</div>
-              </div>
-              <button id="claim20Btn" onclick="claimMilestone(event, 20, 2.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
-            </div>
-
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
-              <div>
-                <div class="text-[10px] text-slate-500 font-bold uppercase">50 Wins</div>
-                <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$5.00</div>
-              </div>
-              <button id="claim50Btn" onclick="claimMilestone(event, 50, 5.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
-            </div>
-
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
-              <div>
-                <div class="text-[10px] text-slate-500 font-bold uppercase">100 Wins</div>
-                <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$10.00</div>
-              </div>
-              <button id="claim100Btn" onclick="claimMilestone(event, 100, 10.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
-            </div>
-
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center flex flex-col justify-between">
-              <div>
-                <div class="text-[10px] text-slate-500 font-bold uppercase">1000 Wins</div>
-                <div class="text-sm font-bold text-emerald-400 font-['Orbitron'] my-1">+$100.00</div>
-              </div>
-              <button id="claim1000Btn" onclick="claimMilestone(event, 1000, 100.00)" disabled class="sprint-claim-btn locked">LOCKED</button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-    </div>
-                  <!-- MODALS -->
-
-  <!-- Deposit Modal -->
-  <div id="depositModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 relative space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-['Orbitron'] font-bold text-sm text-cyan-400">FAUCETPAY DEPOSIT</h3>
-        <button onclick="closeModal('depositModal')" class="text-slate-500 hover:text-slate-300"><i class="fa-solid fa-xmark"></i></button>
+      <div class="balance-label">
+        AVAILABLE BALANCE
       </div>
 
-      <form action="https://faucetpay.io/merchant/webscr" method="POST" class="space-y-4">
-        <!-- FaucetPay Merchant Parameters -->
-        <input type="hidden" name="merchant_username" value="chimeko45" />
-        <input type="hidden" name="item_name" value="CyberStrike Balance Deposit" />
-        <input type="hidden" name="currency1" value="USDT" />
-        <input type="hidden" name="currency2" value="USDT" />
-        <input type="hidden" name="callback_url" value="https://btugwhcoypxtlgmsxqci.supabase.co/functions/v1/Deposit" />
-        <input type="hidden" name="custom" id="custom_user_id" value="" />
-        
-        <!-- Redirect URLs back to application -->
-        <input type="hidden" name="success_url" value="index.html?payment=success" />
-        <input type="hidden" name="cancel_url" value="index.html?payment=cancelled" />
 
-        <div>
-          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Deposit Amount (USDT)</label>
-          <input 
-            type="number" 
-            name="amount1"
-            id="depositAmount" 
-            min="0.50" 
-            step="0.50" 
-            value="1.00" 
-            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-100 focus:outline-none focus:border-cyan-500" 
-          />
-        </div>
+      <!--
+        IMPORTANT:
+        script.js updates this element automatically.
+      -->
 
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 flex justify-between">
-          <span>You will pay:</span>
-          <strong id="depositAmountDisplay" class="text-emerald-400">1.00 USDT</strong>
-        </div>
+      <div
+        class="balance"
+        id="userBalanceDisplay"
+      >
+        0.00 USDT
+      </div>
 
-        <button type="button" onclick="confirmDeposit()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 font-['Orbitron'] font-bold text-slate-950 text-xs tracking-wider hover:brightness-110">
-          PROCEED TO FAUCETPAY
+
+      <div class="balance-actions">
+
+        <button
+          class="deposit"
+          type="button"
+          onclick="openDepositModal()"
+        >
+          DEPOSIT
         </button>
-      </form>
-    </div>
-  </div>
 
-  <!-- Cashout Modal -->
-  <div id="withdrawModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 relative space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-['Orbitron'] font-bold text-sm text-emerald-400">INSTANT CASHOUT</h3>
-        <button onclick="closeModal('withdrawModal')" class="text-slate-500 hover:text-slate-300"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="space-y-4 text-xs">
-        <div>
-          <label class="block font-bold text-slate-400 uppercase mb-1">FaucetPay Email</label>
-          <input type="email" id="withdrawEmailInput" readonly class="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-400 cursor-not-allowed" />
-        </div>
-        <div>
-          <label class="block font-bold text-slate-400 uppercase mb-1">Available Balance</label>
-          <div id="withdrawBalanceDisplay" class="font-['Orbitron'] font-bold text-emerald-400 text-base">0.00 USDT</div>
-        </div>
-        <div>
-          <label class="block font-bold text-slate-400 uppercase mb-1">Withdraw Amount (USDT)</label>
-          <input type="number" id="withdrawAmountInput" min="0.50" step="0.50" placeholder="0.50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-emerald-500" />
-        </div>
-        <button onclick="confirmWithdrawal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 font-['Orbitron'] font-bold text-slate-950 text-xs tracking-wider hover:brightness-110">CONFIRM CASHOUT</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Cyber Alert Modal -->
-  <div id="cyberAlertModal" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-    <div class="w-full max-w-sm bg-slate-900 border border-cyan-500/40 rounded-2xl p-6 text-center shadow-[0_0_30px_rgba(6,182,212,0.2)] relative space-y-4">
-      <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center mx-auto text-cyan-400 text-xl">
-        <i id="cyberAlertIcon" class="fa-solid fa-gift"></i>
+        <button
+          class="cashout"
+          type="button"
+          onclick="openWithdrawModal()"
+        >
+          CASHOUT
+        </button>
+
       </div>
-      <div>
-        <h3 id="cyberAlertTitle" class="font-['Orbitron'] font-bold text-base text-slate-100">REWARD CLAIMED</h3>
-        <p id="cyberAlertMessage" class="text-xs text-slate-400 mt-1 leading-relaxed">Successfully claimed reward to your balance!</p>
+
+    </section>
+
+
+    <!-- =======================================================
+         GAMES
+         ======================================================= -->
+
+    <h2 class="section-title">
+      PLAY 1v1
+    </h2>
+
+
+    <section class="games">
+
+
+      <!-- PENALTY -->
+
+      <article class="game-card">
+
+        <div class="game-icon">
+          ⚽
+        </div>
+
+
+        <div class="game-info">
+
+          <div class="game-name">
+            PENALTY SHOOTOUT
+          </div>
+
+          <div class="game-desc">
+            Real-time 1v1 football duel
+          </div>
+
+        </div>
+
+
+        <button
+          class="play-btn"
+          type="button"
+          onclick="selectGame('Penalty Shootout')"
+        >
+          PLAY
+        </button>
+
+      </article>
+
+
+      <!-- LUDO -->
+
+      <article class="game-card">
+
+        <div class="game-icon">
+          🎲
+        </div>
+
+
+        <div class="game-info">
+
+          <div class="game-name">
+            LUDO RACE
+          </div>
+
+          <div class="game-desc">
+            Race your opponent to victory
+          </div>
+
+        </div>
+
+
+        <button
+          class="play-btn"
+          type="button"
+          onclick="selectGame('Ludo Race')"
+        >
+          PLAY
+        </button>
+
+      </article>
+
+
+      <!-- CHESS -->
+
+      <article class="game-card">
+
+        <div class="game-icon">
+          ♟️
+        </div>
+
+
+        <div class="game-info">
+
+          <div class="game-name">
+            CHESS
+          </div>
+
+          <div class="game-desc">
+            Classic strategic 1v1 battle
+          </div>
+
+        </div>
+
+
+        <button
+          class="play-btn"
+          type="button"
+          onclick="selectGame('Chess')"
+        >
+          PLAY
+        </button>
+
+      </article>
+
+
+      <!-- FIGHTING -->
+
+      <article class="game-card">
+
+        <div class="game-icon">
+          🥊
+        </div>
+
+
+        <div class="game-info">
+
+          <div class="game-name">
+            FIGHTING
+          </div>
+
+          <div class="game-desc">
+            Real-time combat arena
+          </div>
+
+        </div>
+
+
+        <button
+          class="play-btn"
+          type="button"
+          onclick="selectGame('Fighting')"
+        >
+          PLAY
+        </button>
+
+      </article>
+
+
+    </section>
+
+
+    <!-- =======================================================
+         STAKE
+         ======================================================= -->
+
+    <h2 class="section-title">
+      SELECT STAKE
+    </h2>
+
+
+    <section class="stake-card">
+
+
+      <div class="stake-label">
+        ENTRY FEE PER PLAYER
       </div>
-      <div class="flex gap-2">
-        <button onclick="closeModal('cyberAlertModal')" class="flex-1 py-2.5 rounded-xl bg-slate-800 font-['Orbitron'] font-bold text-slate-300 text-xs hover:bg-slate-700 transition">CLOSE</button>
-        <button onclick="closeModal('cyberAlertModal'); openModal('depositModal');" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 font-['Orbitron'] font-bold text-slate-950 text-xs hover:brightness-110 transition">DEPOSIT</button>
+
+
+      <div class="stakes">
+
+
+        <button
+          class="stake active"
+          data-stake="0.50"
+          type="button"
+          onclick="selectStake(this, 0.50)"
+        >
+          0.50
+        </button>
+
+
+        <button
+          class="stake"
+          data-stake="1.00"
+          type="button"
+          onclick="selectStake(this, 1.00)"
+        >
+          1.00
+        </button>
+
+
+        <button
+          class="stake"
+          data-stake="2.00"
+          type="button"
+          onclick="selectStake(this, 2.00)"
+        >
+          2.00
+        </button>
+
+
+        <button
+          class="stake"
+          data-stake="5.00"
+          type="button"
+          onclick="selectStake(this, 5.00)"
+        >
+          5.00
+        </button>
+
+
       </div>
-    </div>
-  </div>
+
+
+      <!-- PAYOUT -->
+
+      <div class="payout-info">
+
+        <span>
+          WINNER RECEIVES
+        </span>
+
+
+        <span
+          class="payout-value"
+          id="potentialPayout"
+        >
+          0.80 USDT
+        </span>
+
+      </div>
+
+
+    </section>
+
+
+    <!-- =======================================================
+         WEEKLY SPRINT
+         ======================================================= -->
+
+    <h2 class="section-title">
+      🏆 WEEKLY WIN SPRINT
+    </h2>
+
+
+    <section class="sprint">
+
+
+      <div class="sprint-top">
+
+
+        <div>
+
+          <div
+            class="sprint-title"
+            id="weeklyWins"
+            data-weekly-wins
+          >
+            0 / 20 WINS
+          </div>
+
+
+          <div
+            class="next-reward"
+            id="nextRewardLabel"
+            data-next-reward
+          >
+            NEXT REWARD: 2.00 USDT
+          </div>
+
+        </div>
+
+
+        <div class="countdown">
+
+          RESET IN<br>
+
+          <strong id="countdown">
+            7D 00H 00M
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+      <div class="progress-row">
+
+        <span>
+          WEEKLY PROGRESS
+        </span>
+
+
+        <span id="weeklyProgressPercent">
+          0%
+        </span>
+
+      </div>
+
+
+      <div class="progress-bar">
+
+        <div
+          class="progress-fill"
+          id="weeklyProgressBar"
+        ></div>
+
+      </div>
+
+
+      <!-- MILESTONES -->
+
+      <div class="milestone">
+
+        <span>
+          20 WINS
+        </span>
+
+        <span class="reward">
+          +2 USDT
+        </span>
+
+      </div>
+
+
+      <div class="milestone">
+
+        <span>
+          50 WINS
+        </span>
+
+        <span class="reward">
+          +5 USDT
+        </span>
+
+      </div>
+
+
+      <div class="milestone">
+
+        <span>
+          100 WINS
+        </span>
+
+        <span class="reward">
+          +10 USDT
+        </span>
+
+      </div>
+
+
+      <div class="milestone">
+
+        <span>
+          1,000 WINS
+        </span>
+
+        <span class="reward">
+          +100 USDT
+        </span>
+
+      </div>
+
+
+    </section>
+
+
+  </main>
+
+
+  <!-- =========================================================
+       BOTTOM NAV
+       ========================================================= -->
+
+  <nav class="bottom-nav">
+
+
+    <button
+      class="nav-item active"
+      type="button"
+      onclick="showMessage('Home')"
+    >
+
+      <span class="nav-icon">
+        ⌂
+      </span>
+
+      HOME
+
+    </button>
+
+
+    <button
+      class="nav-item"
+      type="button"
+      onclick="showMessage('Matches')"
+    >
+
+      <span class="nav-icon">
+        ⚔
+      </span>
+
+      MATCHES
+
+    </button>
+
+
+    <button
+      class="nav-item"
+      type="button"
+      onclick="showMessage('Wallet')"
+    >
+
+      <span class="nav-icon">
+        💳
+      </span>
+
+      WALLET
+
+    </button>
+
+
+    <button
+      class="nav-item"
+      type="button"
+      onclick="showMessage('Profile')"
+    >
+
+      <span class="nav-icon">
+        👤
+      </span>
+
+      PROFILE
+
+    </button>
+
+
+  </nav>
+
+
+  <!-- =========================================================
+       MESSAGE CONTAINER
+       script.js uses this instead of alert()
+       ========================================================= -->
+
+  <div id="cyberMessage"></div>
+
+
+  <!-- =========================================================
+       SUPABASE
+       ========================================================= -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ></script>
+
+
+  <!-- =========================================================
+       CYBERSTRIKE SCRIPT
+       ========================================================= -->
 
   <script src="script.js"></script>
+
+
 </body>
-</html>
+
+  </html>

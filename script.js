@@ -9,8 +9,8 @@
    1. SUPABASE CONFIGURATION
    ============================================================ */
 
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
 
 let supabaseClient = null;
 

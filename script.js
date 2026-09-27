@@ -1845,3 +1845,1534 @@ document.addEventListener(
    - DEPOSIT CHECKOUT REDIRECT
    - WITHDRAWAL REQUEST
    ========================================================================== */
+/* ==========================================================================
+   CYBERSTRIKE | SCRIPT.JS
+   PART 3 OF 4
+
+   DEPOSIT
+   CASHOUT
+   WALLET MODALS
+   SUPABASE EDGE FUNCTIONS
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. OPEN DEPOSIT MODAL
+   ========================================================================== */
+
+function openDepositModal() {
+
+    if (!currentUser) {
+        showMessage(
+            "Please login before making a deposit.",
+            "error"
+        );
+        return;
+    }
+
+    removeWalletModal();
+
+    const modal = document.createElement("div");
+
+    modal.id = "cyberDepositModal";
+    modal.className = "cyber-wallet-modal";
+
+    modal.innerHTML = `
+        <div class="cyber-wallet-box">
+
+            <button
+                class="cyber-wallet-close"
+                onclick="closeWalletModal()"
+                type="button"
+            >
+                ×
+            </button>
+
+            <div class="cyber-wallet-title">
+                DEPOSIT USDT
+            </div>
+
+            <div class="cyber-wallet-subtitle">
+                ADD FUNDS TO YOUR CYBERSTRIKE WALLET
+            </div>
+
+            <label class="cyber-wallet-label">
+                AMOUNT
+            </label>
+
+            <input
+                id="depositAmount"
+                class="cyber-wallet-input"
+                type="number"
+                min="${MIN_DEPOSIT}"
+                step="0.01"
+                placeholder="0.50"
+                inputmode="decimal"
+            >
+
+            <div class="cyber-wallet-info">
+                Minimum deposit:
+                <strong>${MIN_DEPOSIT.toFixed(2)} USDT</strong>
+            </div>
+
+            <div class="cyber-wallet-network">
+                USDT NETWORK IS DETERMINED BY THE
+                CYBERSTRIKE PAYMENT SERVER.
+            </div>
+
+            <button
+                class="cyber-wallet-primary"
+                type="button"
+                onclick="createDeposit()"
+            >
+                CONTINUE TO PAYMENT
+            </button>
+
+            <div
+                id="depositStatus"
+                class="cyber-wallet-status"
+            ></div>
+
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    addWalletModalStyles();
+
+    setTimeout(() => {
+
+        const input =
+            document.getElementById("depositAmount");
+
+        if (input) {
+            input.focus();
+        }
+
+    }, 100);
+}
+
+
+/* ==========================================================================
+   2. CREATE DEPOSIT
+   ========================================================================== */
+
+async function createDeposit() {
+
+    if (!currentUser) {
+        showMessage(
+            "Your session has expired. Please login again.",
+            "error"
+        );
+        return;
+    }
+
+    const input =
+        document.getElementById("depositAmount");
+
+    const status =
+        document.getElementById("depositStatus");
+
+    if (!input) return;
+
+    const amount =
+        Number(input.value);
+
+    if (!Number.isFinite(amount)) {
+
+        setWalletStatus(
+            status,
+            "Enter a valid USDT amount.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (amount < MIN_DEPOSIT) {
+
+        setWalletStatus(
+            status,
+            "Minimum deposit is " +
+            MIN_DEPOSIT.toFixed(2) +
+            " USDT.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (status) {
+        setWalletStatus(
+            status,
+            "Creating secure payment...",
+            "info"
+        );
+    }
+
+    const button =
+        document.querySelector(
+            "#cyberDepositModal .cyber-wallet-primary"
+        );
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = "CREATING PAYMENT...";
+    }
+
+    try {
+
+        const { data, error } =
+            await supabaseClient.functions.invoke(
+                DEPOSIT_FUNCTION_NAME,
+                {
+                    body: {
+                        amount: Number(
+                            amount.toFixed(2)
+                        ),
+                        currency: CURRENCY
+                    }
+                }
+            );
+
+        if (error) {
+
+            console.error(
+                "Deposit function error:",
+                error
+            );
+
+            const errorText =
+                await getFunctionErrorMessage(error);
+
+            setWalletStatus(
+                status,
+                errorText ||
+                "Unable to create deposit.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "CONTINUE TO PAYMENT";
+            }
+
+            return;
+        }
+
+        if (!data) {
+
+            setWalletStatus(
+                status,
+                "Payment server returned no response.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "CONTINUE TO PAYMENT";
+            }
+
+            return;
+        }
+
+        if (data.success === false) {
+
+            setWalletStatus(
+                status,
+                data.message ||
+                "Deposit could not be created.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "CONTINUE TO PAYMENT";
+            }
+
+            return;
+        }
+
+        /*
+           Different server implementations may return
+           the checkout URL under different names.
+
+           We support the common response names here.
+        */
+
+        const checkoutUrl =
+            data.checkout_url ||
+            data.payment_url ||
+            data.redirect_url ||
+            data.url;
+
+        if (!checkoutUrl) {
+
+            console.error(
+                "Deposit response:",
+                data
+            );
+
+            setWalletStatus(
+                status,
+                "Payment link was not returned by the server.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "CONTINUE TO PAYMENT";
+            }
+
+            return;
+        }
+
+        setWalletStatus(
+            status,
+            "Redirecting to secure payment...",
+            "success"
+        );
+
+        /*
+           IMPORTANT:
+
+           The browser does NOT credit the wallet.
+
+           FaucetPay/payment confirmation must reach
+           the secure backend first.
+        */
+
+        setTimeout(() => {
+
+            window.location.href =
+                checkoutUrl;
+
+        }, 500);
+
+    } catch (error) {
+
+        console.error(
+            "Deposit exception:",
+            error
+        );
+
+        setWalletStatus(
+            status,
+            "Unable to connect to payment server.",
+            "error"
+        );
+
+        if (button) {
+            button.disabled = false;
+            button.textContent =
+                "CONTINUE TO PAYMENT";
+        }
+    }
+}
+
+
+/* ==========================================================================
+   3. OPEN WITHDRAW / CASHOUT MODAL
+   ========================================================================== */
+
+function openWithdrawModal() {
+
+    if (!currentUser) {
+        showMessage(
+            "Please login before requesting a withdrawal.",
+            "error"
+        );
+        return;
+    }
+
+    removeWalletModal();
+
+    const modal = document.createElement("div");
+
+    modal.id = "cyberWithdrawModal";
+    modal.className = "cyber-wallet-modal";
+
+    modal.innerHTML = `
+        <div class="cyber-wallet-box">
+
+            <button
+                class="cyber-wallet-close"
+                onclick="closeWalletModal()"
+                type="button"
+            >
+                ×
+            </button>
+
+            <div class="cyber-wallet-title">
+                CASHOUT USDT
+            </div>
+
+            <div class="cyber-wallet-subtitle">
+                WITHDRAW YOUR AVAILABLE BALANCE
+            </div>
+
+            <div class="cyber-wallet-balance">
+                AVAILABLE:
+                <strong>
+                    ${playerBalance.toFixed(2)} USDT
+                </strong>
+            </div>
+
+            <label class="cyber-wallet-label">
+                AMOUNT
+            </label>
+
+            <input
+                id="withdrawAmount"
+                class="cyber-wallet-input"
+                type="number"
+                min="${MIN_WITHDRAWAL}"
+                max="${playerBalance.toFixed(2)}"
+                step="0.01"
+                placeholder="0.50"
+                inputmode="decimal"
+            >
+
+            <label class="cyber-wallet-label">
+                FAUCETPAY DESTINATION
+            </label>
+
+            <input
+                id="withdrawDestination"
+                class="cyber-wallet-input"
+                type="text"
+                placeholder="FaucetPay username/email"
+                autocomplete="off"
+            >
+
+            <div class="cyber-wallet-warning">
+                Make sure your FaucetPay destination is correct.
+                Withdrawals cannot be reversed after processing.
+            </div>
+
+            <button
+                class="cyber-wallet-primary"
+                type="button"
+                onclick="requestWithdrawal()"
+            >
+                REQUEST CASHOUT
+            </button>
+
+            <div
+                id="withdrawStatus"
+                class="cyber-wallet-status"
+            ></div>
+
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    addWalletModalStyles();
+
+    setTimeout(() => {
+
+        const input =
+            document.getElementById("withdrawAmount");
+
+        if (input) {
+            input.focus();
+        }
+
+    }, 100);
+}
+
+
+/* ==========================================================================
+   4. REQUEST WITHDRAWAL
+   ========================================================================== */
+
+async function requestWithdrawal() {
+
+    if (!currentUser) {
+
+        showMessage(
+            "Your session has expired. Please login again.",
+            "error"
+        );
+
+        return;
+    }
+
+    const amountInput =
+        document.getElementById("withdrawAmount");
+
+    const destinationInput =
+        document.getElementById(
+            "withdrawDestination"
+        );
+
+    const status =
+        document.getElementById(
+            "withdrawStatus"
+        );
+
+    if (!amountInput || !destinationInput) {
+        return;
+    }
+
+    const amount =
+        Number(amountInput.value);
+
+    const destination =
+        destinationInput.value.trim();
+
+    if (!Number.isFinite(amount)) {
+
+        setWalletStatus(
+            status,
+            "Enter a valid withdrawal amount.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (amount < MIN_WITHDRAWAL) {
+
+        setWalletStatus(
+            status,
+            "Minimum cashout is " +
+            MIN_WITHDRAWAL.toFixed(2) +
+            " USDT.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (amount > playerBalance) {
+
+        setWalletStatus(
+            status,
+            "Insufficient USDT balance.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (!destination) {
+
+        setWalletStatus(
+            status,
+            "Enter your FaucetPay destination.",
+            "error"
+        );
+
+        return;
+    }
+
+    const button =
+        document.querySelector(
+            "#cyberWithdrawModal .cyber-wallet-primary"
+        );
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = "PROCESSING...";
+    }
+
+    setWalletStatus(
+        status,
+        "Sending secure withdrawal request...",
+        "info"
+    );
+
+    try {
+
+        const { data, error } =
+            await supabaseClient.functions.invoke(
+                WITHDRAW_FUNCTION_NAME,
+                {
+                    body: {
+                        amount: Number(
+                            amount.toFixed(2)
+                        ),
+                        currency: CURRENCY,
+                        destination: destination
+                    }
+                }
+            );
+
+        if (error) {
+
+            console.error(
+                "Withdrawal function error:",
+                error
+            );
+
+            const errorText =
+                await getFunctionErrorMessage(error);
+
+            setWalletStatus(
+                status,
+                errorText ||
+                "Withdrawal request failed.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "REQUEST CASHOUT";
+            }
+
+            return;
+        }
+
+        if (!data) {
+
+            setWalletStatus(
+                status,
+                "Withdrawal server returned no response.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "REQUEST CASHOUT";
+            }
+
+            return;
+        }
+
+        if (data.success === false) {
+
+            setWalletStatus(
+                status,
+                data.message ||
+                "Withdrawal was rejected.",
+                "error"
+            );
+
+            if (button) {
+                button.disabled = false;
+                button.textContent =
+                    "REQUEST CASHOUT";
+            }
+
+            return;
+        }
+
+        /*
+           If the backend returns the authoritative
+           balance, update the UI with it.
+        */
+
+        if (
+            typeof data.balance !== "undefined"
+        ) {
+
+            playerBalance =
+                Number(data.balance) || 0;
+
+            updateBalanceDisplay();
+        }
+
+        setWalletStatus(
+            status,
+            data.message ||
+            "Withdrawal request submitted successfully.",
+            "success"
+        );
+
+        showMessage(
+            data.message ||
+            "Cashout request submitted.",
+            "success"
+        );
+
+        if (button) {
+            button.disabled = true;
+            button.textContent =
+                "REQUEST SUBMITTED";
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Withdrawal exception:",
+            error
+        );
+
+        setWalletStatus(
+            status,
+            "Unable to contact withdrawal server.",
+            "error"
+        );
+
+        if (button) {
+            button.disabled = false;
+            button.textContent =
+                "REQUEST CASHOUT";
+        }
+    }
+}
+
+
+/* ==========================================================================
+   5. FUNCTION ERROR HELPER
+   ========================================================================== */
+
+async function getFunctionErrorMessage(error) {
+
+    if (!error) {
+        return "";
+    }
+
+    try {
+
+        if (error.context) {
+
+            const response =
+                error.context;
+
+            if (
+                typeof response.json === "function"
+            ) {
+
+                const body =
+                    await response.json();
+
+                if (body) {
+
+                    return (
+                        body.message ||
+                        body.error ||
+                        body.error_description ||
+                        ""
+                    );
+                }
+            }
+        }
+
+    } catch (parseError) {
+
+        console.warn(
+            "Could not parse function error:",
+            parseError
+        );
+    }
+
+    return (
+        error.message ||
+        ""
+    );
+}
+
+
+/* ==========================================================================
+   6. WALLET STATUS
+   ========================================================================== */
+
+function setWalletStatus(
+    element,
+    message,
+    type = "info"
+) {
+
+    if (!element) return;
+
+    element.textContent = message;
+    element.style.display = "block";
+
+    if (type === "error") {
+
+        element.style.color = "#ef4444";
+
+    } else if (type === "success") {
+
+        element.style.color = "#22c55e";
+
+    } else {
+
+        element.style.color = "#06b6d4";
+    }
+}
+
+
+/* ==========================================================================
+   7. CLOSE WALLET MODAL
+   ========================================================================== */
+
+function closeWalletModal() {
+
+    removeWalletModal();
+}
+
+
+/* ==========================================================================
+   8. REMOVE WALLET MODAL
+   ========================================================================== */
+
+function removeWalletModal() {
+
+    const depositModal =
+        document.getElementById(
+            "cyberDepositModal"
+        );
+
+    const withdrawModal =
+        document.getElementById(
+            "cyberWithdrawModal"
+        );
+
+    if (depositModal) {
+        depositModal.remove();
+    }
+
+    if (withdrawModal) {
+        withdrawModal.remove();
+    }
+}
+
+
+/* ==========================================================================
+   9. CLOSE MODAL WHEN CLICKING OUTSIDE
+   ========================================================================== */
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        const modal =
+            event.target.closest(
+                ".cyber-wallet-modal"
+            );
+
+        if (!modal) return;
+
+        if (event.target === modal) {
+            closeWalletModal();
+        }
+    }
+);
+
+
+/* ==========================================================================
+   10. ESC KEY CLOSE
+   ========================================================================== */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key === "Escape") {
+            closeWalletModal();
+        }
+    }
+);
+
+
+/* ==========================================================================
+   11. WALLET MODAL CSS
+   ========================================================================== */
+
+function addWalletModalStyles() {
+
+    if (
+        document.getElementById(
+            "cyberWalletModalStyles"
+        )
+    ) {
+        return;
+    }
+
+    const style =
+        document.createElement("style");
+
+    style.id =
+        "cyberWalletModalStyles";
+
+    style.textContent = `
+
+        .cyber-wallet-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(8px);
+        }
+
+        .cyber-wallet-box {
+            position: relative;
+            width: 100%;
+            max-width: 430px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 26px;
+            border: 1px solid rgba(6, 182, 212, 0.45);
+            border-radius: 18px;
+            background:
+                linear-gradient(
+                    145deg,
+                    #0f172a,
+                    #020617
+                );
+            box-shadow:
+                0 0 35px
+                rgba(6, 182, 212, 0.18);
+        }
+
+        .cyber-wallet-close {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        .cyber-wallet-close:hover {
+            color: #ffffff;
+        }
+
+        .cyber-wallet-title {
+            margin-bottom: 5px;
+            color: #22d3ee;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .cyber-wallet-subtitle {
+            margin-bottom: 22px;
+            color: #64748b;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .cyber-wallet-label {
+            display: block;
+            margin-top: 14px;
+            margin-bottom: 7px;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .cyber-wallet-input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            outline: none;
+            background: #020617;
+            color: #f8fafc;
+            font-size: 15px;
+        }
+
+        .cyber-wallet-input:focus {
+            border-color: #06b6d4;
+            box-shadow:
+                0 0 0 2px
+                rgba(6, 182, 212, 0.12);
+        }
+
+        .cyber-wallet-info {
+            margin-top: 10px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .cyber-wallet-network {
+            margin-top: 14px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(6, 182, 212, 0.06);
+            color: #94a3b8;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .cyber-wallet-balance {
+            margin-bottom: 14px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(34, 197, 94, 0.06);
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .cyber-wallet-balance strong {
+            color: #22c55e;
+        }
+
+        .cyber-wallet-warning {
+            margin-top: 12px;
+            color: #f59e0b;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .cyber-wallet-primary {
+            width: 100%;
+            margin-top: 20px;
+            padding: 14px;
+            border: 0;
+            border-radius: 10px;
+            background: #06b6d4;
+            color: #001018;
+            font-weight: 900;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        .cyber-wallet-primary:hover {
+            filter: brightness(1.08);
+        }
+
+        .cyber-wallet-primary:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .cyber-wallet-status {
+            display: none;
+            margin-top: 15px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+
+/* ==========================================================================
+   END OF PART 3
+
+   PART 4 WILL CONTAIN:
+
+   - FINAL GLOBAL FUNCTIONS
+   - BUTTON EXPORTS
+   - FINAL INITIALIZATION
+   - SAFE PAGE STARTUP
+   - FINAL SCRIPT.JS CLOSING SECTION
+   ========================================================================== *//* ==========================================================================
+   CYBERSTRIKE | SCRIPT.JS
+   PART 4 OF 4
+
+   FINAL INITIALIZATION
+   GLOBAL FUNCTIONS
+   BUTTON EXPORTS
+   SAFETY HELPERS
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. SAFE NUMBER HELPER
+   ========================================================================== */
+
+function safeNumber(value, fallback = 0) {
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return fallback;
+    }
+
+    return number;
+}
+
+
+/* ==========================================================================
+   2. FORMAT USDT
+   ========================================================================== */
+
+function formatUSDT(value) {
+
+    const amount =
+        safeNumber(value, 0);
+
+    return amount.toFixed(2) + " USDT";
+}
+
+
+/* ==========================================================================
+   3. REFRESH PLAYER WALLET
+   ========================================================================== */
+
+async function refreshWallet() {
+
+    if (!currentUser) {
+        return;
+    }
+
+    try {
+
+        await loadPlayerData();
+
+        updateDashboard();
+
+    } catch (error) {
+
+        console.error(
+            "Wallet refresh error:",
+            error
+        );
+    }
+}
+
+
+/* ==========================================================================
+   4. REFRESH BUTTON
+   ========================================================================== */
+
+function addRefreshButton() {
+
+    const existing =
+        document.getElementById(
+            "cyberWalletRefresh"
+        );
+
+    if (existing) {
+        return;
+    }
+
+    const balanceElement =
+        document.getElementById(
+            "userBalanceDisplay"
+        );
+
+    if (!balanceElement) {
+        return;
+    }
+
+    const button =
+        document.createElement("button");
+
+    button.id =
+        "cyberWalletRefresh";
+
+    button.type = "button";
+
+    button.textContent = "↻";
+
+    button.title = "Refresh balance";
+
+    button.style.marginLeft = "8px";
+    button.style.border = "0";
+    button.style.background = "transparent";
+    button.style.color = "#22d3ee";
+    button.style.fontSize = "18px";
+    button.style.cursor = "pointer";
+
+    button.onclick =
+        refreshWallet;
+
+    balanceElement.parentNode.appendChild(
+        button
+    );
+}
+
+
+/* ==========================================================================
+   5. PROTECT AGAINST INVALID STAKES
+   ========================================================================== */
+
+function validateStake(stake) {
+
+    const amount =
+        Number(stake);
+
+    return CYBERSTRIKE_STAKES.includes(
+        amount
+    );
+}
+
+
+/* ==========================================================================
+   6. PROTECT AGAINST INVALID GAMES
+   ========================================================================== */
+
+function validateGame(game) {
+
+    return CYBERSTRIKE_GAMES.includes(
+        game
+    );
+}
+
+
+/* ==========================================================================
+   7. SELECT STAKE SAFELY
+   ========================================================================== */
+
+function selectStake(button, amount) {
+
+    const stake =
+        Number(amount);
+
+    if (!validateStake(stake)) {
+
+        showMessage(
+            "Invalid stake selected.",
+            "error"
+        );
+
+        return;
+    }
+
+    selectedStake = stake;
+
+    document
+        .querySelectorAll(".stake")
+        .forEach(
+            function (element) {
+
+                element.classList.remove(
+                    "active"
+                );
+
+                element.style.borderColor =
+                    "";
+
+                element.style.boxShadow =
+                    "";
+            }
+        );
+
+    if (button) {
+
+        button.classList.add("active");
+
+        button.style.borderColor =
+            "#06b6d4";
+
+        button.style.boxShadow =
+            "0 0 15px rgba(6,182,212,0.25)";
+    }
+
+    updateSelectedStakeDisplay();
+
+    showMessage(
+        "Stake selected: " +
+        stake.toFixed(2) +
+        " USDT",
+        "info"
+    );
+}
+
+
+/* ==========================================================================
+   8. SELECT GAME SAFELY
+   ========================================================================== */
+
+function selectGame(game) {
+
+    if (!validateGame(game)) {
+
+        showMessage(
+            "Invalid game selected.",
+            "error"
+        );
+
+        return;
+    }
+
+    selectedGame = game;
+
+    document
+        .querySelectorAll(
+            "[data-game]"
+        )
+        .forEach(
+            function (element) {
+
+                element.classList.remove(
+                    "active"
+                );
+            }
+        );
+
+    updateSelectedGameDisplay();
+
+    showMessage(
+        game + " selected.",
+        "info"
+    );
+}
+
+
+/* ==========================================================================
+   9. UPDATE PAYOUT DISPLAY
+   ========================================================================== */
+
+function updatePayoutDisplay() {
+
+    const payoutElement =
+        document.getElementById(
+            "potentialPayout"
+        );
+
+    if (!payoutElement) {
+        return;
+    }
+
+    const payout =
+        calculateWinnerPayout(
+            selectedStake
+        );
+
+    payoutElement.textContent =
+        payout.toFixed(2) +
+        " USDT";
+}
+
+
+/* ==========================================================================
+   10. UPDATE SELECTED STAKE DISPLAY
+   ========================================================================== */
+
+function updateSelectedStakeDisplay() {
+
+    const stakeElements =
+        document.querySelectorAll(
+            "[data-selected-stake]"
+        );
+
+    stakeElements.forEach(
+        function (element) {
+
+            element.textContent =
+                selectedStake.toFixed(2) +
+                " USDT";
+        }
+    );
+
+    updatePayoutDisplay();
+}
+
+
+/* ==========================================================================
+   11. UPDATE SELECTED GAME DISPLAY
+   ========================================================================== */
+
+function updateSelectedGameDisplay() {
+
+    const gameElements =
+        document.querySelectorAll(
+            "[data-selected-game]"
+        );
+
+    gameElements.forEach(
+        function (element) {
+
+            element.textContent =
+                selectedGame;
+        }
+    );
+
+    updatePayoutDisplay();
+}
+
+
+/* ==========================================================================
+   12. BALANCE REFRESH AFTER RETURNING TO PAGE
+   ========================================================================== */
+
+document.addEventListener(
+    "visibilitychange",
+    function () {
+
+        if (
+            document.visibilityState ===
+            "visible"
+        ) {
+
+            if (currentUser) {
+                refreshWallet();
+            }
+        }
+    }
+);
+
+
+/* ==========================================================================
+   13. BEFORE PAGE LEAVES
+   ========================================================================== */
+
+window.addEventListener(
+    "beforeunload",
+    function () {
+
+        if (countdownTimer) {
+
+            clearInterval(
+                countdownTimer
+            );
+
+            countdownTimer = null;
+        }
+    }
+);
+
+
+/* ==========================================================================
+   14. GLOBAL WINDOW FUNCTIONS
+   ========================================================================== */
+
+window.loginUser =
+    loginUser;
+
+window.registerUser =
+    registerUser;
+
+window.logoutUser =
+    logoutUser;
+
+window.handleLogout =
+    handleLogout;
+
+window.openDepositModal =
+    openDepositModal;
+
+window.createDeposit =
+    createDeposit;
+
+window.openWithdrawModal =
+    openWithdrawModal;
+
+window.requestWithdrawal =
+    requestWithdrawal;
+
+window.closeWalletModal =
+    closeWalletModal;
+
+window.findOpponent =
+    findOpponent;
+
+window.selectGame =
+    selectGame;
+
+window.selectStake =
+    selectStake;
+
+window.claimMilestone =
+    claimMilestone;
+
+window.showMessage =
+    showMessage;
+
+window.refreshWallet =
+    refreshWallet;
+
+
+/* ==========================================================================
+   15. FINAL PAGE INITIALIZATION
+   ========================================================================== */
+
+async function initializeCyberStrikePage() {
+
+    console.log(
+        "CYBERSTRIKE initializing..."
+    );
+
+    /*
+       Make sure the basic UI is in a known state.
+    */
+
+    updateSelectedGameDisplay();
+
+    updateSelectedStakeDisplay();
+
+    updateWeeklySprint();
+
+    updateBalanceDisplay();
+
+    addRefreshButton();
+
+    /*
+       Supabase authentication and player
+       loading are handled here.
+    */
+
+    if (!initializeSupabase()) {
+
+        console.warn(
+            "CYBERSTRIKE Supabase is not configured yet."
+        );
+
+        showMessage(
+            "Supabase configuration is required.",
+            "error"
+        );
+
+        return;
+    }
+
+    try {
+
+        await checkCurrentSession();
+
+    } catch (error) {
+
+        console.error(
+            "Initial session check failed:",
+            error
+        );
+    }
+}
+
+
+/* ==========================================================================
+   16. SECONDARY STARTUP SAFETY
+   ========================================================================== */
+
+if (
+    document.readyState ===
+    "loading"
+) {
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            initializeCyberStrikePage();
+
+        },
+        {
+            once: true
+        }
+    );
+
+} else {
+
+    initializeCyberStrikePage();
+}
+
+
+/* ==========================================================================
+   17. FINAL CYBERSTRIKE LOG
+   ========================================================================== */
+
+console.log(
+    "CYBERSTRIKE | 1v1 COMPETITIVE ARENA | SCRIPT LOADED"
+);
+
+
+/* ==========================================================================
+   END OF COMPLETE SCRIPT.JS
+   ========================================================================== */

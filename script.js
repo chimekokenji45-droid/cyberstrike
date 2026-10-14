@@ -77,7 +77,7 @@ const CYBERSTRIKE_STAKES = [
 
 const PLATFORM_FEE_PERCENT = 20;
 
-const CURRENCY = "USDT";
+const CURRENCY = "Polygon";
 
 const MIN_DEPOSIT = 0.50;
 
@@ -667,7 +667,7 @@ function updateBalanceDisplay() {
             element.textContent =
                 Number(playerBalance || 0)
                     .toFixed(2) +
-                " USDT";
+                " Polygon";
 
         }
     );
@@ -879,21 +879,21 @@ function updateSelectedStakeDisplay() {
             element.textContent =
                 Number(selectedStake)
                     .toFixed(2) +
-                " USDT";
+                " Polygon";
 
         }
     );
 }/* ============================================================
-   CYBERSTRIKE — SCRIPT.JS
-   PART 2 OF 5
-   WEEKLY SPRINT + DASHBOARD + MATCHMAKING
-   ============================================================ */
+    CYBERSTRIKE — SCRIPT.JS
+    PART 2 OF 5
+    WEEKLY SPRINT + DASHBOARD + MATCHMAKING
+    ============================================================ */
 
 
 /* ============================================================
-   24. FIXED CALENDAR WEEK
-   MONDAY 00:00 → SUNDAY 23:59
-   ============================================================ */
+    24. FIXED CALENDAR WEEK
+    MONDAY 00:00 → SUNDAY 23:59
+    ============================================================ */
 
 function getMondayStart(date = new Date()) {
 
@@ -923,8 +923,8 @@ function getMondayStart(date = new Date()) {
 
 
 /* ============================================================
-   25. GET NEXT MONDAY
-   ============================================================ */
+    25. GET NEXT MONDAY
+    ============================================================ */
 
 function getNextMondayStart(date = new Date()) {
 
@@ -943,8 +943,8 @@ function getNextMondayStart(date = new Date()) {
 
 
 /* ============================================================
-   26. WEEK KEY
-   ============================================================ */
+    26. WEEK KEY
+    ============================================================ */
 
 function getCurrentWeekKey(date = new Date()) {
 
@@ -975,8 +975,8 @@ function getCurrentWeekKey(date = new Date()) {
 
 
 /* ============================================================
-   27. WEEKLY SPRINT INFORMATION
-   ============================================================ */
+    27. WEEKLY SPRINT INFORMATION
+    ============================================================ */
 
 function getWeeklySprintInfo() {
 
@@ -1021,8 +1021,8 @@ function getWeeklySprintInfo() {
 
 
 /* ============================================================
-   28. UPDATE WEEKLY SPRINT
-   ============================================================ */
+    28. UPDATE WEEKLY SPRINT
+    ============================================================ */
 
 function updateWeeklySprint() {
 
@@ -1122,7 +1122,7 @@ function updateWeeklySprint() {
        -------------------------------------------------------- */
 
     let nextRewardText =
-        "NEXT REWARD: 2.00 USDT";
+        "NEXT REWARD: 2.00 Polygon";
 
     if (wins >= 1000) {
 
@@ -1132,17 +1132,17 @@ function updateWeeklySprint() {
     } else if (wins >= 100) {
 
         nextRewardText =
-            "NEXT REWARD: 100.00 USDT";
+            "NEXT REWARD: 100.00 Polygon";
 
     } else if (wins >= 50) {
 
         nextRewardText =
-            "NEXT REWARD: 10.00 USDT";
+            "NEXT REWARD: 10.00 Polygon";
 
     } else if (wins >= 20) {
 
         nextRewardText =
-            "NEXT REWARD: 5.00 USDT";
+            "NEXT REWARD: 5.00 Polygon";
     }
 
 
@@ -1166,8 +1166,8 @@ function updateWeeklySprint() {
 
 
 /* ============================================================
-   29. UPDATE MILESTONE BUTTONS
-   ============================================================ */
+    29. UPDATE MILESTONE BUTTONS
+    ============================================================ */
 
 function updateMilestoneButtons() {
 
@@ -1194,8 +1194,8 @@ function updateMilestoneButtons() {
 
 
 /* ============================================================
-   30. MILESTONE BUTTON STATE
-   ============================================================ */
+    30. MILESTONE BUTTON STATE
+    ============================================================ */
 
 function updateMilestoneButton(
     elementId,
@@ -1236,8 +1236,8 @@ function updateMilestoneButton(
 
 
 /* ============================================================
-   31. CLAIM WEEKLY MILESTONE
-   ============================================================ */
+    31. CLAIM WEEKLY MILESTONE
+    ============================================================ */
 
 async function claimMilestone(
     requiredWins,
@@ -1338,7 +1338,7 @@ async function claimMilestone(
                 "Milestone claimed: +" +
                 Number(rewardAmount)
                     .toFixed(2) +
-                " USDT"
+                " Polygon"
             ),
             "success"
         );
@@ -1362,8 +1362,8 @@ async function claimMilestone(
 
 
 /* ============================================================
-   32. START WEEKLY COUNTDOWN
-   ============================================================ */
+    32. START WEEKLY COUNTDOWN
+    ============================================================ */
 
 function startWeeklyCountdown() {
 
@@ -1389,8 +1389,8 @@ function startWeeklyCountdown() {
 
 
 /* ============================================================
-   33. COUNTDOWN DISPLAY
-   ============================================================ */
+    33. COUNTDOWN DISPLAY
+    ============================================================ */
 
 function updateCountdownDisplay() {
 
@@ -1482,8 +1482,8 @@ function updateCountdownDisplay() {
 
 
 /* ============================================================
-   34. SHOW LOGIN SCREEN
-   ============================================================ */
+    34. SHOW LOGIN SCREEN
+    ============================================================ */
 
 function showLoginScreen() {
 
@@ -1514,8 +1514,8 @@ function showLoginScreen() {
 
 
 /* ============================================================
-   35. SHOW DASHBOARD
-   ============================================================ */
+    35. SHOW DASHBOARD
+    ============================================================ */
 
 function showDashboard() {
 
@@ -1548,8 +1548,8 @@ function showDashboard() {
 
 
 /* ============================================================
-   36. AUTH MESSAGE
-   ============================================================ */
+    36. AUTH MESSAGE
+    ============================================================ */
 
 function showAuthMessage(
     message
@@ -1574,8 +1574,8 @@ function showAuthMessage(
 
 
 /* ============================================================
-   37. GENERAL MESSAGE
-   ============================================================ */
+    37. GENERAL MESSAGE
+    ============================================================ */
 
 function showMessage(
     message,
@@ -1622,8 +1622,8 @@ function showMessage(
 
 
 /* ============================================================
-   38. FIND OPPONENT
-   ============================================================ */
+    38. FIND OPPONENT
+    ============================================================ */
 
 async function findOpponent() {
 
@@ -1659,7 +1659,7 @@ async function findOpponent() {
     ) {
 
         showMessage(
-            "Insufficient USDT balance.",
+            "Insufficient Polygon balance.",
             "error"
         );
 
@@ -1801,8 +1801,8 @@ async function findOpponent() {
 
 
 /* ============================================================
-   39. HANDLE LOGOUT
-   ============================================================ */
+    39. HANDLE LOGOUT
+    ============================================================ */
 
 async function handleLogout() {
 
@@ -1811,8 +1811,8 @@ async function handleLogout() {
 
 
 /* ============================================================
-   40. LOGIN FORM SUPPORT
-   ============================================================ */
+    40. LOGIN FORM SUPPORT
+    ============================================================ */
 
 async function handleLogin() {
 
@@ -1843,8 +1843,8 @@ async function handleLogin() {
 
 
 /* ============================================================
-   41. ENTER KEY LOGIN
-   ============================================================ */
+    41. ENTER KEY LOGIN
+    ============================================================ */
 
 document.addEventListener(
     "keydown",
@@ -1876,17 +1876,17 @@ document.addEventListener(
 
 
 /* ============================================================
-   END OF PART 2
-   ============================================================ *//* ============================================================
-   CYBERSTRIKE — SCRIPT.JS
-   PART 3 OF 5
-   WALLET + DEPOSIT + WITHDRAWAL
-   ============================================================ */
+    END OF PART 2
+    ============================================================ *//* ============================================================
+    CYBERSTRIKE — SCRIPT.JS
+    PART 3 OF 5
+    WALLET + DEPOSIT + WITHDRAWAL
+    ============================================================ */
 
 
 /* ============================================================
-   42. UPDATE POTENTIAL PAYOUT
-   ============================================================ */
+    42. UPDATE POTENTIAL PAYOUT
+    ============================================================ */
 
 function updatePayoutDisplay() {
 
@@ -1905,7 +1905,7 @@ function updatePayoutDisplay() {
 
             element.textContent =
                 payout.toFixed(2) +
-                " USDT";
+                " Polygon";
 
         }
     );
@@ -1913,8 +1913,8 @@ function updatePayoutDisplay() {
 
 
 /* ============================================================
-   43. OPEN DEPOSIT MODAL
-   ============================================================ */
+    43. OPEN DEPOSIT MODAL
+    ============================================================ */
 
 function openDepositModal() {
 
@@ -1954,7 +1954,7 @@ function openDepositModal() {
             </button>
 
             <div class="cyber-wallet-title">
-                DEPOSIT USDT
+                DEPOSIT Polygon
             </div>
 
             <div class="cyber-wallet-subtitle">
@@ -1976,7 +1976,7 @@ function openDepositModal() {
 
             <div class="cyber-wallet-info">
                 Minimum deposit:
-                <strong>0.50 USDT</strong>
+                <strong>0.50 Polygon</strong>
             </div>
 
             <div
@@ -2015,8 +2015,8 @@ function openDepositModal() {
 
 
 /* ============================================================
-   44. CREATE DEPOSIT
-   ============================================================ */
+    44. CREATE DEPOSIT
+    ============================================================ */
 
 async function createDeposit() {
 
@@ -2051,7 +2051,7 @@ async function createDeposit() {
     ) {
 
         setWalletStatus(
-            "Minimum deposit is 0.50 USDT.",
+            "Minimum deposit is 0.50 Polygon.",
             "error"
         );
 
@@ -2189,8 +2189,8 @@ async function createDeposit() {
 
 
 /* ============================================================
-   45. OPEN WITHDRAW MODAL
-   ============================================================ */
+    45. OPEN WITHDRAW MODAL
+    ============================================================ */
 
 function openWithdrawModal() {
 
@@ -2236,14 +2236,14 @@ function openWithdrawModal() {
             </div>
 
             <div class="cyber-wallet-subtitle">
-                FaucetPay USDT Withdrawal
+                FaucetPay Polygon Withdrawal
             </div>
 
             <div class="cyber-wallet-balance">
                 AVAILABLE:
                 <strong>
                     ${Number(playerBalance || 0).toFixed(2)}
-                    USDT
+                    Polygon
                 </strong>
             </div>
 
@@ -2309,8 +2309,8 @@ function openWithdrawModal() {
 
 
 /* ============================================================
-   46. REQUEST WITHDRAWAL
-   ============================================================ */
+    46. REQUEST WITHDRAWAL
+    ============================================================ */
 
 async function requestWithdrawal() {
 
@@ -2363,7 +2363,7 @@ async function requestWithdrawal() {
     ) {
 
         setWalletStatus(
-            "Minimum withdrawal is 0.50 USDT.",
+            "Minimum withdrawal is 0.50 Polygon.",
             "error"
         );
 
@@ -2508,8 +2508,8 @@ async function requestWithdrawal() {
 
 
 /* ============================================================
-   47. FUNCTION ERROR MESSAGE
-   ============================================================ */
+    47. FUNCTION ERROR MESSAGE
+    ============================================================ */
 
 function getFunctionErrorMessage(
     error
@@ -2554,8 +2554,8 @@ function getFunctionErrorMessage(
 
 
 /* ============================================================
-   48. WALLET STATUS
-   ============================================================ */
+    48. WALLET STATUS
+    ============================================================ */
 
 function setWalletStatus(
     message,
@@ -2599,8 +2599,8 @@ function setWalletStatus(
 
 
 /* ============================================================
-   49. CLOSE WALLET MODAL
-   ============================================================ */
+    49. CLOSE WALLET MODAL
+    ============================================================ */
 
 function closeWalletModal() {
 
@@ -2609,8 +2609,8 @@ function closeWalletModal() {
 
 
 /* ============================================================
-   50. REMOVE WALLET MODAL
-   ============================================================ */
+    50. REMOVE WALLET MODAL
+    ============================================================ */
 
 function removeWalletModal() {
 
@@ -2639,8 +2639,8 @@ function removeWalletModal() {
 
 
 /* ============================================================
-   51. CLICK OUTSIDE WALLET MODAL
-   ============================================================ */
+    51. CLICK OUTSIDE WALLET MODAL
+    ============================================================ */
 
 document.addEventListener(
     "click",
@@ -2665,8 +2665,8 @@ document.addEventListener(
 
 
 /* ============================================================
-   52. ESCAPE CLOSE
-   ============================================================ */
+    52. ESCAPE CLOSE
+    ============================================================ */
 
 document.addEventListener(
     "keydown",
@@ -2691,8 +2691,8 @@ document.addEventListener(
 
 
 /* ============================================================
-   53. WALLET MODAL CSS
-   ============================================================ */
+    53. WALLET MODAL CSS
+    ============================================================ */
 
 function injectWalletStyles() {
 
@@ -2879,24 +2879,24 @@ function injectWalletStyles() {
 
 
 /* ============================================================
-   54. INJECT WALLET STYLES
-   ============================================================ */
+    54. INJECT WALLET STYLES
+    ============================================================ */
 
 injectWalletStyles();
 
 
 /* ============================================================
-   END OF PART 3
-   ============================================================ *//* ============================================================
-   CYBERSTRIKE — SCRIPT.JS
-   PART 4 OF 5
-   PENALTY SHOOTOUT — 15 SECOND GAME
-   ============================================================ */
+    END OF PART 3
+    ============================================================ *//* ============================================================
+    CYBERSTRIKE — SCRIPT.JS
+    PART 4 OF 5
+    PENALTY SHOOTOUT — 15 SECOND GAME
+    ============================================================ */
 
 
 /* ============================================================
-   55. START PENALTY SHOOTOUT
-   ============================================================ */
+    55. START PENALTY SHOOTOUT
+    ============================================================ */
 
 function startPenaltyShootout(matchData = {}) {
 
@@ -2945,8 +2945,8 @@ function startPenaltyShootout(matchData = {}) {
 
 
 /* ============================================================
-   56. CREATE PENALTY GAME UI
-   ============================================================ */
+    56. CREATE PENALTY GAME UI
+    ============================================================ */
 
 function createPenaltyGameUI() {
 
@@ -3088,8 +3088,8 @@ function createPenaltyGameUI() {
 
 
 /* ============================================================
-   57. UPDATE PENALTY UI
-   ============================================================ */
+    57. UPDATE PENALTY UI
+    ============================================================ */
 
 function updatePenaltyGameUI() {
 
@@ -3141,8 +3141,8 @@ function updatePenaltyGameUI() {
 
 
 /* ============================================================
-   58. START 15 SECOND TIMER
-   ============================================================ */
+    58. START 15 SECOND TIMER
+    ============================================================ */
 
 function startPenaltyTimer() {
 
@@ -3191,8 +3191,8 @@ function startPenaltyTimer() {
 
 
 /* ============================================================
-   59. STOP PENALTY TIMER
-   ============================================================ */
+    59. STOP PENALTY TIMER
+    ============================================================ */
 
 function stopPenaltyTimer() {
 
@@ -3208,8 +3208,8 @@ function stopPenaltyTimer() {
 
 
 /* ============================================================
-   60. TAKE PENALTY SHOT
-   ============================================================ */
+    60. TAKE PENALTY SHOT
+    ============================================================ */
 
 async function takePenaltyShot() {
 
@@ -3445,8 +3445,8 @@ async function takePenaltyShot() {
 
 
 /* ============================================================
-   61. FINISH PENALTY ROUND
-   ============================================================ */
+    61. FINISH PENALTY ROUND
+    ============================================================ */
 
 async function finishPenaltyRound(
     finalData = {}
@@ -3640,8 +3640,8 @@ async function finishPenaltyRound(
 
 
 /* ============================================================
-   62. PENALTY MESSAGE
-   ============================================================ */
+    62. PENALTY MESSAGE
+    ============================================================ */
 
 function showPenaltyMessage(
     message
@@ -3664,8 +3664,8 @@ function showPenaltyMessage(
 
 
 /* ============================================================
-   63. PENALTY RESULT
-   ============================================================ */
+    63. PENALTY RESULT
+    ============================================================ */
 
 function showPenaltyResult(
     title,
@@ -3715,8 +3715,8 @@ function showPenaltyResult(
 
 
 /* ============================================================
-   64. ENABLE / DISABLE SHOOT BUTTON
-   ============================================================ */
+    64. ENABLE / DISABLE SHOOT BUTTON
+    ============================================================ */
 
 function setPenaltyShootButton(
     enabled
@@ -3751,8 +3751,8 @@ function setPenaltyShootButton(
 
 
 /* ============================================================
-   65. LEAVE PENALTY GAME
-   ============================================================ */
+    65. LEAVE PENALTY GAME
+    ============================================================ */
 
 function leavePenaltyGame() {
 
@@ -3792,8 +3792,8 @@ function leavePenaltyGame() {
 
 
 /* ============================================================
-   66. REMOVE PENALTY GAME UI
-   ============================================================ */
+    66. REMOVE PENALTY GAME UI
+    ============================================================ */
 
 function removePenaltyGameUI() {
 
@@ -3811,8 +3811,8 @@ function removePenaltyGameUI() {
 
 
 /* ============================================================
-   67. PENALTY GAME CSS
-   ============================================================ */
+    67. PENALTY GAME CSS
+    ============================================================ */
 
 function injectPenaltyStyles() {
 
@@ -3994,8 +3994,8 @@ function injectPenaltyStyles() {
 
 
 /* ============================================================
-   68. PENALTY PAGE VISIBILITY SAFETY
-   ============================================================ */
+    68. PENALTY PAGE VISIBILITY SAFETY
+    ============================================================ */
 
 document.addEventListener(
     "visibilitychange",
@@ -4020,17 +4020,17 @@ document.addEventListener(
 
 
 /* ============================================================
-   END OF PART 4
-   ============================================================ *//* ============================================================
-   CYBERSTRIKE — SCRIPT.JS
-   PART 5 OF 5
-   FINAL CONTROLS + REFRESH + EXPORTS
-   ============================================================ */
+    END OF PART 4
+    ============================================================ *//* ============================================================
+    CYBERSTRIKE — SCRIPT.JS
+    PART 5 OF 5
+    FINAL CONTROLS + REFRESH + EXPORTS
+    ============================================================ */
 
 
 /* ============================================================
-   69. REFRESH PLAYER WALLET
-   ============================================================ */
+    69. REFRESH PLAYER WALLET
+    ============================================================ */
 
 async function refreshPlayerWallet() {
 
@@ -4068,8 +4068,8 @@ async function refreshPlayerWallet() {
 
 
 /* ============================================================
-   70. MANUAL REFRESH BUTTON
-   ============================================================ */
+    70. MANUAL REFRESH BUTTON
+    ============================================================ */
 
 async function refreshBalance() {
 
@@ -4101,8 +4101,8 @@ async function refreshBalance() {
 
 
 /* ============================================================
-   71. REFRESH WHEN PAGE BECOMES VISIBLE
-   ============================================================ */
+    71. REFRESH WHEN PAGE BECOMES VISIBLE
+    ============================================================ */
 
 document.addEventListener(
     "visibilitychange",
@@ -4123,8 +4123,8 @@ document.addEventListener(
 
 
 /* ============================================================
-   72. REFRESH WHEN WINDOW GETS FOCUS
-   ============================================================ */
+    72. REFRESH WHEN WINDOW GETS FOCUS
+    ============================================================ */
 
 window.addEventListener(
     "focus",
@@ -4139,8 +4139,8 @@ window.addEventListener(
 
 
 /* ============================================================
-   73. SAFE NUMBER HELPER
-   ============================================================ */
+    73. SAFE NUMBER HELPER
+    ============================================================ */
 
 function safeNumber(
     value,
@@ -4164,8 +4164,8 @@ function safeNumber(
 
 
 /* ============================================================
-   74. FORMAT USDT
-   ============================================================ */
+    74. FORMAT Polygon
+    ============================================================ */
 
 function formatUSDT(
     value
@@ -4174,14 +4174,14 @@ function formatUSDT(
     return (
         safeNumber(value)
             .toFixed(2) +
-        " USDT"
+        " Polygon"
     );
 }
 
 
 /* ============================================================
-   75. FORMAT STAKE
-   ============================================================ */
+    75. FORMAT STAKE
+    ============================================================ */
 
 function formatStake(
     value
@@ -4190,14 +4190,14 @@ function formatStake(
     return (
         safeNumber(value)
             .toFixed(2) +
-        " USDT"
+        " Polygon"
     );
 }
 
 
 /* ============================================================
-   76. SAFE GAME SELECTION
-   ============================================================ */
+    76. SAFE GAME SELECTION
+    ============================================================ */
 
 function handleGameSelection(
     game
@@ -4212,8 +4212,8 @@ function handleGameSelection(
 
 
 /* ============================================================
-   77. SAFE STAKE SELECTION
-   ============================================================ */
+    77. SAFE STAKE SELECTION
+    ============================================================ */
 
 function handleStakeSelection(
     button,
@@ -4230,8 +4230,8 @@ function handleStakeSelection(
 
 
 /* ============================================================
-   78. START MATCH BUTTON SUPPORT
-   ============================================================ */
+    78. START MATCH BUTTON SUPPORT
+    ============================================================ */
 
 async function startMatch() {
 
@@ -4240,8 +4240,8 @@ async function startMatch() {
 
 
 /* ============================================================
-   79. CANCEL MATCHMAKING
-   ============================================================ */
+    79. CANCEL MATCHMAKING
+    ============================================================ */
 
 async function cancelMatchmaking() {
 
@@ -4263,8 +4263,8 @@ async function cancelMatchmaking() {
 
 
 /* ============================================================
-   80. GAME CARD CLICK SUPPORT
-   ============================================================ */
+    80. GAME CARD CLICK SUPPORT
+    ============================================================ */
 
 function selectGameMode(
     game
@@ -4277,8 +4277,8 @@ function selectGameMode(
 
 
 /* ============================================================
-   81. STAKE BUTTON CLICK SUPPORT
-   ============================================================ */
+    81. STAKE BUTTON CLICK SUPPORT
+    ============================================================ */
 
 function chooseStake(
     button,
@@ -4293,24 +4293,24 @@ function chooseStake(
 
 
 /* ============================================================
-   82. LOGIN BUTTON COMPATIBILITY
-   ============================================================ */
+    82. LOGIN BUTTON COMPATIBILITY
+    ============================================================ */
 
 window.handleLogin =
     handleLogin;
 
 
 /* ============================================================
-   83. REGISTER COMPATIBILITY
-   ============================================================ */
+    83. REGISTER COMPATIBILITY
+    ============================================================ */
 
 window.registerUser =
     registerUser;
 
 
 /* ============================================================
-   84. LOGOUT COMPATIBILITY
-   ============================================================ */
+    84. LOGOUT COMPATIBILITY
+    ============================================================ */
 
 window.handleLogout =
     handleLogout;
@@ -4320,8 +4320,8 @@ window.logoutUser =
 
 
 /* ============================================================
-   85. WALLET COMPATIBILITY
-   ============================================================ */
+    85. WALLET COMPATIBILITY
+    ============================================================ */
 
 window.openDepositModal =
     openDepositModal;
@@ -4340,8 +4340,8 @@ window.closeWalletModal =
 
 
 /* ============================================================
-   86. GAME COMPATIBILITY
-   ============================================================ */
+    86. GAME COMPATIBILITY
+    ============================================================ */
 
 window.selectGame =
     selectGame;
@@ -4363,8 +4363,8 @@ window.startMatch =
 
 
 /* ============================================================
-   87. WEEKLY SPRINT COMPATIBILITY
-   ============================================================ */
+    87. WEEKLY SPRINT COMPATIBILITY
+    ============================================================ */
 
 window.claimMilestone =
     claimMilestone;
@@ -4374,8 +4374,8 @@ window.updateWeeklySprint =
 
 
 /* ============================================================
-   88. PENALTY SHOOTOUT COMPATIBILITY
-   ============================================================ */
+    88. PENALTY SHOOTOUT COMPATIBILITY
+    ============================================================ */
 
 window.startPenaltyShootout =
     startPenaltyShootout;
@@ -4388,8 +4388,8 @@ window.leavePenaltyGame =
 
 
 /* ============================================================
-   89. REFRESH COMPATIBILITY
-   ============================================================ */
+    89. REFRESH COMPATIBILITY
+    ============================================================ */
 
 window.refreshBalance =
     refreshBalance;
@@ -4399,8 +4399,8 @@ window.refreshPlayerWallet =
 
 
 /* ============================================================
-   90. DEBUG INFORMATION
-   ============================================================ */
+    90. DEBUG INFORMATION
+    ============================================================ */
 
 window.CYBERSTRIKE =
     {
@@ -4451,8 +4451,8 @@ window.CYBERSTRIKE =
 
 
 /* ============================================================
-   91. INITIAL UI SAFETY
-   ============================================================ */
+    91. INITIAL UI SAFETY
+    ============================================================ */
 
 function initializeCyberstrikeUI() {
 
@@ -4478,8 +4478,8 @@ function initializeCyberstrikeUI() {
 
 
 /* ============================================================
-   92. FINAL INITIALIZATION
-   ============================================================ */
+    92. FINAL INITIALIZATION
+    ============================================================ */
 
 if (
     document.readyState ===
@@ -4502,8 +4502,8 @@ if (
 
 
 /* ============================================================
-   93. CONSOLE STATUS
-   ============================================================ */
+    93. CONSOLE STATUS
+    ============================================================ */
 
 console.log(
     "=============================================="
@@ -4544,5 +4544,5 @@ console.log(
 
 
 /* ============================================================
-   END OF SCRIPT.JS
-   ============================================================ */
+    END OF SCRIPT.JS
+    ============================================================ */

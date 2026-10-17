@@ -1,5 +1,5 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (FAUCETPAY USER & 10% REFERRAL SYSTEM)
+// CYBERSTRIKE CORE SCRIPT (FAUCETPAY MERCHANT: chimeko45 & 10% REFERRAL)
 // ==========================================================================
 
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
@@ -25,6 +25,7 @@ const WAGER_MILESTONES = [
 ];
 
 window.addEventListener("DOMContentLoaded", () => {
+  checkDepositReturnStatus();
   captureReferrerFromURL();
   initReferralUI();
   updateVaultBalanceUI();
@@ -48,6 +49,23 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 
 function closeNotificationModal() {
   document.getElementById("notificationModal").classList.remove("active");
+}
+
+// CHECK RETURN FROM FAUCETPAY CHECKOUT
+function checkDepositReturnStatus() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const status = urlParams.get("deposit");
+
+  if (status === "success") {
+    showCustomAlert(
+      "🎉 Your payment was submitted to FaucetPay! Your Vault Balance will update in a few seconds once confirmed via IPN.",
+      "DEPOSIT SUBMITTED"
+    );
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (status === "cancelled") {
+    showCustomAlert("❌ Deposit checkout was cancelled or abandoned.", "DEPOSIT CANCELLED");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
 }
 
 function captureReferrerFromURL() {
@@ -255,8 +273,8 @@ function claimMilestone(targetTier) {
   claimBtn.innerText = "CLAIMED";
   claimBtn.setAttribute("disabled", "true");
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-       }
-     // ==========================================================================
+   }
+  // ==========================================================================
 // CYBERSTRIKE GAMES ENGINE (PENALTY & LUDO RACE)
 // ==========================================================================
 
@@ -689,7 +707,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-       }
+}
 // ==========================================================================
 // CYBERSTRIKE GAMES ENGINE (COIN FLIP ARENA)
 // ==========================================================================

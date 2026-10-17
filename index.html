@@ -1,1002 +1,356 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>CYBERSTRIKE | 1v1 Arena</title>
-
-  <style>
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: Arial, sans-serif;
-      background: #070b12;
-      color: #ffffff;
-      min-height: 100vh;
-    }
-
-    button {
-      font: inherit;
-      cursor: pointer;
-    }
-
-    .app {
-      max-width: 520px;
-      margin: auto;
-      padding: 16px 14px 90px;
-    }
-
-    /* =========================================================
-       HEADER
-       ========================================================= */
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 18px;
-    }
-
-    .logo {
-      font-size: 25px;
-      font-weight: 900;
-      letter-spacing: 2px;
-      color: #00e5ff;
-    }
-
-    .subtitle {
-      font-size: 10px;
-      color: #8493a7;
-      letter-spacing: 1.5px;
-      margin-top: 3px;
-    }
-
-    .header-icons {
-      display: flex;
-      gap: 8px;
-    }
-
-    .icon-btn {
-      width: 40px;
-      height: 40px;
-      border: 1px solid #1d3445;
-      border-radius: 10px;
-      background: #0c131d;
-      color: white;
-    }
-
-    /* =========================================================
-       BALANCE
-       ========================================================= */
-
-    .balance-card {
-      background: linear-gradient(
-        145deg,
-        #101c29,
-        #0b111a
-      );
-
-      border: 1px solid #1b4052;
-
-      border-radius: 18px;
-
-      padding: 20px;
-
-      margin-bottom: 18px;
-
-      box-shadow:
-        0 0 25px rgba(0, 229, 255, .06);
-    }
-
-    .balance-label {
-      color: #8ea0b3;
-      font-size: 11px;
-      letter-spacing: 1.5px;
-    }
-
-    .balance {
-      font-size: 32px;
-      font-weight: 900;
-      margin: 8px 0 18px;
-    }
-
-    .balance-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .deposit,
-    .cashout {
-      padding: 12px;
-      border-radius: 10px;
-      font-weight: 800;
-    }
-
-    .deposit {
-      background: #00d9ff;
-      color: #001018;
-      border: none;
-    }
-
-    .cashout {
-      background: #12202c;
-      color: #dce8f2;
-      border: 1px solid #294353;
-    }
-
-    .deposit:active,
-    .cashout:active {
-      transform: scale(.98);
-    }
-
-    /* =========================================================
-       SECTION
-       ========================================================= */
-
-    .section-title {
-      font-size: 18px;
-      margin: 22px 0 12px;
-      letter-spacing: .5px;
-    }
-
-    /* =========================================================
-       GAMES
-       ========================================================= */
-
-    .games {
-      display: grid;
-      gap: 12px;
-    }
-
-    .game-card {
-      background: #0d151f;
-      border: 1px solid #1b2d3c;
-      border-radius: 15px;
-      padding: 15px;
-
-      display: flex;
-      align-items: center;
-
-      gap: 13px;
-    }
-
-    .game-icon {
-      width: 48px;
-      height: 48px;
-
-      border-radius: 12px;
-
-      display: grid;
-      place-items: center;
-
-      background: #101f2d;
-
-      font-size: 24px;
-    }
-
-    .game-info {
-      flex: 1;
-    }
-
-    .game-name {
-      font-weight: 900;
-      font-size: 15px;
-    }
-
-    .game-desc {
-      color: #8191a4;
-      font-size: 11px;
-      margin-top: 4px;
-    }
-
-    .play-btn {
-      border: 1px solid #00bcd4;
-      background: transparent;
-      color: #00e5ff;
-
-      padding: 9px 10px;
-
-      border-radius: 8px;
-
-      font-size: 11px;
-      font-weight: 900;
-    }
-
-    .play-btn:active {
-      transform: scale(.97);
-    }
-
-    /* =========================================================
-       STAKES
-       ========================================================= */
-
-    .stake-card {
-      background: #0d151f;
-
-      border: 1px solid #1b2d3c;
-
-      border-radius: 15px;
-
-      padding: 16px;
-    }
-
-    .stake-label {
-      color: #8798ab;
-
-      font-size: 11px;
-
-      margin-bottom: 12px;
-
-      letter-spacing: 1px;
-    }
-
-    .stakes {
-      display: grid;
-
-      grid-template-columns:
-        repeat(4, 1fr);
-
-      gap: 8px;
-    }
-
-    .stake {
-      padding: 12px 4px;
-
-      border-radius: 9px;
-
-      border: 1px solid #29404f;
-
-      background: #0a1119;
-
-      color: #d9e6ef;
-
-      font-weight: 800;
-    }
-
-    .stake.active,
-    .stake.selected {
-      background: #00d9ff;
-
-      color: #001018;
-
-      border-color: #00d9ff;
-    }
-
-    /* =========================================================
-       PAYOUT INFORMATION
-       ========================================================= */
-
-    .payout-info {
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      margin-top: 14px;
-
-      padding-top: 12px;
-
-      border-top: 1px solid #172631;
-
-      font-size: 12px;
-
-      color: #8798ab;
-    }
-
-    .payout-value {
-      color: #65e6a1;
-
-      font-weight: 900;
-    }
-
-    /* =========================================================
-       WEEKLY SPRINT
-       ========================================================= */
-
-    .sprint {
-      background: #0d151f;
-
-      border: 1px solid #1b2d3c;
-
-      border-radius: 15px;
-
-      padding: 17px;
-    }
-
-    .sprint-top {
-      display: flex;
-
-      justify-content: space-between;
-
-      gap: 10px;
-    }
-
-    .sprint-title {
-      font-weight: 900;
-    }
-
-    .next-reward {
-      color: #00e5ff;
-
-      font-size: 11px;
-
-      margin-top: 5px;
-    }
-
-    .countdown {
-      text-align: right;
-
-      color: #9babbc;
-
-      font-size: 11px;
-    }
-
-    .progress-row {
-      display: flex;
-
-      justify-content: space-between;
-
-      margin-top: 18px;
-
-      font-size: 12px;
-    }
-
-    .progress-bar {
-      height: 9px;
-
-      background: #182532;
-
-      border-radius: 10px;
-
-      margin: 8px 0 16px;
-
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      width: 0%;
-
-      height: 100%;
-
-      background: #00d9ff;
-
-      transition:
-        width .3s ease;
-    }
-
-    .milestone {
-      display: flex;
-
-      justify-content: space-between;
-
-      padding: 10px 0;
-
-      border-top: 1px solid #172631;
-
-      font-size: 13px;
-    }
-
-    .reward {
-      color: #65e6a1;
-
-      font-weight: 800;
-    }
-
-    /* =========================================================
-       BOTTOM NAV
-       ========================================================= */
-
-    .bottom-nav {
-      position: fixed;
-
-      left: 50%;
-      bottom: 0;
-
-      transform:
-        translateX(-50%);
-
-      width: 100%;
-
-      max-width: 520px;
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(4, 1fr);
-
-      background: #091019;
-
-      border-top:
-        1px solid #1b2c3b;
-
-      padding:
-        9px 8px
-        calc(
-          9px +
-          env(safe-area-inset-bottom)
-        );
-    }
-
-    .nav-item {
-      border: none;
-
-      background: transparent;
-
-      color: #758596;
-
-      padding: 7px 2px;
-
-      font-size: 10px;
-    }
-
-    .nav-item.active {
-      color: #00e5ff;
-    }
-
-    .nav-icon {
-      display: block;
-
-      font-size: 18px;
-
-      margin-bottom: 3px;
-    }
-
-    /* =========================================================
-       MESSAGE
-       ========================================================= */
-
-    #cyberMessage {
-      position: fixed;
-
-      left: 50%;
-
-      bottom: 78px;
-
-      transform:
-        translateX(-50%)
-        translateY(20px);
-
-      width: calc(100% - 28px);
-
-      max-width: 490px;
-
-      padding: 13px 15px;
-
-      border-radius: 10px;
-
-      background: #111d29;
-
-      border: 1px solid #294353;
-
-      color: white;
-
-      text-align: center;
-
-      font-size: 13px;
-
-      opacity: 0;
-
-      pointer-events: none;
-
-      transition:
-        opacity .25s ease,
-        transform .25s ease;
-
-      z-index: 9999;
-    }
-
-    #cyberMessage.show {
-      opacity: 1;
-
-      transform:
-        translateX(-50%)
-        translateY(0);
-    }
-
-    #cyberMessage.success {
-      border-color: #2c9f69;
-    }
-
-    #cyberMessage.error {
-      border-color: #c84b4b;
-    }
-
-    /* =========================================================
-       RESPONSIVE
-       ========================================================= */
-
-    @media (min-width: 700px) {
-
-      .app {
-        padding-top: 30px;
-      }
-
-    }
-
-  </style>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBERSTRIKE 1v1 Arena | FaucetPay Platform</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
-
 <body>
 
+  <!-- TOP NAVBAR -->
+  <header class="navbar">
+    <div class="logo">
+      <span class="logo-cyber">CYBER</span><span class="logo-strike">STRIKE</span>
+      <span class="badge-polygon">FAUCETPAY INTEGRATED</span>
+    </div>
 
-  <!-- =========================================================
-       MAIN APP
-       ========================================================= -->
-
-  <main class="app" id="appContainer">
-
-
-    <!-- =======================================================
-         HEADER
-         ======================================================= -->
-
-    <header class="header">
-
-      <div>
-
-        <div class="logo">
-          CYBERSTRIKE
-        </div>
-
-        <div class="subtitle">
-          1v1 COMPETITIVE ARENA
-        </div>
-
+    <div class="wallet-bar">
+      <div class="balance-box">
+        <span class="label">VAULT BALANCE:</span>
+        <span id="userBalanceDisplay" class="value">0.0000 POL</span>
       </div>
+      <button id="depositBtn" class="btn btn-primary" onclick="openDepositModal()">📥 DEPOSIT</button>
+      <button id="withdrawBtn" class="btn btn-secondary" onclick="openWithdrawModal()">📤 WITHDRAW</button>
+    </div>
+  </header>
 
-
-      <div class="header-icons">
-
-        <button
-          class="icon-btn"
-          type="button"
-          onclick="showMessage('Notifications coming soon')"
-        >
-          🔔
-        </button>
-
-
-        <button
-          class="icon-btn"
-          type="button"
-          onclick="showMessage('Profile coming soon')"
-        >
-          👤
-        </button>
-
-      </div>
-
-    </header>
-
-
-    <!-- =======================================================
-         WALLET
-         ======================================================= -->
-
-    <section class="balance-card">
-
-      <div class="balance-label">
-        AVAILABLE BALANCE
-      </div>
-
-
-      <!--
-        IMPORTANT:
-        script.js updates this element automatically.
-      -->
-
-      <div
-        class="balance"
-        id="userBalanceDisplay"
-      >
-        0.00 Polygon
-      </div>
-
-
-      <div class="balance-actions">
-
-        <button
-          class="deposit"
-          type="button"
-          onclick="openDepositModal()"
-        >
-          DEPOSIT
-        </button>
-
-
-        <button
-          class="cashout"
-          type="button"
-          onclick="openWithdrawModal()"
-        >
-          CASHOUT
-        </button>
-
-      </div>
-
-    </section>
-
-
-    <!-- =======================================================
-         GAMES
-         ======================================================= -->
-
-    <h2 class="section-title">
-      PLAY 1v1
-    </h2>
-
-
-    <section class="games">
-
-
-      <!-- PENALTY -->
-
-      <article class="game-card">
-
-        <div class="game-icon">
-          ⚽
+  <!-- MAIN DASHBOARD CONTAINER -->
+  <main class="container">
+    
+    <!-- LEFT COLUMN -->
+    <div class="left-column">
+      
+      <!-- STAKE SELECTOR -->
+      <section class="card stake-card">
+        <h2>⚡ SELECT MATCH STAKE</h2>
+        <p class="subtitle">20% House Rake (80% Winner / 20% Platform Fee)</p>
+        
+        <div class="stake-selector">
+          <label style="font-size: 11px; color: var(--text-muted);">ENTRY STAKE (POL):</label>
+          <div class="stake-grid">
+            <button class="stake-btn active" data-stake="1.0" onclick="selectStake(this)">1 POL</button>
+            <button class="stake-btn" data-stake="2.0" onclick="selectStake(this)">2 POL</button>
+            <button class="stake-btn" data-stake="5.0" onclick="selectStake(this)">5 POL</button>
+            <button class="stake-btn" data-stake="10.0" onclick="selectStake(this)">10 POL</button>
+            <button class="stake-btn" data-stake="50.0" onclick="selectStake(this)">50 POL</button>
+          </div>
         </div>
 
-
-        <div class="game-info">
-
-          <div class="game-name">
-            PENALTY SHOOTOUT
-          </div>
-
-          <div class="game-desc">
-            Real-time 1v1 football duel
-          </div>
-
+        <div class="stake-summary">
+          <div class="summary-row"><span>Total Match Prize Pool:</span><strong id="summaryTotalPool">2.00 POL</strong></div>
+          <div class="summary-row"><span>Winner Payout (80%):</span><strong id="summaryWinnerPayout" class="highlight-green">1.60 POL</strong></div>
         </div>
+      </section>
 
+      <!-- GAME 1: PENALTY SHOOTOUT -->
+      <section class="card game-card">
+        <h2>⚽ 1v1 PENALTY SHOOTOUT</h2>
+        <p class="subtitle">5 Shots Each • 5s Avatar Turn Timers</p>
+        <button class="btn btn-launch" onclick="launchPenaltyArena(false)">PLAY PENALTY SHOOTOUT</button>
+        <button class="btn btn-launch btn-training" onclick="launchPenaltyArena(true)">🤖 FREE TRAINING BOT</button>
+      </section>
 
-        <button
-          class="play-btn"
-          type="button"
-          onclick="selectGame('Penalty Shootout')"
-        >
-          PLAY
-        </button>
+      <!-- GAME 2: LUDO RACE -->
+      <section class="card game-card highlighted-card">
+        <h2>🎲 LUDO RACE ARENA</h2>
+        <p class="subtitle">Track Sprint • 5s Avatar Turn Timers • First to 10 Wins!</p>
+        <button class="btn btn-launch btn-ludo" onclick="launchLudoRace(false)">PLAY LUDO RACE</button>
+        <button class="btn btn-launch btn-training" onclick="launchLudoRace(true)">🤖 FREE TRAINING BOT</button>
+      </section>
 
-      </article>
+      <!-- GAME 3: COIN FLIP -->
+      <section class="card game-card">
+        <h2>🪙 1v1 COIN FLIP ARENA</h2>
+        <p class="subtitle">Instant 50/50 Resolution • Heads or Tails</p>
+        <button class="btn btn-launch" style="background:#f39c12;" onclick="launchCoinFlipArena(false)">PLAY COIN FLIP</button>
+        <button class="btn btn-launch btn-training" onclick="launchCoinFlipArena(true)">🤖 FREE TRAINING BOT</button>
+      </section>
 
+      <!-- GAME 4: ROCK PAPER SCISSORS -->
+      <section class="card game-card">
+        <h2>✂️ 1v1 ROCK PAPER SCISSORS</h2>
+        <p class="subtitle">Fast-Paced Choice Duel • 5s Turn Timers</p>
+        <button class="btn btn-launch" style="background:#e74c3c;" onclick="launchRpsArena(false)">PLAY ROCK PAPER SCISSORS</button>
+        <button class="btn btn-launch btn-training" onclick="launchRpsArena(true)">🤖 FREE TRAINING BOT</button>
+      </section>
 
-      <!-- LUDO -->
-
-      <article class="game-card">
-
-        <div class="game-icon">
-          🎲
-        </div>
-
-
-        <div class="game-info">
-
-          <div class="game-name">
-            LUDO RACE
+      <!-- REFERRAL CARD -->
+      <section class="card ref-card">
+        <h2>🤝 10% REFERRAL PROGRAM</h2>
+        <p class="subtitle">Earn 10% instant commission on every match your referrals play!</p>
+        <div class="form-group">
+          <label>YOUR FAUCETPAY REFERRAL LINK:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="referralLinkInput" readonly value="https://yourdomain.com/index.html?ref=YOUR_FAUCETPAY_USERNAME">
+            <button class="btn btn-primary" onclick="copyReferralLink()">COPY</button>
           </div>
-
-          <div class="game-desc">
-            Race your opponent to victory
-          </div>
-
         </div>
-
-
-        <button
-          class="play-btn"
-          type="button"
-          onclick="selectGame('Ludo Race')"
-        >
-          PLAY
-        </button>
-
-      </article>
-
-
-      <!-- CHESS -->
-
-      <article class="game-card">
-
-        <div class="game-icon">
-          ♟️
+        <div class="stake-summary" style="margin-top: 10px;">
+          <div class="summary-row"><span>Total Referral Earnings:</span><strong id="totalRefEarnedDisplay" class="highlight-green">0.0000 POL</strong></div>
         </div>
+      </section>
 
+    </div>
 
-        <div class="game-info">
-
-          <div class="game-name">
-            CHESS
-          </div>
-
-          <div class="game-desc">
-            Classic strategic 1v1 battle
-          </div>
-
-        </div>
-
-
-        <button
-          class="play-btn"
-          type="button"
-          onclick="selectGame('Chess')"
-        >
-          PLAY
-        </button>
-
-      </article>
-
-
-      <!-- FIGHTING -->
-
-      <article class="game-card">
-
-        <div class="game-icon">
-          🥊
-        </div>
-
-
-        <div class="game-info">
-
-          <div class="game-name">
-            FIGHTING
-          </div>
-
-          <div class="game-desc">
-            Real-time combat arena
-          </div>
-
-        </div>
-
-
-        <button
-          class="play-btn"
-          type="button"
-          onclick="selectGame('Fighting')"
-        >
-          PLAY
-        </button>
-
-      </article>
-
-
-    </section>
-
-
-    <!-- =======================================================
-         STAKE
-         ======================================================= -->
-
-    <h2 class="section-title">
-      SELECT STAKE
-    </h2>
-
-
-    <section class="stake-card">
-
-
-      <div class="stake-label">
-        ENTRY FEE PER PLAYER
-      </div>
-
-
-      <div class="stakes">
-
-
-        <button
-          class="stake active"
-          data-stake="0.50"
-          type="button"
-          onclick="selectStake(this, 0.50)"
-        >
-          0.50
-        </button>
-
-
-        <button
-          class="stake"
-          data-stake="1.00"
-          type="button"
-          onclick="selectStake(this, 1.00)"
-        >
-          1.00
-        </button>
-
-
-        <button
-          class="stake"
-          data-stake="2.00"
-          type="button"
-          onclick="selectStake(this, 2.00)"
-        >
-          2.00
-        </button>
-
-
-        <button
-          class="stake"
-          data-stake="5.00"
-          type="button"
-          onclick="selectStake(this, 5.00)"
-        >
-          5.00
-        </button>
-
-
-      </div>
-
-
-      <!-- PAYOUT -->
-
-      <div class="payout-info">
-
-        <span>
-          WINNER RECEIVES
-        </span>
-
-
-        <span
-          class="payout-value"
-          id="potentialPayout"
-        >
-          0.80 Polygon
-        </span>
-
-      </div>
-
-
-    </section>
-
-
-    <!-- =======================================================
-         WEEKLY SPRINT
-         ======================================================= -->
-
-    <h2 class="section-title">
-      🏆 WEEKLY WIN SPRINT
-    </h2>
-
-
-    <section class="sprint">
-
-
-      <div class="sprint-top">
-
-
+    <!-- RIGHT COLUMN: WEEKLY WAGER SPRINT -->
+    <section class="card sprint-card">
+      <div class="sprint-header">
         <div>
-
-          <div
-            class="sprint-title"
-            id="weeklyWins"
-            data-weekly-wins
-          >
-            0 / 20 WINS
-          </div>
-
-
-          <div
-            class="next-reward"
-            id="nextRewardLabel"
-            data-next-reward
-          >
-            NEXT REWARD: 2.00 Polygon
-          </div>
-
+          <h2>🏆 WEEKLY POL WAGER SPRINT</h2>
+          <div id="weeklyWagerText" class="sprint-subtitle">0.0 / 50.0 POL WAGORED</div>
         </div>
-
-
-        <div class="countdown">
-
-          RESET IN<br>
-
-          <strong id="countdown">
-            7D 00H 00M
-          </strong>
-
+        <div class="countdown-box">
+          <span class="label">RESETS MONDAY IN</span>
+          <span id="sprintCountdown" class="value">00D 00H 00M 00S</span>
         </div>
-
-
       </div>
 
-
-      <div class="progress-row">
-
-        <span>
-          WEEKLY PROGRESS
-        </span>
-
-
-        <span id="weeklyProgressPercent">
-          0%
-        </span>
-
+      <div class="progress-bar-container">
+        <div class="progress-label-row">
+          <span>WEEKLY VOLUME PROGRESS</span>
+          <span id="sprintProgressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="sprintProgressBar" class="progress-fill" style="width: 0%;"></div>
+        </div>
       </div>
 
-
-      <div class="progress-bar">
-
-        <div
-          class="progress-fill"
-          id="weeklyProgressBar"
-        ></div>
-
+      <div class="milestones-list">
+        <div class="milestone-item" id="mTier-50">
+          <div><strong class="title">50 POL WAGORED</strong><span class="reward">+6 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(50)">CLAIM</button>
+        </div>
+        <div class="milestone-item" id="mTier-150">
+          <div><strong class="title">150 POL WAGORED</strong><span class="reward">+20 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(150)">CLAIM</button>
+        </div>
+        <div class="milestone-item" id="mTier-500">
+          <div><strong class="title">500 POL WAGORED</strong><span class="reward">+65 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(500)">CLAIM</button>
+        </div>
+        <div class="milestone-item" id="mTier-2000">
+          <div><strong class="title">2,000 POL WAGORED</strong><span class="reward">+280 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(2000)">CLAIM</button>
+        </div>
+        <div class="milestone-item" id="mTier-10000">
+          <div><strong class="title">10,000 POL WAGORED</strong><span class="reward">+1,500 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(10000)">CLAIM</button>
+        </div>
+        <div class="milestone-item" id="mTier-50000">
+          <div><strong class="title">50,000 POL WAGORED</strong><span class="reward">+7,500 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(50000)">CLAIM</button>
+        </div>
+        <div class="milestone-item grand-prize" id="mTier-100000">
+          <div><strong class="title">🏆 100,000 POL WAGORED</strong><span class="reward">+15,000 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(100000)">CLAIM</button>
+        </div>
       </div>
-
-
-      <!-- MILESTONES -->
-
-      <div class="milestone">
-
-        <span>
-          20 WINS
-        </span>
-
-        <span class="reward">
-          +2 Polygon
-        </span>
-
-      </div>
-
-
-      <div class="milestone">
-
-        <span>
-          50 WINS
-        </span>
-
-        <span class="reward">
-          +5 Polygon
-        </span>
-
-      </div>
-
-
-      <div class="milestone">
-
-        <span>
-          100 WINS
-        </span>
-
-        <span class="reward">
-          +10 Polygon
-        </span>
-
-      </div>
-
-
-      <div class="milestone">
-
-        <span>
-          1,000 WINS
-        </span>
-
-        <span class="reward">
-          +100 Polygon
-        </span>
-
-      </div>
-
-
     </section>
-
 
   </main>
 
+  <!-- FOOTER -->
+  <footer class="footer-container">
+    <div class="fairness-card">
+      <div class="fairness-header">
+        <span class="shield-icon">🛡️</span>
+        <h3>100% PROVABLY FAIR GAMEPLAY</h3>
+      </div>
+      <p class="fairness-text">
+        Every match generated on <strong>CYBERSTRIKE 1v1</strong> uses an unmanipulated cryptographic pseudo-random algorithm. Practice freely in Training Mode to test game mechanics with zero risk.
+      </p>
+    </div>
+    <div class="copyright-bar">
+      <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
+    </div>
+  </footer>
 
+  <!-- CUSTOM CYBERSTRIKE NOTIFICATION MODAL -->
+  <div id="notificationModal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center;">
+      <button class="close-btn" onclick="closeNotificationModal()">✖</button>
+      <h3 id="notificationTitle" style="color: var(--accent-cyan); margin-bottom: 10px; letter-spacing: 1px;">SYSTEM NOTIFICATION</h3>
+      <p id="notificationMessage" class="subtitle" style="font-size: 13px; margin-bottom: 20px; color: #fff; line-height: 1.5;"></p>
+      <button class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 900;" onclick="closeNotificationModal()">UNDERSTOOD 🚀</button>
+    </div>
+  </div>
+
+  <!-- FAUCETPAY DEPOSIT MODAL -->
+  <div id="depositModal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="close-btn" onclick="closeDepositModal()">✖</button>
+      <h3>📥 DEPOSIT VIA FAUCETPAY</h3>
+      <p class="subtitle">Instant automated crypto deposit gateway</p>
+
+      <form action="https://faucetpay.io/merchant/webscr" method="POST" id="faucetPayForm">
+        <input type="hidden" name="merchant_username" value="chimeko45">
+        <input type="hidden" name="item_description" value="CyberStrike Vault Deposit">
+        <input type="hidden" name="currency1" value="POL">
+        
+        <div class="form-group" style="margin-top: 14px;">
+          <label>ENTER DEPOSIT AMOUNT (POL):</label>
+          <input type="number" name="amount1" id="depositAmountInput" placeholder="e.g. 5.0" step="0.1" min="1" required oninput="updateFaucetPayCustom()">
+        </div>
+
+        <input type="hidden" name="custom" id="faucetPayCustomField" value="">
+        <input type="hidden" name="success_url" value="https://yourdomain.com/index.html?deposit=success">
+        <input type="hidden" name="cancel_url" value="https://yourdomain.com/index.html?deposit=cancelled">
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 14px; padding: 12px; font-weight: 900;">
+          PROCEED TO FAUCETPAY 🚀
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- WITHDRAW MODAL -->
+  <div id="withdrawModal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="close-btn" onclick="closeWithdrawModal()">✖</button>
+      <h3>📤 WITHDRAW VIA FAUCETPAY</h3>
+      <p class="subtitle">Instant Payout directly to your FaucetPay account</p>
+
+      <div class="form-group">
+        <label>FAUCETPAY EMAIL ADDRESS:</label>
+        <input type="email" id="withdrawEmailInput" placeholder="your-email@example.com">
+      </div>
+
+      <div class="form-group">
+        <label>AMOUNT TO WITHDRAW (POL) [Min 2 POL]:</label>
+        <input type="number" id="withdrawAmountInput" placeholder="e.g. 5.0" step="0.1">
+      </div>
+
+      <button id="confirmWithdrawBtn" class="btn btn-launch" onclick="executePolWithdrawal()">REQUEST FAUCETPAY WITHDRAWAL</button>
+      <div id="withdrawStatus" class="status-msg"></div>
+    </div>
+  </div>
+
+  <!-- PENALTY SHOOTOUT OVERLAY -->
+  <div id="penaltyOverlay" class="modal-overlay">
+    <div class="arena-box">
+      <button class="close-btn" onclick="closePenaltyArena()">✖</button>
+      
+      <div class="scoreboard">
+        <div>
+          <div class="player-tag">YOU <span id="p1TurnTimer" style="color:var(--accent-cyan); font-weight:bold;"></span></div>
+          <div id="p1Score" class="score-num">0</div>
+        </div>
+        <div>
+          <div id="penaltyRoundDisplay" class="timer-display">SHOTS 0/5 - 0/5</div>
+        </div>
+        <div>
+          <div class="player-tag">BOT <span id="p2TurnTimer" style="color:var(--accent-magenta); font-weight:bold;"></span></div>
+          <div id="p2Score" class="score-num">0</div>
+        </div>
+      </div>
+
+      <div class="pitch-container">
+        <div id="keeperEl" class="keeper center">🧤</div>
+        <div id="ballEl" class="ball center">⚽</div>
+      </div>
+
+      <div id="penaltyBanner" class="status-banner">YOUR TURN! CHOOSE YOUR CORNER (5s)</div>
+
+      <div id="controlsBox" class="controls-grid">
+        <button class="btn btn-shoot" onclick="takeShot('left')">👈 LEFT</button>
+        <button class="btn btn-shoot" onclick="takeShot('center')">🎯 CENTER</button>
+        <button class="btn btn-shoot" onclick="takeShot('right')">👉 RIGHT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LUDO RACE OVERLAY -->
+  <div id="ludoOverlay" class="modal-overlay">
+    <div class="arena-box ludo-arena">
+      <button class="close-btn" onclick="closeLudoArena()">✖</button>
+      
+      <div class="scoreboard">
+        <div>
+          <div class="player-tag">YOU <span id="ludoP1Timer" style="color:var(--accent-cyan); font-weight:bold;"></span></div>
+          <div id="p1TrackPos" class="score-num">0/10</div>
+        </div>
+        <div>
+          <div id="ludoTurnIndicator" class="timer-display">YOUR TURN</div>
+        </div>
+        <div>
+          <div class="player-tag">BOT <span id="ludoP2Timer" style="color:var(--accent-magenta); font-weight:bold;"></span></div>
+          <div id="p2TrackPos" class="score-num">0/10</div>
+        </div>
+      </div>
+
+      <div class="ludo-track-container">
+        <div class="track-row">
+          <span class="p-label">YOU:</span>
+          <div class="cell start">START</div>
+          <div class="cell" id="p1-1">1</div><div class="cell" id="p1-2">2</div><div class="cell" id="p1-3">3</div><div class="cell" id="p1-4">4</div><div class="cell" id="p1-5">5</div><div class="cell" id="p1-6">6</div><div class="cell" id="p1-7">7</div><div class="cell" id="p1-8">8</div><div class="cell" id="p1-9">9</div>
+          <div class="cell finish" id="p1-10">🏁 FINISH</div>
+        </div>
+        <div class="track-row">
+          <span class="p-label">BOT:</span>
+          <div class="cell start">START</div>
+          <div class="cell" id="p2-1">1</div><div class="cell" id="p2-2">2</div><div class="cell" id="p2-3">3</div><div class="cell" id="p2-4">4</div><div class="cell" id="p2-5">5</div><div class="cell" id="p2-6">6</div><div class="cell" id="p2-7">7</div><div class="cell" id="p2-8">8</div><div class="cell" id="p2-9">9</div>
+          <div class="cell finish" id="p2-10">🏁 FINISH</div>
+        </div>
+      </div>
+
+      <div id="ludoBanner" class="status-banner">ROLL THE DICE TO ADVANCE TO THE FINISH LINE!</div>
+
+      <div class="ludo-controls">
+        <div id="diceValueDisplay" class="dice-box">🎲 -</div>
+        <button id="rollDiceBtn" class="btn btn-launch" style="margin-top:0;" onclick="rollLudoDice()">ROLL DICE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COIN FLIP OVERLAY -->
+  <div id="coinFlipOverlay" class="modal-overlay">
+    <div class="arena-box" style="text-align:center;">
+      <button class="close-btn" onclick="closeCoinFlipArena()">✖</button>
+      <h2>🪙 1v1 COIN FLIP</h2>
+      <p id="coinBanner" class="subtitle" style="margin-top:8px;">CHOOSE HEADS OR TAILS</p>
+
+      <div id="coinDisplayBox" style="font-size: 60px; margin: 30px 0;">🪙</div>
+
+      <div id="coinControlsBox" class="controls-grid" style="grid-template-columns: repeat(2, 1fr);">
+        <button class="btn btn-primary" style="padding: 14px; font-size:14px;" onclick="flipCoin('heads')">👑 HEADS</button>
+        <button class="btn btn-launch" style="padding: 14px; font-size:14px; margin-top:0;" onclick="flipCoin('tails')">🦅 TAILS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROCK PAPER SCISSORS OVERLAY -->
+  <div id="rpsOverlay" class="modal-overlay">
+    <div class="arena-box" style="text-align:center;">
+      <button class="close-btn" onclick="closeRpsArena()">✖</button>
+      <h2>✂️ ROCK PAPER SCISSORS</h2>
+      <p id="rpsBanner" class="status-banner" style="margin-top:10px;">CHOOSE YOUR MOVE (5s)</p>
+
+      <div id="rpsDisplayBox" style="font-size: 45px; margin: 25px 0; color:var(--accent-cyan);">VS</div>
+
+      <div id="rpsControlsBox" class="controls-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <button class="btn btn-shoot" onclick="playRps('rock')">🪨 ROCK</button>
+        <button class="btn btn-shoot" onclick="playRps('paper')">📄 PAPER</button>
+        <button class="btn btn-shoot" onclick="playRps('scissors')">✂️ SCISSORS</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script src="games.js"></script>
+  <script src="coinflip.js"></script>
+  <script src="rps.js"></script>
+</body>
+                                                                            </html>
+                                                                      

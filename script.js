@@ -1,5 +1,5 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (FAUCETPAY MERCHANT: chimeko45 & AUTH)
+// CYBERSTRIKE CORE SCRIPT (FAUCETPAY MERCHANT: chimeko45 & AUDIO ENGINE)
 // ==========================================================================
 
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
@@ -11,8 +11,9 @@ let totalRefEarned = 0.0;
 let weeklyWageredPOL = 0.0;
 let currentSelectedStake = 1.0;
 
-// Dynamic active account handling via Supabase Auth / Local Storage
+let soundEnabled = localStorage.getItem("cyberstrike_sfx_enabled") !== "false";
 let currentActiveUserAccount = localStorage.getItem("cyberstrike_user") || null;
+let currentActiveFaucetEmail = localStorage.getItem("cyberstrike_faucet_email") || "";
 
 const WAGER_MILESTONES = [
   { target: 50, reward: 6.0, claimed: false },
@@ -24,7 +25,85 @@ const WAGER_MILESTONES = [
   { target: 100000, reward: 15000.0, claimed: false }
 ];
 
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playAudioSFX(type) {
+  if (!soundEnabled) return;
+  try {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'stake') {
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+      osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'deposit') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
+    } else if (type === 'withdraw') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now); osc.stop(now + 0.25);
+    } else if (type === 'win') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.12);
+      osc.frequency.setValueAtTime(783.99, now + 0.24);
+      osc.frequency.setValueAtTime(1046.50, now + 0.36);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+      osc.start(now); osc.stop(now + 0.5);
+    } else if (type === 'lose') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.3);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
+    } else if (type === 'action') {
+      osc.frequency.setValueAtTime(300, now);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now); osc.stop(now + 0.05);
+    } else if (type === 'milestone') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1108.73, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
+    }
+  } catch (e) {
+    console.log("Audio play suppressed");
+  }
+}
+
+function toggleSoundSFX() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem("cyberstrike_sfx_enabled", soundEnabled);
+  const btn = document.getElementById("soundToggleBtn");
+  if (btn) btn.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
+  if (soundEnabled) playAudioSFX("action");
+}
+
 window.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("soundToggleBtn");
+  if (btn) btn.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
+
   checkDepositReturnStatus();
   captureReferrerFromURL();
   initUserSessionUI();
@@ -33,7 +112,6 @@ window.addEventListener("DOMContentLoaded", () => {
   startLiveBalancePolling();
 });
 
-// CUSTOM CYBER NOTIFICATION HELPER
 function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
   const titleEl = document.getElementById("notificationTitle");
   const msgEl = document.getElementById("notificationMessage");
@@ -47,38 +125,53 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 }
 
 function closeNotificationModal() {
+  playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
 }
 
-// UI SESSION SWITCHER
 function initUserSessionUI() {
   const authNavBox = document.getElementById("authNavBox");
   const userWalletBox = document.getElementById("userWalletBox");
   const userTag = document.getElementById("loggedInUserTag");
+  const mainDash = document.getElementById("mainDashboard");
+  const mainFooter = document.getElementById("mainFooter");
+  const closeBtn = document.getElementById("authCloseBtn");
 
   if (currentActiveUserAccount) {
     if (authNavBox) authNavBox.style.display = "none";
     if (userWalletBox) userWalletBox.style.display = "flex";
     if (userTag) userTag.innerText = `USER: ${currentActiveUserAccount}`;
+    if (mainDash) mainDash.style.display = "flex";
+    if (mainFooter) mainFooter.style.display = "block";
+    if (closeBtn) closeBtn.style.display = "block";
+
     initReferralUI();
+    closeAuthModal();
   } else {
     if (authNavBox) authNavBox.style.display = "flex";
     if (userWalletBox) userWalletBox.style.display = "none";
+    if (mainDash) mainDash.style.display = "none";
+    if (mainFooter) mainFooter.style.display = "none";
+    if (closeBtn) closeBtn.style.display = "none";
+
+    openAuthModal('login');
   }
 }
 
-// MODAL & TAB CONTROLLERS
 function openAuthModal(tab = 'login') {
+  playAudioSFX("action");
   document.getElementById("authModal").classList.add("active");
   switchAuthTab(tab);
 }
 
 function closeAuthModal() {
+  if (!currentActiveUserAccount) return;
   document.getElementById("authModal").classList.remove("active");
   document.getElementById("authStatusMsg").innerText = "";
 }
 
 function switchAuthTab(tab) {
+  playAudioSFX("action");
   const loginForm = document.getElementById("loginForm");
   const regForm = document.getElementById("registerForm");
   const resetForm = document.getElementById("resetForm");
@@ -108,15 +201,15 @@ function switchAuthTab(tab) {
   }
 }
 
-// REGISTER SUBMIT HANDLER
 async function handleRegisterSubmit(e) {
   e.preventDefault();
   const username = document.getElementById("regUsername").value.trim().toLowerCase();
   const email = document.getElementById("regEmail").value.trim();
+  const faucetEmail = document.getElementById("regFaucetEmail").value.trim();
   const password = document.getElementById("regPassword").value;
   const statusMsg = document.getElementById("authStatusMsg");
 
-  statusMsg.innerText = "⏳ Creating account in Supabase...";
+  statusMsg.innerText = "⏳ Creating account...";
 
   try {
     const { data: authData, error: authError } = await supabaseClient.auth.signUp({
@@ -135,30 +228,33 @@ async function handleRegisterSubmit(e) {
         {
           username: username,
           vault_balance: 0.0000,
-          email: email
+          email: email,
+          faucetpay_email: faucetEmail
         }
       ]);
 
     if (profileError) {
-      statusMsg.innerText = `❌ Username may already be registered.`;
+      statusMsg.innerText = `❌ Username or email already registered.`;
       return;
     }
 
     currentActiveUserAccount = username;
+    currentActiveFaucetEmail = faucetEmail;
     localStorage.setItem("cyberstrike_user", username);
+    localStorage.setItem("cyberstrike_faucet_email", faucetEmail);
+
+    playAudioSFX("win");
     initUserSessionUI();
-    closeAuthModal();
     showCustomAlert(`🎉 Account created successfully! Welcome to CyberStrike, ${username}.`, "WELCOME");
 
   } catch (err) {
-    statusMsg.innerText = "❌ Network connection error.";
+    statusMsg.innerText = "❌ Connection error.";
   }
 }
 
-// LOGIN SUBMIT HANDLER
 async function handleLoginSubmit(e) {
   e.preventDefault();
-  const username = document.getElementById("loginUsername").value.trim().toLowerCase();
+  const identifier = document.getElementById("loginUsername").value.trim().toLowerCase();
   const password = document.getElementById("loginPassword").value;
   const statusMsg = document.getElementById("authStatusMsg");
 
@@ -167,12 +263,12 @@ async function handleLoginSubmit(e) {
   try {
     const { data: profile, error: fetchError } = await supabaseClient
       .from('profiles')
-      .select('email, username, vault_balance')
-      .eq('username', username)
+      .select('email, username, vault_balance, faucetpay_email')
+      .or(`username.eq.${identifier},email.eq.${identifier}`)
       .single();
 
     if (fetchError || !profile) {
-      statusMsg.innerText = "❌ FaucetPay Username not found!";
+      statusMsg.innerText = "❌ Username or Email not found!";
       return;
     }
 
@@ -186,20 +282,23 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    currentActiveUserAccount = username;
+    currentActiveUserAccount = profile.username;
+    currentActiveFaucetEmail = profile.faucetpay_email || "";
     userVaultBalance = parseFloat(profile.vault_balance);
-    localStorage.setItem("cyberstrike_user", username);
+
+    localStorage.setItem("cyberstrike_user", profile.username);
+    localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
+
+    playAudioSFX("win");
     initUserSessionUI();
     updateVaultBalanceUI();
-    closeAuthModal();
-    showCustomAlert(`🔓 Welcome back, ${username}! Vault loaded.`, "LOGIN SUCCESSFUL");
+    showCustomAlert(`🔓 Welcome back, ${profile.username}! Vault loaded.`, "LOGIN SUCCESSFUL");
 
   } catch (err) {
     statusMsg.innerText = "❌ Authentication error.";
   }
 }
 
-// AUTOMATED PASSWORD RESET EMAIL HANDLER
 async function handleResetPasswordSubmit(e) {
   e.preventDefault();
   const email = document.getElementById("resetEmail").value.trim();
@@ -216,40 +315,41 @@ async function handleResetPasswordSubmit(e) {
       statusMsg.innerText = `❌ ${error.message}`;
     } else {
       statusMsg.innerText = "";
-      closeAuthModal();
-      showCustomAlert(
-        "📩 Password reset email sent! Check your inbox to set a new password.",
-        "RESET LINK SENT"
-      );
+      switchAuthTab('login');
+      playAudioSFX("action");
+      showCustomAlert("📩 Password reset email sent! Check your inbox to set a new password.", "RESET LINK SENT");
     }
   } catch (err) {
     statusMsg.innerText = "❌ Network error. Try again.";
   }
 }
 
-// LOGOUT HANDLER
 function logoutUser() {
+  playAudioSFX("action");
   supabaseClient.auth.signOut();
   currentActiveUserAccount = null;
+  currentActiveFaucetEmail = "";
   localStorage.removeItem("cyberstrike_user");
+  localStorage.removeItem("cyberstrike_faucet_email");
   userVaultBalance = 0.0;
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out of CyberStrike.", "LOGGED OUT");
 }
 
-// CHECK RETURN FROM FAUCETPAY CHECKOUT
 function checkDepositReturnStatus() {
   const urlParams = new URLSearchParams(window.location.search);
   const status = urlParams.get("deposit");
 
   if (status === "success") {
+    playAudioSFX("deposit");
     showCustomAlert(
       "🎉 Your payment was submitted to FaucetPay! Your Vault Balance will update in a few seconds once confirmed via IPN.",
       "DEPOSIT SUBMITTED"
     );
     window.history.replaceState({}, document.title, window.location.pathname);
   } else if (status === "cancelled") {
+    playAudioSFX("lose");
     showCustomAlert("❌ Deposit checkout was cancelled or abandoned.", "DEPOSIT CANCELLED");
     window.history.replaceState({}, document.title, window.location.pathname);
   }
@@ -272,16 +372,12 @@ function initReferralUI() {
 }
 
 function copyReferralLink() {
-  if (!currentActiveUserAccount) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register to access your referral link!", "LOGIN REQUIRED");
-    return;
-  }
+  playAudioSFX("action");
   const refInput = document.getElementById("referralLinkInput");
   refInput.select();
   refInput.setSelectionRange(0, 99999);
   navigator.clipboard.writeText(refInput.value);
-  showCustomAlert("📋 FaucetPay Referral link copied to clipboard!", "REFERRAL PROGRAM");
+  showCustomAlert("📋 Referral link copied to clipboard!", "REFERRAL PROGRAM");
 }
 
 function updateVaultBalanceUI() {
@@ -311,6 +407,7 @@ function startLiveBalancePolling() {
     if (data && !error) {
       const newServerBalance = parseFloat(data.vault_balance);
       if (newServerBalance !== userVaultBalance) {
+        if (newServerBalance > userVaultBalance) playAudioSFX("deposit");
         userVaultBalance = newServerBalance;
         updateVaultBalanceUI();
       }
@@ -355,21 +452,17 @@ function startSprintCountdownTimer() {
 }
 
 function openDepositModal() {
-  if (!currentActiveUserAccount) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register first to make a deposit!", "LOGIN REQUIRED");
-    return;
-  }
+  playAudioSFX("action");
   document.getElementById("depositModal").classList.add("active");
 }
 
 function closeDepositModal() { document.getElementById("depositModal").classList.remove("active"); }
 
 function openWithdrawModal() {
-  if (!currentActiveUserAccount) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register first to make a withdrawal!", "LOGIN REQUIRED");
-    return;
+  playAudioSFX("action");
+  const emailInput = document.getElementById("withdrawEmailInput");
+  if (emailInput && currentActiveFaucetEmail) {
+    emailInput.value = currentActiveFaucetEmail;
   }
   document.getElementById("withdrawModal").classList.add("active");
 }
@@ -383,7 +476,7 @@ async function executePolWithdrawal() {
   const MIN_WITHDRAWAL = 2.0;
 
   if (!faucetEmail || !faucetEmail.includes("@")) {
-    statusEl.innerText = "❌ Enter a valid FaucetPay email address!";
+    statusEl.innerText = "❌ Enter a valid FaucetPay withdrawal email address!";
     return;
   }
   if (!amountInput || amountInput < MIN_WITHDRAWAL) {
@@ -413,17 +506,18 @@ async function executePolWithdrawal() {
     const result = await response.json();
 
     if (result.success) {
+      playAudioSFX("withdraw");
       userVaultBalance -= amountInput;
       updateVaultBalanceUI();
       statusEl.innerText = `✅ Withdrawal Sent Successfully via FaucetPay!`;
       setTimeout(() => {
         closeWithdrawModal();
         document.getElementById("withdrawAmountInput").value = "";
-        document.getElementById("withdrawEmailInput").value = "";
         statusEl.innerText = "";
         document.getElementById("confirmWithdrawBtn").disabled = false;
       }, 2500);
     } else {
+      playAudioSFX("lose");
       statusEl.innerText = `❌ Payout Failed: ${result.message || 'Check balance/API limits'}`;
       document.getElementById("confirmWithdrawBtn").disabled = false;
     }
@@ -434,6 +528,7 @@ async function executePolWithdrawal() {
 }
 
 function selectStake(btnElement) {
+  playAudioSFX("stake");
   document.querySelectorAll(".stake-btn").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
   currentSelectedStake = parseFloat(btnElement.getAttribute("data-stake"));
@@ -450,7 +545,7 @@ function recordWagerVolume(stakeAmount) {
   if (referrer) {
     const refCommission = stakeAmount * 0.10;
     totalRefEarned += refCommission;
-    console.log(`🤝 10% Referral Commission of ${refCommission.toFixed(4)} POL generated for referrer ${referrer}`);
+    console.log(`🤝 Referral commission generated for ${referrer}`);
   }
 }
 
@@ -460,7 +555,6 @@ function updateWagerSprintUI() {
   const pct = Math.min(100, Math.round((weeklyWageredPOL / nextMilestone.target) * 100));
   document.getElementById("sprintProgressPct").innerText = `${pct}%`;
   document.getElementById("sprintProgressBar").style.width = `${pct}%`;
-
   WAGER_MILESTONES.forEach(m => {
     const tierEl = document.getElementById(`mTier-${m.target}`);
     if (tierEl) {
@@ -474,20 +568,15 @@ function updateWagerSprintUI() {
 function claimMilestone(targetTier) {
   const milestone = WAGER_MILESTONES.find(m => m.target === targetTier);
   if (!milestone || milestone.claimed || weeklyWageredPOL < targetTier) return;
+  
+  playAudioSFX("milestone");
   milestone.claimed = true;
   userVaultBalance += milestone.reward;
   updateVaultBalanceUI();
   const claimBtn = document.getElementById(`mTier-${targetTier}`).querySelector("button");
   claimBtn.innerText = "CLAIMED";
   claimBtn.setAttribute("disabled", "true");
-  showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-                                              }
-    // ==========================================================================
-// CYBERSTRIKE GAMES ENGINE (PENALTY & LUDO RACE)
-// ==========================================================================
-
-// PENALTY SHOOTOUT ENGINE
-let penaltyTurnTimer = null;
+  showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
 let p1PenaltyShotsTaken = 0;
 let p2PenaltyShotsTaken = 0;
@@ -498,18 +587,13 @@ let isPenaltyActive = false;
 let isPenaltyTraining = false;
 
 function launchPenaltyArena(isTraining = false) {
-  if (!currentActiveUserAccount && !isTraining) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
-    return;
-  }
-
+  playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isPenaltyTraining = isTraining;
 
   if (!isTraining) {
     if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault! Deposit POL first or try Free Training Bot.", "INSUFFICIENT BALANCE");
+      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
       return;
     }
     userVaultBalance -= currentSelectedStake;
@@ -577,6 +661,7 @@ function updatePenaltyTimersUI() {
 
 function handlePenaltyTimeout() {
   if (!isPenaltyActive) return;
+  playAudioSFX("action");
   if (isP1PenaltyTurn) {
     document.getElementById("penaltyBanner").innerText = "⏳ TIME OUT! SHOT MISSED. BOT'S TURN.";
     setPenaltyControlsActive(false);
@@ -600,6 +685,7 @@ function handlePenaltyTimeout() {
 
 function takeShot(direction) {
   if (!isP1PenaltyTurn || !isPenaltyActive) return;
+  playAudioSFX("action");
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   setPenaltyControlsActive(false);
@@ -612,10 +698,12 @@ function takeShot(direction) {
 
   setTimeout(() => {
     if (direction !== keeperDive) {
+      playAudioSFX("win");
       p1PenaltyScore++;
       document.getElementById("p1Score").innerText = p1PenaltyScore;
       document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
     } else {
+      playAudioSFX("lose");
       document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
     }
     p1PenaltyShotsTaken++;
@@ -644,10 +732,12 @@ function processBotPenaltyShot() {
 
   setTimeout(() => {
     if (botShot !== myDive) {
+      playAudioSFX("lose");
       p2PenaltyScore++;
       document.getElementById("p2Score").innerText = p2PenaltyScore;
       document.getElementById("penaltyBanner").innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
     } else {
+      playAudioSFX("win");
       document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
     }
     p2PenaltyShotsTaken++;
@@ -693,6 +783,7 @@ function endPenaltyMatch() {
   let resultMsg = "";
 
   if (p1PenaltyScore > p2PenaltyScore) {
+    playAudioSFX("win");
     if (!isPenaltyTraining) {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON! +${winnerPayout.toFixed(2)} POL!`;
@@ -700,8 +791,10 @@ function endPenaltyMatch() {
       resultMsg = `🎉 TRAINING WIN! (Practice Mode)`;
     }
   } else if (p2PenaltyScore > p1PenaltyScore) {
+    playAudioSFX("lose");
     resultMsg = isPenaltyTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT WON THE SHOOTOUT!`;
   } else {
+    playAudioSFX("action");
     if (!isPenaltyTraining) {
       userVaultBalance += currentSelectedStake;
       resultMsg = `🤝 DRAW MATCH! Stake Refunded.`;
@@ -713,7 +806,6 @@ function endPenaltyMatch() {
   document.getElementById("penaltyBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
-  // RETRY BUTTON POPUP FLOW
   document.getElementById("controlsBox").innerHTML = `
     <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closePenaltyArena()">
       🔄 GAME OVER - RETRY / CHOOSE GAME
@@ -722,6 +814,7 @@ function endPenaltyMatch() {
 }
 
 function closePenaltyArena() {
+  playAudioSFX("action");
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
@@ -737,18 +830,13 @@ let isLudoActive = false;
 let isLudoTraining = false;
 
 function launchLudoRace(isTraining = false) {
-  if (!currentActiveUserAccount && !isTraining) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
-    return;
-  }
-
+  playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isLudoTraining = isTraining;
 
   if (!isTraining) {
     if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault! Deposit POL first or try Free Training Bot.", "INSUFFICIENT BALANCE");
+      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
       return;
     }
     userVaultBalance -= currentSelectedStake;
@@ -810,6 +898,7 @@ function updateLudoTimersUI() {
 
 function handleLudoTimeout() {
   if (!isLudoActive) return;
+  playAudioSFX("action");
   if (isLudoP1Turn) {
     document.getElementById("ludoBanner").innerText = "⏳ TIME OUT! TURN SKIPPED. BOT'S TURN.";
     const rollBtn = document.getElementById("rollDiceBtn");
@@ -826,6 +915,7 @@ function handleLudoTimeout() {
 
 function rollLudoDice() {
   if (!isLudoP1Turn || !isLudoActive) return;
+  playAudioSFX("action");
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   document.getElementById("rollDiceBtn").disabled = true;
 
@@ -894,6 +984,7 @@ function endLudoRace() {
   let resultMsg = "";
 
   if (p1TrackPosition >= 10 && p2TrackPosition < 10) {
+    playAudioSFX("win");
     if (!isLudoTraining) {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON THE LUDO RACE! +${winnerPayout.toFixed(2)} POL!`;
@@ -901,8 +992,10 @@ function endLudoRace() {
       resultMsg = `🎉 TRAINING WIN! (Practice Mode)`;
     }
   } else if (p2TrackPosition >= 10 && p1TrackPosition < 10) {
+    playAudioSFX("lose");
     resultMsg = isLudoTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT CROSSED FIRST! YOU LOST.`;
   } else {
+    playAudioSFX("action");
     if (!isLudoTraining) {
       userVaultBalance += currentSelectedStake;
       resultMsg = `🤝 DRAW RACE! Stake Refunded.`;
@@ -914,7 +1007,6 @@ function endLudoRace() {
   document.getElementById("ludoBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
-  // RETRY BUTTON POPUP FLOW
   const controlsEl = document.querySelector(".ludo-controls");
   controlsEl.innerHTML = `
     <button class="btn btn-launch" style="width: 100%; margin-top:0;" onclick="closeLudoArena()">
@@ -924,29 +1016,21 @@ function endLudoRace() {
 }
 
 function closeLudoArena() {
+  playAudioSFX("action");
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                              }
-      // ==========================================================================
-// CYBERSTRIKE GAMES ENGINE (COIN FLIP ARENA)
-// ==========================================================================
-
-let isCoinTraining = false;
+}
+  let isCoinTraining = false;
 
 function launchCoinFlipArena(isTraining = false) {
-  if (!currentActiveUserAccount && !isTraining) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
-    return;
-  }
-
+  playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isCoinTraining = isTraining;
 
   if (!isTraining) {
     if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault! Deposit POL first or try Free Training Bot.", "INSUFFICIENT BALANCE");
+      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
       return;
     }
     userVaultBalance -= currentSelectedStake;
@@ -966,11 +1050,13 @@ function launchCoinFlipArena(isTraining = false) {
 }
 
 function flipCoin(playerChoice) {
+  playAudioSFX("action");
   document.getElementById("coinControlsBox").innerHTML = "";
   document.getElementById("coinBanner").innerText = "🪙 FLIPPING COIN...";
   
   let spins = 0;
   const spinInterval = setInterval(() => {
+    playAudioSFX("action");
     document.getElementById("coinDisplayBox").innerText = spins % 2 === 0 ? "👑" : "🦅";
     spins++;
   }, 150);
@@ -985,6 +1071,7 @@ function flipCoin(playerChoice) {
     let resultMsg = "";
 
     if (playerChoice === winningOutcome) {
+      playAudioSFX("win");
       if (!isCoinTraining) {
         userVaultBalance += winnerPayout;
         resultMsg = `🎉 YOU WON! LANDED ${winningOutcome.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
@@ -992,13 +1079,13 @@ function flipCoin(playerChoice) {
         resultMsg = `🎉 TRAINING WIN! LANDED ${winningOutcome.toUpperCase()}`;
       }
     } else {
+      playAudioSFX("lose");
       resultMsg = isCoinTraining ? `🤖 TRAINING ENDED. LANDED ${winningOutcome.toUpperCase()}.` : `💔 YOU LOST! LANDED ${winningOutcome.toUpperCase()}.`;
     }
 
     document.getElementById("coinBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
     updateVaultBalanceUI();
 
-    // RETRY BUTTON POPUP FLOW
     document.getElementById("coinControlsBox").innerHTML = `
       <button class="btn btn-launch" style="grid-column: span 2; margin-top:0;" onclick="closeCoinFlipArena()">
         🔄 GAME OVER - RETRY / CHOOSE GAME
@@ -1008,30 +1095,22 @@ function flipCoin(playerChoice) {
 }
 
 function closeCoinFlipArena() {
+  playAudioSFX("action");
   document.getElementById("coinFlipOverlay").classList.remove("active");
 }
-// ==========================================================================
-// CYBERSTRIKE GAMES ENGINE (ROCK PAPER SCISSORS ARENA)
-// ==========================================================================
-
-let rpsTimer = null;
+  let rpsTimer = null;
 let rpsTimeLeft = 5;
 let isRpsActive = false;
 let isRpsTraining = false;
 
 function launchRpsArena(isTraining = false) {
-  if (!currentActiveUserAccount && !isTraining) {
-    openAuthModal('login');
-    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
-    return;
-  }
-
+  playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isRpsTraining = isTraining;
 
   if (!isTraining) {
     if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault! Deposit POL first or try Free Training Bot.", "INSUFFICIENT BALANCE");
+      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
       return;
     }
     userVaultBalance -= currentSelectedStake;
@@ -1073,6 +1152,7 @@ function updateRpsBanner() {
 
 function handleRpsTimeout() {
   if (!isRpsActive) return;
+  playAudioSFX("action");
   document.getElementById("rpsBanner").innerText = "⏳ TIME OUT! MOVE MISSED.";
   setRpsControlsActive(false);
   setTimeout(() => resolveRpsMatch('rock', true), 1000);
@@ -1080,6 +1160,7 @@ function handleRpsTimeout() {
 
 function playRps(playerChoice) {
   if (!isRpsActive) return;
+  playAudioSFX("action");
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   setRpsControlsActive(false);
@@ -1097,8 +1178,10 @@ function resolveRpsMatch(playerChoice, timedOut) {
   let resultMsg = "";
 
   if (timedOut) {
+    playAudioSFX("lose");
     resultMsg = `💔 TIME OUT! BOT CHOSE ${botChoice.toUpperCase()}. YOU LOST.`;
   } else if (playerChoice === botChoice) {
+    playAudioSFX("action");
     if (!isRpsTraining) {
       userVaultBalance += currentSelectedStake;
       resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. Stake Refunded.`;
@@ -1110,6 +1193,7 @@ function resolveRpsMatch(playerChoice, timedOut) {
     (playerChoice === "paper" && botChoice === "rock") ||
     (playerChoice === "scissors" && botChoice === "paper")
   ) {
+    playAudioSFX("win");
     if (!isRpsTraining) {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${botChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
@@ -1117,13 +1201,13 @@ function resolveRpsMatch(playerChoice, timedOut) {
       resultMsg = `🎉 TRAINING WIN!`;
     }
   } else {
+    playAudioSFX("lose");
     resultMsg = isRpsTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 YOU LOST! ${botChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
   }
 
   document.getElementById("rpsBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
-  // RETRY BUTTON POPUP FLOW
   document.getElementById("rpsControlsBox").innerHTML = `
     <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closeRpsArena()">
       🔄 GAME OVER - RETRY / CHOOSE GAME
@@ -1136,7 +1220,77 @@ function setRpsControlsActive(active) {
 }
 
 function closeRpsArena() {
+  playAudioSFX("action");
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
 }
+  import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  try {
+    const { token, custom, amount1 } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Missing token' });
+    }
+
+    // 1. Verify transaction with FaucetPay Merchant API
+    const verifyRes = await fetch('https://faucetpay.io/api/v1/merchant/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        api_key: process.env.FAUCETPAY_MERCHANT_TOKEN,
+        token: token
+      })
+    });
+
+    const verifyData = await verifyRes.json();
+
+    if (!verifyData.valid) {
+      return res.status(400).json({ message: 'Invalid payment token' });
+    }
+
+    // 2. Parse User Account Data from custom payload
+    const customData = typeof custom === 'string' ? JSON.parse(custom) : custom;
+    const userAccountId = customData.account_id;
+    const depositAmount = parseFloat(amount1);
+
+    // 3. Fetch current user balance from Supabase
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('vault_balance')
+      .eq('username', userAccountId)
+      .single();
+
+    if (fetchError || !profile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // 4. Update balance in Supabase
+    const newBalance = parseFloat(profile.vault_balance) + depositAmount;
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ vault_balance: newBalance })
+      .eq('username', userAccountId);
+
+    if (updateError) {
+      return res.status(500).json({ message: 'Failed to update balance' });
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Balance credited' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+  

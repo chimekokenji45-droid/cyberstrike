@@ -99,7 +99,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   background: rgba(3, 6, 11, 0.95); backdrop-filter: blur(12px);
   justify-content: center; align-items: center; z-index: 9999; padding: 10px; overflow: hidden;
 }
-.modal-overlay.active { display: flex; }
+.modal-overlay.active { display: flex !important; }
 .modal-card {
   background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px;
   padding: 20px; width: 100%; max-width: 420px; position: relative; max-height: 90vh; overflow-y: auto;
@@ -156,7 +156,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-header h3 { font-size: 14px; color: var(--accent-cyan); }
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
-                                 
+    
     </style>
 </head>
 <body>
@@ -341,9 +341,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <div class="copyright-bar">
       <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
     </div>
-            </footer>
-    <!-- MANDATORY AUTH GATEWAY MODAL -->
-  <div id="authModal" class="modal-overlay">
+        </footer>
+    <!-- MANDATORY AUTH GATEWAY MODAL (FORCED ACTIVE BY DEFAULT VIA HTML CLASS) -->
+  <div id="authModal" class="modal-overlay active">
     <div class="modal-card">
       <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="display:none;">✖</button>
       
@@ -607,4 +607,4 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   <script src="rps.js"></script>
 </body>
           </html>
-  
+            

@@ -1,10 +1,17 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (CONFIGURED WITH USER SUPABASE & AUDIO ENGINE)
+// CYBERSTRIKE CORE SCRIPT (SAFE SUPABASE & AUDIO ENGINE)
 // ==========================================================================
 
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabaseClient = null;
+
+function getSupabase() {
+  if (!supabaseClient && window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return supabaseClient;
+}
 
 let userVaultBalance = 0.0;
 let totalRefEarned = 0.0;
@@ -136,6 +143,7 @@ function initUserSessionUI() {
   const mainDash = document.getElementById("mainDashboard");
   const mainFooter = document.getElementById("mainFooter");
   const closeBtn = document.getElementById("authCloseBtn");
+  const authModal = document.getElementById("authModal");
 
   if (currentActiveUserAccount) {
     if (authNavBox) authNavBox.style.display = "none";
@@ -154,11 +162,7 @@ function initUserSessionUI() {
     if (mainFooter) mainFooter.style.display = "none";
     if (closeBtn) closeBtn.style.display = "none";
 
-    // OPEN LOGIN MODAL IMMEDIATELY UPON ARRIVING AT THE SITE (FIXES BLANK SCREEN)
-    const authModal = document.getElementById("authModal");
-    if (authModal) {
-      authModal.classList.add("active");
-    }
+    if (authModal) authModal.classList.add("active");
     switchAuthTab('login');
   }
 }
@@ -217,31 +221,17 @@ async function handleRegisterSubmit(e) {
   statusMsg.innerText = "⏳ Creating account...";
 
   try {
-    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-      email: email,
-      password: password
-    });
+    const sb = getSupabase();
+    if (!sb) { statusMsg.innerText = "❌ Supabase loading... try again in 3s."; return; }
 
-    if (authError) {
-      statusMsg.innerText = `❌ ${authError.message}`;
-      return;
-    }
+    const { data: authData, error: authError } = await sb.auth.signUp({ email, password });
+    if (authError) { statusMsg.innerText = `❌ ${authError.message}`; return; }
 
-    const { error: profileError } = await supabaseClient
-      .from('profiles')
-      .insert([
-        {
-          username: username,
-          vault_balance: 0.0000,
-          email: email,
-          faucetpay_email: faucetEmail
-        }
-      ]);
+    const { error: profileError } = await sb.from('profiles').insert([
+      { username, vault_balance: 0.0000, email, faucetpay_email: faucetEmail }
+    ]);
 
-    if (profileError) {
-      statusMsg.innerText = `❌ Username or email already registered.`;
-      return;
-    }
+    if (profileError) { statusMsg.innerText = `❌ Username or email already registered.`; return; }
 
     currentActiveUserAccount = username;
     currentActiveFaucetEmail = faucetEmail;
@@ -251,7 +241,6 @@ async function handleRegisterSubmit(e) {
     playAudioSFX("win");
     initUserSessionUI();
     showCustomAlert(`🎉 Account created successfully! Welcome to CyberStrike, ${username}.`, "WELCOME");
-
   } catch (err) {
     statusMsg.innerText = "❌ Connection error.";
   }
@@ -266,7 +255,10 @@ async function handleLoginSubmit(e) {
   statusMsg.innerText = "⏳ Authenticating...";
 
   try {
-    const { data: profile, error: fetchError } = await supabaseClient
+    const sb = getSupabase();
+    if (!sb) { statusMsg.innerText = "❌ Supabase loading... try again in 3s."; return; }
+
+    const { data: profile, error: fetchError } = await sb
       .from('profiles')
       .select('email, username, vault_balance, faucetpay_email')
       .or(`username.eq.${identifier},email.eq.${identifier}`)
@@ -277,7 +269,7 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    const { error: loginError } = await supabaseClient.auth.signInWithPassword({
+    const { error: loginError } = await sb.auth.signInWithPassword({
       email: profile.email,
       password: password
     });
@@ -312,7 +304,10 @@ async function handleResetPasswordSubmit(e) {
   statusMsg.innerText = "⏳ Sending recovery link...";
 
   try {
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    const sb = getSupabase();
+    if (!sb) { statusMsg.innerText = "❌ Supabase loading..."; return; }
+
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}${window.location.pathname}?reset=true`
     });
 
@@ -322,16 +317,17 @@ async function handleResetPasswordSubmit(e) {
       statusMsg.innerText = "";
       switchAuthTab('login');
       playAudioSFX("action");
-      showCustomAlert("📩 Password reset email sent! Check your inbox to set a new password.", "RESET LINK SENT");
+      showCustomAlert("📩 Password reset email sent! Check your inbox.", "RESET LINK SENT");
     }
   } catch (err) {
-    statusMsg.innerText = "❌ Network error. Try again.";
+    statusMsg.innerText = "❌ Network error.";
   }
 }
 
 function logoutUser() {
   playAudioSFX("action");
-  supabaseClient.auth.signOut();
+  const sb = getSupabase();
+  if (sb) sb.auth.signOut();
   currentActiveUserAccount = null;
   currentActiveFaucetEmail = "";
   localStorage.removeItem("cyberstrike_user");
@@ -339,22 +335,22 @@ function logoutUser() {
   userVaultBalance = 0.0;
   initUserSessionUI();
   updateVaultBalanceUI();
-  showCustomAlert("🚪 You have logged out of CyberStrike.", "LOGGED OUT");
-        }
-  function checkDepositReturnStatus() {
+  showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
+}
+function checkDepositReturnStatus() {
   const urlParams = new URLSearchParams(window.location.search);
   const status = urlParams.get("deposit");
 
   if (status === "success") {
     playAudioSFX("deposit");
     showCustomAlert(
-      "🎉 Your payment was submitted to FaucetPay! Your Vault Balance will update in a few seconds once confirmed via IPN.",
+      "🎉 Your payment was submitted to FaucetPay! Your Vault Balance will update in a few seconds.",
       "DEPOSIT SUBMITTED"
     );
     window.history.replaceState({}, document.title, window.location.pathname);
   } else if (status === "cancelled") {
     playAudioSFX("lose");
-    showCustomAlert("❌ Deposit checkout was cancelled or abandoned.", "DEPOSIT CANCELLED");
+    showCustomAlert("❌ Deposit checkout was cancelled.", "DEPOSIT CANCELLED");
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
@@ -401,8 +397,10 @@ function updateFaucetPayCustom() {
 function startLiveBalancePolling() {
   setInterval(async () => {
     if (!currentActiveUserAccount) return;
+    const sb = getSupabase();
+    if (!sb) return;
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await sb
       .from("profiles")
       .select("vault_balance")
       .eq("username", currentActiveUserAccount)
@@ -549,7 +547,6 @@ function recordWagerVolume(stakeAmount) {
   if (referrer) {
     const refCommission = stakeAmount * 0.10;
     totalRefEarned += refCommission;
-    console.log(`🤝 Referral commission generated for ${referrer}`);
   }
 }
 
@@ -582,8 +579,8 @@ function claimMilestone(targetTier) {
   claimBtn.innerText = "CLAIMED";
   claimBtn.setAttribute("disabled", "true");
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-}
-// PENALTY SHOOTOUT ENGINE
+                                        }
+  // PENALTY SHOOTOUT ENGINE
 let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
 let p1PenaltyShotsTaken = 0;
@@ -1028,10 +1025,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                              }
-// ==========================================
-// COIN FLIP ENGINE (`coinflip.js`)
-// ==========================================
+}
 let isCoinTraining = false;
 
 function launchCoinFlipArena(isTraining = false) {
@@ -1109,10 +1103,6 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   document.getElementById("coinFlipOverlay").classList.remove("active");
 }
-
-// ==========================================
-// ROCK PAPER SCISSORS ENGINE (`rps.js`)
-// ==========================================
 let rpsTimer = null;
 let rpsTimeLeft = 5;
 let isRpsActive = false;

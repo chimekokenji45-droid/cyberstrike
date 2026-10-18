@@ -21,17 +21,27 @@ export default async function handler(req, res) {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          username,
-          faucetpay_email: faucetpay_email || email,
-        },
-      },
     });
 
     if (authError) throw authError;
 
-    // 2. Return success
+    const userId = authData.user.id;
+
+    // 2. Insert user details into the public.profiles table so login can find them
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          id: userId,
+          username: username,
+          email: email,
+          faucetpay_email: faucetpay_email || email,
+          balance: 0.00
+        }
+      ]);
+
+    if (profileError) throw profileError;
+
     return res.status(200).json({
       message: 'Account created successfully!',
       user: authData.user,
@@ -39,5 +49,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-      }
-          
+  }

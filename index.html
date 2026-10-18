@@ -186,7 +186,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-header h3 { font-size: 14px; color: var(--accent-cyan); }
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
-  
+      
     </style>
 </head>
 <body>
@@ -199,12 +199,21 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
 
     <div class="wallet-bar">
-      <div class="balance-box">
-        <span class="label">VAULT BALANCE:</span>
-        <span id="userBalanceDisplay" class="value">0.0000 POL</span>
+      <!-- AUTH STATE CONTAINER -->
+      <div id="authNavBox" style="display: flex; gap: 8px; align-items: center;">
+        <button id="authBtn" class="btn btn-primary" onclick="openAuthModal('login')">🔑 LOGIN / REGISTER</button>
       </div>
-      <button id="depositBtn" class="btn btn-primary" onclick="openDepositModal()">📥 DEPOSIT</button>
-      <button id="withdrawBtn" class="btn btn-secondary" onclick="openWithdrawModal()">📤 WITHDRAW</button>
+
+      <!-- BALANCE CONTAINER (VISIBLE WHEN LOGGED IN) -->
+      <div id="userWalletBox" style="display: none; align-items: center; gap: 8px;">
+        <div class="balance-box">
+          <span class="label" id="loggedInUserTag">USER: -</span>
+          <span id="userBalanceDisplay" class="value">0.0000 POL</span>
+        </div>
+        <button id="depositBtn" class="btn btn-primary" onclick="openDepositModal()">📥 DEPOSIT</button>
+        <button id="withdrawBtn" class="btn btn-secondary" onclick="openWithdrawModal()">📤 WITHDRAW</button>
+        <button class="btn btn-secondary" style="color: var(--accent-magenta);" onclick="logoutUser()">🚪</button>
+      </div>
     </div>
   </header>
 
@@ -359,6 +368,89 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </footer>
 
+  <!-- REGISTER / LOGIN / FORGOT PASSWORD AUTH MODAL -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="close-btn" onclick="closeAuthModal()">✖</button>
+      
+      <!-- TAB TOGGLE -->
+      <div id="authTabBox" style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+        <button id="tabLoginBtn" class="btn btn-primary" style="flex: 1;" onclick="switchAuthTab('login')">LOGIN</button>
+        <button id="tabRegisterBtn" class="btn btn-secondary" style="flex: 1;" onclick="switchAuthTab('register')">REGISTER</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+        <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">ACCESS CYBERVAULT</h3>
+        <p class="subtitle">Enter your FaucetPay username to access your account</p>
+
+        <div class="form-group">
+          <label>FAUCETPAY USERNAME:</label>
+          <input type="text" id="loginUsername" placeholder="e.g. chimeko45" required>
+        </div>
+
+        <div class="form-group">
+          <label>PASSWORD:</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required>
+        </div>
+
+        <div style="text-align: right; margin-top: 4px; margin-bottom: 12px;">
+          <a href="#" onclick="switchAuthTab('reset')" style="color: var(--accent-cyan); font-size: 11px; text-decoration: none;">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 900;">
+          LOG IN 🔓
+        </button>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="registerForm" onsubmit="handleRegisterSubmit(event)" style="display: none;">
+        <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">CREATE ARENA ACCOUNT</h3>
+        <p class="subtitle">Use your exact FaucetPay username for automatic deposit syncing</p>
+
+        <div class="form-group">
+          <label>FAUCETPAY USERNAME:</label>
+          <input type="text" id="regUsername" placeholder="e.g. chimeko45" required>
+        </div>
+
+        <div class="form-group">
+          <label>EMAIL ADDRESS:</label>
+          <input type="email" id="regEmail" placeholder="your-email@example.com" required>
+        </div>
+
+        <div class="form-group">
+          <label>CREATE PASSWORD:</label>
+          <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+        </div>
+
+        <button type="submit" class="btn btn-launch" style="width: 100%; margin-top: 10px; padding: 12px; font-weight: 900;">
+          REGISTER ACCOUNT 🚀
+        </button>
+      </form>
+
+      <!-- FORGOT PASSWORD RESET FORM -->
+      <form id="resetForm" onsubmit="handleResetPasswordSubmit(event)" style="display: none;">
+        <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">RESET PASSWORD</h3>
+        <p class="subtitle">Enter your registered email address to receive a password recovery link</p>
+
+        <div class="form-group">
+          <label>EMAIL ADDRESS:</label>
+          <input type="email" id="resetEmail" placeholder="your-email@example.com" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; padding: 12px; font-weight: 900;">
+          SEND RESET LINK 📩
+        </button>
+        
+        <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="switchAuthTab('login')">
+          BACK TO LOGIN
+        </button>
+      </form>
+
+      <div id="authStatusMsg" class="status-msg"></div>
+    </div>
+  </div>
+
   <!-- CUSTOM CYBERSTRIKE NOTIFICATION MODAL -->
   <div id="notificationModal" class="modal-overlay">
     <div class="modal-card" style="text-align: center;">
@@ -387,8 +479,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </div>
 
         <input type="hidden" name="custom" id="faucetPayCustomField" value="">
-        <input type="hidden" name="success_url" value="https://cyberstrike-eight.vercel.app/index.html?deposit=success">
-        <input type="hidden" name="cancel_url" value="https://cyberstrike-eight.vercel.app/index.html?deposit=cancelled">
+        <input type="hidden" name="callback_url" value="https://cyberstrike-eight.vercel.app/api/faucetpay-ipn">
+        <input type="hidden" name="success_url" value="https://yourdomain.com/index.html?deposit=success">
+        <input type="hidden" name="cancel_url" value="https://yourdomain.com/index.html?deposit=cancelled">
 
         <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 14px; padding: 12px; font-weight: 900;">
           PROCEED TO FAUCETPAY 🚀
@@ -534,5 +627,4 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   <script src="coinflip.js"></script>
   <script src="rps.js"></script>
 </body>
-  </html>
-              
+</html>

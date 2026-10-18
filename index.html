@@ -101,8 +101,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(3, 6, 11, 0.92);
-  backdrop-filter: blur(10px);
+  background: rgba(3, 6, 11, 0.95);
+  backdrop-filter: blur(12px);
   justify-content: center;
   align-items: center;
   z-index: 9999;
@@ -186,7 +186,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-header h3 { font-size: 14px; color: var(--accent-cyan); }
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
-      
+    
     </style>
 </head>
 <body>
@@ -199,6 +199,11 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
 
     <div class="wallet-bar">
+      <!-- SOUND SFX TOGGLE BUTTON -->
+      <button id="soundToggleBtn" class="btn btn-secondary" onclick="toggleSoundSFX()" style="font-size: 11px;">
+        🔊 SFX: ON
+      </button>
+
       <!-- AUTH STATE CONTAINER -->
       <div id="authNavBox" style="display: flex; gap: 8px; align-items: center;">
         <button id="authBtn" class="btn btn-primary" onclick="openAuthModal('login')">🔑 LOGIN / REGISTER</button>
@@ -217,8 +222,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </header>
 
-  <!-- MAIN DASHBOARD CONTAINER -->
-  <main class="container">
+  <!-- MAIN DASHBOARD CONTAINER (HIDDEN UNTIL LOGGED IN) -->
+  <main class="container" id="mainDashboard" style="display: none;">
     
     <!-- LEFT COLUMN -->
     <div class="left-column">
@@ -282,9 +287,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         <h2>🤝 10% REFERRAL PROGRAM</h2>
         <p class="subtitle">Earn 10% instant commission on every match your referrals play!</p>
         <div class="form-group">
-          <label>YOUR FAUCETPAY REFERRAL LINK:</label>
+          <label>YOUR REFERRAL LINK:</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="referralLinkInput" readonly value="https://yourdomain.com/index.html?ref=YOUR_FAUCETPAY_USERNAME">
+            <input type="text" id="referralLinkInput" readonly value="https://yourdomain.com/index.html?ref=USERNAME">
             <button class="btn btn-primary" onclick="copyReferralLink()">COPY</button>
           </div>
         </div>
@@ -353,7 +358,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </main>
 
   <!-- FOOTER -->
-  <footer class="footer-container">
+  <footer class="footer-container" id="mainFooter" style="display: none;">
     <div class="fairness-card">
       <div class="fairness-header">
         <span class="shield-icon">🛡️</span>
@@ -367,11 +372,10 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
     </div>
   </footer>
-
-  <!-- REGISTER / LOGIN / FORGOT PASSWORD AUTH MODAL -->
+    <!-- MANDATORY AUTH GATEWAY MODAL -->
   <div id="authModal" class="modal-overlay">
     <div class="modal-card">
-      <button class="close-btn" onclick="closeAuthModal()">✖</button>
+      <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="display:none;">✖</button>
       
       <!-- TAB TOGGLE -->
       <div id="authTabBox" style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
@@ -382,11 +386,11 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <!-- LOGIN FORM -->
       <form id="loginForm" onsubmit="handleLoginSubmit(event)">
         <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">ACCESS CYBERVAULT</h3>
-        <p class="subtitle">Enter your FaucetPay username to access your account</p>
+        <p class="subtitle">Enter your account username or email to continue</p>
 
         <div class="form-group">
-          <label>FAUCETPAY USERNAME:</label>
-          <input type="text" id="loginUsername" placeholder="e.g. chimeko45" required>
+          <label>USERNAME OR EMAIL:</label>
+          <input type="text" id="loginUsername" placeholder="e.g. cyberplayer" required>
         </div>
 
         <div class="form-group">
@@ -406,16 +410,21 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <!-- REGISTER FORM -->
       <form id="registerForm" onsubmit="handleRegisterSubmit(event)" style="display: none;">
         <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">CREATE ARENA ACCOUNT</h3>
-        <p class="subtitle">Use your exact FaucetPay username for automatic deposit syncing</p>
+        <p class="subtitle">Set up your account & FaucetPay email for instant withdrawals</p>
 
         <div class="form-group">
-          <label>FAUCETPAY USERNAME:</label>
-          <input type="text" id="regUsername" placeholder="e.g. chimeko45" required>
+          <label>CHOOSE USERNAME:</label>
+          <input type="text" id="regUsername" placeholder="e.g. cyberplayer" required>
         </div>
 
         <div class="form-group">
-          <label>EMAIL ADDRESS:</label>
+          <label>ACCOUNT EMAIL ADDRESS:</label>
           <input type="email" id="regEmail" placeholder="your-email@example.com" required>
+        </div>
+
+        <div class="form-group">
+          <label>FAUCETPAY WITHDRAWAL EMAIL:</label>
+          <input type="email" id="regFaucetEmail" placeholder="faucetpay-email@example.com" required>
         </div>
 
         <div class="form-group">
@@ -431,7 +440,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <!-- FORGOT PASSWORD RESET FORM -->
       <form id="resetForm" onsubmit="handleResetPasswordSubmit(event)" style="display: none;">
         <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">RESET PASSWORD</h3>
-        <p class="subtitle">Enter your registered email address to receive a password recovery link</p>
+        <p class="subtitle">Enter your registered email address to receive a recovery link</p>
 
         <div class="form-group">
           <label>EMAIL ADDRESS:</label>
@@ -498,8 +507,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <p class="subtitle">Instant Payout directly to your FaucetPay account</p>
 
       <div class="form-group">
-        <label>FAUCETPAY EMAIL ADDRESS:</label>
-        <input type="email" id="withdrawEmailInput" placeholder="your-email@example.com">
+        <label>FAUCETPAY WITHDRAWAL EMAIL:</label>
+        <input type="email" id="withdrawEmailInput" placeholder="faucetpay-email@example.com">
       </div>
 
       <div class="form-group">
@@ -627,4 +636,5 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   <script src="coinflip.js"></script>
   <script src="rps.js"></script>
 </body>
-</html>
+        </html>
+  

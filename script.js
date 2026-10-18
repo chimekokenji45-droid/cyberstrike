@@ -1,9 +1,9 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (FAUCETPAY MERCHANT: chimeko45 & 10% REFERRAL)
+// CYBERSTRIKE CORE SCRIPT (FAUCETPAY MERCHANT: chimeko45 & AUTH)
 // ==========================================================================
 
-const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
+const SUPABASE_URL = "https://YOUR_SUPABASE_PROJECT_ID.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let userVaultBalance = 0.0;
@@ -11,8 +11,8 @@ let totalRefEarned = 0.0;
 let weeklyWageredPOL = 0.0;
 let currentSelectedStake = 1.0;
 
-// Active user identified by FaucetPay Username
-const currentActiveUserAccount = "player_user_1"; 
+// Dynamic active account handling via Supabase Auth / Local Storage
+let currentActiveUserAccount = localStorage.getItem("cyberstrike_user") || null;
 
 const WAGER_MILESTONES = [
   { target: 50, reward: 6.0, claimed: false },
@@ -27,8 +27,7 @@ const WAGER_MILESTONES = [
 window.addEventListener("DOMContentLoaded", () => {
   checkDepositReturnStatus();
   captureReferrerFromURL();
-  initReferralUI();
-  updateVaultBalanceUI();
+  initUserSessionUI();
   updateWagerSprintUI();
   startSprintCountdownTimer();
   startLiveBalancePolling();
@@ -49,6 +48,194 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 
 function closeNotificationModal() {
   document.getElementById("notificationModal").classList.remove("active");
+}
+
+// UI SESSION SWITCHER
+function initUserSessionUI() {
+  const authNavBox = document.getElementById("authNavBox");
+  const userWalletBox = document.getElementById("userWalletBox");
+  const userTag = document.getElementById("loggedInUserTag");
+
+  if (currentActiveUserAccount) {
+    if (authNavBox) authNavBox.style.display = "none";
+    if (userWalletBox) userWalletBox.style.display = "flex";
+    if (userTag) userTag.innerText = `USER: ${currentActiveUserAccount}`;
+    initReferralUI();
+  } else {
+    if (authNavBox) authNavBox.style.display = "flex";
+    if (userWalletBox) userWalletBox.style.display = "none";
+  }
+}
+
+// MODAL & TAB CONTROLLERS
+function openAuthModal(tab = 'login') {
+  document.getElementById("authModal").classList.add("active");
+  switchAuthTab(tab);
+}
+
+function closeAuthModal() {
+  document.getElementById("authModal").classList.remove("active");
+  document.getElementById("authStatusMsg").innerText = "";
+}
+
+function switchAuthTab(tab) {
+  const loginForm = document.getElementById("loginForm");
+  const regForm = document.getElementById("registerForm");
+  const resetForm = document.getElementById("resetForm");
+  const tabBox = document.getElementById("authTabBox");
+  const tabLogin = document.getElementById("tabLoginBtn");
+  const tabReg = document.getElementById("tabRegisterBtn");
+
+  if (tab === 'login') {
+    tabBox.style.display = "flex";
+    loginForm.style.display = "block";
+    regForm.style.display = "none";
+    resetForm.style.display = "none";
+    tabLogin.className = "btn btn-primary";
+    tabReg.className = "btn btn-secondary";
+  } else if (tab === 'register') {
+    tabBox.style.display = "flex";
+    loginForm.style.display = "none";
+    regForm.style.display = "block";
+    resetForm.style.display = "none";
+    tabLogin.className = "btn btn-secondary";
+    tabReg.className = "btn btn-primary";
+  } else if (tab === 'reset') {
+    tabBox.style.display = "none";
+    loginForm.style.display = "none";
+    regForm.style.display = "none";
+    resetForm.style.display = "block";
+  }
+}
+
+// REGISTER SUBMIT HANDLER
+async function handleRegisterSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById("regUsername").value.trim().toLowerCase();
+  const email = document.getElementById("regEmail").value.trim();
+  const password = document.getElementById("regPassword").value;
+  const statusMsg = document.getElementById("authStatusMsg");
+
+  statusMsg.innerText = "⏳ Creating account in Supabase...";
+
+  try {
+    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+      email: email,
+      password: password
+    });
+
+    if (authError) {
+      statusMsg.innerText = `❌ ${authError.message}`;
+      return;
+    }
+
+    const { error: profileError } = await supabaseClient
+      .from('profiles')
+      .insert([
+        {
+          username: username,
+          vault_balance: 0.0000,
+          email: email
+        }
+      ]);
+
+    if (profileError) {
+      statusMsg.innerText = `❌ Username may already be registered.`;
+      return;
+    }
+
+    currentActiveUserAccount = username;
+    localStorage.setItem("cyberstrike_user", username);
+    initUserSessionUI();
+    closeAuthModal();
+    showCustomAlert(`🎉 Account created successfully! Welcome to CyberStrike, ${username}.`, "WELCOME");
+
+  } catch (err) {
+    statusMsg.innerText = "❌ Network connection error.";
+  }
+}
+
+// LOGIN SUBMIT HANDLER
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById("loginUsername").value.trim().toLowerCase();
+  const password = document.getElementById("loginPassword").value;
+  const statusMsg = document.getElementById("authStatusMsg");
+
+  statusMsg.innerText = "⏳ Authenticating...";
+
+  try {
+    const { data: profile, error: fetchError } = await supabaseClient
+      .from('profiles')
+      .select('email, username, vault_balance')
+      .eq('username', username)
+      .single();
+
+    if (fetchError || !profile) {
+      statusMsg.innerText = "❌ FaucetPay Username not found!";
+      return;
+    }
+
+    const { error: loginError } = await supabaseClient.auth.signInWithPassword({
+      email: profile.email,
+      password: password
+    });
+
+    if (loginError) {
+      statusMsg.innerText = "❌ Invalid password!";
+      return;
+    }
+
+    currentActiveUserAccount = username;
+    userVaultBalance = parseFloat(profile.vault_balance);
+    localStorage.setItem("cyberstrike_user", username);
+    initUserSessionUI();
+    updateVaultBalanceUI();
+    closeAuthModal();
+    showCustomAlert(`🔓 Welcome back, ${username}! Vault loaded.`, "LOGIN SUCCESSFUL");
+
+  } catch (err) {
+    statusMsg.innerText = "❌ Authentication error.";
+  }
+}
+
+// AUTOMATED PASSWORD RESET EMAIL HANDLER
+async function handleResetPasswordSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById("resetEmail").value.trim();
+  const statusMsg = document.getElementById("authStatusMsg");
+
+  statusMsg.innerText = "⏳ Sending recovery link...";
+
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${window.location.pathname}?reset=true`
+    });
+
+    if (error) {
+      statusMsg.innerText = `❌ ${error.message}`;
+    } else {
+      statusMsg.innerText = "";
+      closeAuthModal();
+      showCustomAlert(
+        "📩 Password reset email sent! Check your inbox to set a new password.",
+        "RESET LINK SENT"
+      );
+    }
+  } catch (err) {
+    statusMsg.innerText = "❌ Network error. Try again.";
+  }
+}
+
+// LOGOUT HANDLER
+function logoutUser() {
+  supabaseClient.auth.signOut();
+  currentActiveUserAccount = null;
+  localStorage.removeItem("cyberstrike_user");
+  userVaultBalance = 0.0;
+  initUserSessionUI();
+  updateVaultBalanceUI();
+  showCustomAlert("🚪 You have logged out of CyberStrike.", "LOGGED OUT");
 }
 
 // CHECK RETURN FROM FAUCETPAY CHECKOUT
@@ -78,13 +265,18 @@ function captureReferrerFromURL() {
 
 function initReferralUI() {
   const refInput = document.getElementById("referralLinkInput");
-  if (refInput) {
+  if (refInput && currentActiveUserAccount) {
     const currentDomain = window.location.origin + window.location.pathname;
     refInput.value = `${currentDomain}?ref=${currentActiveUserAccount}`;
   }
 }
 
 function copyReferralLink() {
+  if (!currentActiveUserAccount) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register to access your referral link!", "LOGIN REQUIRED");
+    return;
+  }
   const refInput = document.getElementById("referralLinkInput");
   refInput.select();
   refInput.setSelectionRange(0, 99999);
@@ -162,9 +354,26 @@ function startSprintCountdownTimer() {
   setInterval(updateTimer, 1000);
 }
 
-function openDepositModal() { document.getElementById("depositModal").classList.add("active"); }
+function openDepositModal() {
+  if (!currentActiveUserAccount) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register first to make a deposit!", "LOGIN REQUIRED");
+    return;
+  }
+  document.getElementById("depositModal").classList.add("active");
+}
+
 function closeDepositModal() { document.getElementById("depositModal").classList.remove("active"); }
-function openWithdrawModal() { document.getElementById("withdrawModal").classList.add("active"); }
+
+function openWithdrawModal() {
+  if (!currentActiveUserAccount) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register first to make a withdrawal!", "LOGIN REQUIRED");
+    return;
+  }
+  document.getElementById("withdrawModal").classList.add("active");
+}
+
 function closeWithdrawModal() { document.getElementById("withdrawModal").classList.remove("active"); }
 
 async function executePolWithdrawal() {
@@ -237,7 +446,6 @@ function recordWagerVolume(stakeAmount) {
   weeklyWageredPOL += stakeAmount;
   updateWagerSprintUI();
 
-  // Process 10% Referral Commission linked to FaucetPay Username
   const referrer = localStorage.getItem("cyberstrike_referrer");
   if (referrer) {
     const refCommission = stakeAmount * 0.10;
@@ -273,8 +481,8 @@ function claimMilestone(targetTier) {
   claimBtn.innerText = "CLAIMED";
   claimBtn.setAttribute("disabled", "true");
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-   }
-  // ==========================================================================
+                                              }
+    // ==========================================================================
 // CYBERSTRIKE GAMES ENGINE (PENALTY & LUDO RACE)
 // ==========================================================================
 
@@ -290,6 +498,12 @@ let isPenaltyActive = false;
 let isPenaltyTraining = false;
 
 function launchPenaltyArena(isTraining = false) {
+  if (!currentActiveUserAccount && !isTraining) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
+    return;
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isPenaltyTraining = isTraining;
 
@@ -523,6 +737,12 @@ let isLudoActive = false;
 let isLudoTraining = false;
 
 function launchLudoRace(isTraining = false) {
+  if (!currentActiveUserAccount && !isTraining) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
+    return;
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isLudoTraining = isTraining;
 
@@ -707,14 +927,20 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-}
-// ==========================================================================
+                              }
+      // ==========================================================================
 // CYBERSTRIKE GAMES ENGINE (COIN FLIP ARENA)
 // ==========================================================================
 
 let isCoinTraining = false;
 
 function launchCoinFlipArena(isTraining = false) {
+  if (!currentActiveUserAccount && !isTraining) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
+    return;
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isCoinTraining = isTraining;
 
@@ -794,6 +1020,12 @@ let isRpsActive = false;
 let isRpsTraining = false;
 
 function launchRpsArena(isTraining = false) {
+  if (!currentActiveUserAccount && !isTraining) {
+    openAuthModal('login');
+    showCustomAlert("Please log in or register first to play with POL stakes!", "LOGIN REQUIRED");
+    return;
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isRpsTraining = isTraining;
 

@@ -1,5 +1,5 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (SAFE SUPABASE & AUDIO ENGINE)
+// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH)
 // ==========================================================================
 
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
@@ -221,17 +221,23 @@ async function handleRegisterSubmit(e) {
   statusMsg.innerText = "⏳ Creating account...";
 
   try {
-    const sb = getSupabase();
-    if (!sb) { statusMsg.innerText = "❌ Supabase loading... try again in 3s."; return; }
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: username,
+        email: email,
+        faucetpay_email: faucetEmail,
+        password: password
+      })
+    });
 
-    const { data: authData, error: authError } = await sb.auth.signUp({ email, password });
-    if (authError) { statusMsg.innerText = `❌ ${authError.message}`; return; }
+    const data = await response.json();
 
-    const { error: profileError } = await sb.from('profiles').insert([
-      { username, vault_balance: 0.0000, email, faucetpay_email: faucetEmail }
-    ]);
-
-    if (profileError) { statusMsg.innerText = `❌ Username or email already registered.`; return; }
+    if (!response.ok) {
+      statusMsg.innerText = `❌ ${data.error || 'Registration failed'}`;
+      return;
+    }
 
     currentActiveUserAccount = username;
     currentActiveFaucetEmail = faucetEmail;
@@ -336,7 +342,11 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
+    }
+// ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, WITHDRAWALS & WAGERS)
+// ==========================================================================
+
 function checkDepositReturnStatus() {
   const urlParams = new URLSearchParams(window.location.search);
   const status = urlParams.get("deposit");
@@ -494,7 +504,7 @@ async function executePolWithdrawal() {
   document.getElementById("confirmWithdrawBtn").disabled = true;
 
   try {
-    const response = await fetch("https://your-backend-api.com/api/faucetpay-withdraw", {
+    const response = await fetch("/api/faucetpay-withdraw", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -579,8 +589,11 @@ function claimMilestone(targetTier) {
   claimBtn.innerText = "CLAIMED";
   claimBtn.setAttribute("disabled", "true");
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-      }
-  // PENALTY SHOOTOUT ENGINE
+                                              }
+    // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
+// ==========================================================================
+
 let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
 let p1PenaltyShotsTaken = 0;
@@ -824,8 +837,10 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
 }
+  // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
+// ==========================================================================
 
-// LUDO RACE ENGINE
 let ludoTurnTimer = null;
 let ludoTimeLeft = 5;
 let p1TrackPosition = 0;
@@ -1025,8 +1040,12 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                                       }
-                                      let isCoinTraining = false;
+}
+// ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
+// ==========================================================================
+
+let isCoinTraining = false;
 
 function launchCoinFlipArena(isTraining = false) {
   playAudioSFX("action");
@@ -1103,6 +1122,7 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   document.getElementById("coinFlipOverlay").classList.remove("active");
 }
+
 let rpsTimer = null;
 let rpsTimeLeft = 5;
 let isRpsActive = false;
@@ -1229,4 +1249,5 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-}
+  }
+    

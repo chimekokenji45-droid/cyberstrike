@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-// Using service role key to have admin privileges on the backend
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false }
 });
@@ -20,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Create the user directly using Supabase Admin API
+    // 1. Create the user using Supabase Admin API
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -34,7 +33,7 @@ export default async function handler(req, res) {
 
     const userId = authData.user.id;
 
-    // 2. Explicitly insert/upsert into the profiles table
+    // 2. Insert into profiles table
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert([
@@ -43,7 +42,7 @@ export default async function handler(req, res) {
           username: username,
           email: email,
           faucetpay_email: faucetpay_email || email,
-          balance: 0.00
+          vault_balance: 0.00
         }
       ]);
 
@@ -59,3 +58,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+  

@@ -1,5 +1,5 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (FAUCETPAY MERCHANT: chimeko45 & AUDIO ENGINE)
+// CYBERSTRIKE CORE SCRIPT (CONFIGURED WITH USER SUPABASE & AUDIO ENGINE)
 // ==========================================================================
 
 const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
@@ -154,7 +154,12 @@ function initUserSessionUI() {
     if (mainFooter) mainFooter.style.display = "none";
     if (closeBtn) closeBtn.style.display = "none";
 
-    openAuthModal('login');
+    // OPEN LOGIN MODAL IMMEDIATELY UPON ARRIVING AT THE SITE (FIXES BLANK SCREEN)
+    const authModal = document.getElementById("authModal");
+    if (authModal) {
+      authModal.classList.add("active");
+    }
+    switchAuthTab('login');
   }
 }
 
@@ -335,9 +340,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out of CyberStrike.", "LOGGED OUT");
-}
-
-function checkDepositReturnStatus() {
+        }
+  function checkDepositReturnStatus() {
   const urlParams = new URLSearchParams(window.location.search);
   const status = urlParams.get("deposit");
 
@@ -555,6 +559,7 @@ function updateWagerSprintUI() {
   const pct = Math.min(100, Math.round((weeklyWageredPOL / nextMilestone.target) * 100));
   document.getElementById("sprintProgressPct").innerText = `${pct}%`;
   document.getElementById("sprintProgressBar").style.width = `${pct}%`;
+
   WAGER_MILESTONES.forEach(m => {
     const tierEl = document.getElementById(`mTier-${m.target}`);
     if (tierEl) {
@@ -576,7 +581,10 @@ function claimMilestone(targetTier) {
   const claimBtn = document.getElementById(`mTier-${targetTier}`).querySelector("button");
   claimBtn.innerText = "CLAIMED";
   claimBtn.setAttribute("disabled", "true");
-  showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");let penaltyTurnTimer = null;
+  showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
+}
+// PENALTY SHOOTOUT ENGINE
+let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
 let p1PenaltyShotsTaken = 0;
 let p2PenaltyShotsTaken = 0;
@@ -1020,8 +1028,11 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-}
-  let isCoinTraining = false;
+                              }
+// ==========================================
+// COIN FLIP ENGINE (`coinflip.js`)
+// ==========================================
+let isCoinTraining = false;
 
 function launchCoinFlipArena(isTraining = false) {
   playAudioSFX("action");
@@ -1098,7 +1109,11 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   document.getElementById("coinFlipOverlay").classList.remove("active");
 }
-  let rpsTimer = null;
+
+// ==========================================
+// ROCK PAPER SCISSORS ENGINE (`rps.js`)
+// ==========================================
+let rpsTimer = null;
 let rpsTimeLeft = 5;
 let isRpsActive = false;
 let isRpsTraining = false;
@@ -1225,10 +1240,10 @@ function closeRpsArena() {
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
 }
-  import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
+  'https://btugwhcoypxtlgmsxqci.supabase.co',
   process.env.SUPABASE_SERVICE_KEY
 );
 
@@ -1293,4 +1308,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
-  

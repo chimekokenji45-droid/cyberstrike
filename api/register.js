@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async function handler(req, res) {
-  // CORS Headers
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -14,30 +14,43 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { username, email, faucetpay_email, password } = req.body || {};
-
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return res.status(500).json({ error: 'Server configuration error: Missing Supabase environment variables.' });
-  }
-
   try {
+    // Safely parse body regardless of format
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
+    }
+
+    const username = body?.username?.trim()?.toLowerCase();
+    const email = body?.email?.trim();
+    const faucetpay_email = body?.faucetpay_email?.trim() || email;
+    const password = body?.password;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Missing required fields: username, email, or password' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return res.status(500).json({ error: 'Server configuration error: Missing Supabase environment variables.' });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false }
     });
 
-    // 1. Create user in Supabase Auth
+    // 1. Create user in Supabase Auth using Admin API
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { username, faucetpay_email: faucetpay_email || email }
+      user_metadata: { username, faucetpay_email }
     });
 
     if (authError) {
@@ -54,7 +67,7 @@ module.exports = async function handler(req, res) {
           id: userId,
           username: username,
           email: email,
-          faucetpay_email: faucetpay_email || email,
+          faucetpay_email: faucetpay_email,
           vault_balance: 0.00
         }
       ]);
@@ -67,8 +80,9 @@ module.exports = async function handler(req, res) {
       message: 'Account created successfully!',
       user: authData.user,
     });
+
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
       

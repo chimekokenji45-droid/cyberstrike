@@ -2,8 +2,8 @@
 // CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH)
 // ==========================================================================
 
-const SUPABASE_URL = "https://btugwhcoypxtlgmsxqci.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable__DjyCoKhrV9vpmAUY-T3lg_0f-Ji2-h";
+const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_zLldbp2CcA_wqo5X24kURA_kyBEN2S-";
 let supabaseClient = null;
 
 function getSupabase() {

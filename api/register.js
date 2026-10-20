@@ -1,7 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
-
 module.exports = async function handler(req, res) {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,14 +12,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Safely parse body regardless of format
     let body = req.body;
     if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch (e) {
-        body = {};
-      }
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
     }
 
     const username = body?.username?.trim()?.toLowerCase();
@@ -41,48 +33,60 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Server configuration error: Missing Supabase environment variables.' });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false }
+    // 1. Create user in Supabase Auth via Admin API
+    const authResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { username, faucetpay_email }
+      })
     });
 
-    // 1. Create user in Supabase Auth using Admin API
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { username, faucetpay_email }
-    });
+    const authResult = await authResponse.json();
 
-    if (authError) {
-      return res.status(400).json({ error: authError.message });
+    if (!authResponse.ok) {
+      return res.status(400).json({ error: authResult.error_description || authResult.msg || authResult.message || 'Auth registration failed' });
     }
 
-    const userId = authData.user.id;
+    const userId = authResult.id;
 
     // 2. Insert into profiles table
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert([
-        {
-          id: userId,
-          username: username,
-          email: email,
-          faucetpay_email: faucetpay_email,
-          vault_balance: 0.00
-        }
-      ]);
+    const profileResponse = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        id: userId,
+        username: username,
+        email: email,
+        faucetpay_email: faucetpay_email,
+        vault_balance: 0.00
+      })
+    });
 
-    if (profileError) {
-      return res.status(400).json({ error: 'Profile error: ' + profileError.message });
+    if (!profileResponse.ok) {
+      const profileErrorText = await profileResponse.text();
+      return res.status(400).json({ error: 'Profile creation error: ' + profileErrorText });
     }
 
     return res.status(200).json({
       message: 'Account created successfully!',
-      user: authData.user,
+      user: authResult,
     });
 
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
-      
+  

@@ -1,6 +1,5 @@
-
-  // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH) - WORKING LOGIN
+// ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (FULL SCRIPT: AUTH, WALLET, POLLING & ARENAS)
 // ==========================================================================
 
 const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
@@ -177,7 +176,8 @@ function openAuthModal(tab = 'login') {
 function closeAuthModal() {
   if (!currentActiveUserAccount) return;
   document.getElementById("authModal").classList.remove("active");
-  document.getElementById("authStatusMsg").innerText = "";
+  const statusMsg = document.getElementById("authStatusMsg");
+  if (statusMsg) statusMsg.innerText = "";
 }
 
 function switchAuthTab(tab) {
@@ -256,7 +256,6 @@ async function handleRegisterSubmit(e) {
   }
 }
 
-// FIXED: Handles Login smoothly without throwing PGRST116 errors
 async function handleLoginSubmit(e) {
   e.preventDefault();
   const identifier = document.getElementById("loginUsername").value.trim().toLowerCase();
@@ -272,7 +271,6 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    // 1. Look up profile safely using .maybeSingle() instead of .single()
     const { data: profile, error: fetchError } = await sb
       .from('profiles')
       .select('email, username, vault_balance, faucetpay_email')
@@ -284,10 +282,8 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    // Determine target email for Supabase Auth
     let authEmail = profile ? profile.email : identifier;
 
-    // 2. Authenticate with Supabase Auth
     const { data: authData, error: loginError } = await sb.auth.signInWithPassword({
       email: authEmail,
       password: password
@@ -298,7 +294,6 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    // 3. Set active user state and balance
     const loggedInUsername = profile?.username || authData.user.user_metadata?.username || identifier;
     currentActiveUserAccount = loggedInUsername;
     currentActiveFaucetEmail = profile?.faucetpay_email || authData.user.email;
@@ -309,7 +304,7 @@ async function handleLoginSubmit(e) {
 
     playAudioSFX("win");
     initUserSessionUI();
-    updateVaultBalanceUI();
+    fetchLatestVaultBalance();
     showCustomAlert(`🔓 Welcome back, ${loggedInUsername}! Vault loaded.`, "LOGIN SUCCESSFUL");
 
   } catch (err) {
@@ -357,10 +352,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-                }
-                                        
-// ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, WITHDRAWALS & WAGERS)
+  }// ==========================================================================
+// WALLET, DEPOSITS, WITHDRAWALS & POLLING
 // ==========================================================================
 
 function checkDepositReturnStatus() {
@@ -370,7 +363,7 @@ function checkDepositReturnStatus() {
   if (status === "success") {
     playAudioSFX("deposit");
     showCustomAlert(
-      "🎉 Your payment was submitted to FaucetPay! Your Vault Balance will update in a few seconds.",
+      "🎉 Your payment was submitted! Your Vault Balance will update in a few seconds.",
       "DEPOSIT SUBMITTED"
     );
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -407,40 +400,137 @@ function copyReferralLink() {
 }
 
 function updateVaultBalanceUI() {
-  document.getElementById("userBalanceDisplay").innerText = `${userVaultBalance.toFixed(4)} POL`;
+  const balDisplay = document.getElementById("userBalanceDisplay");
+  if (balDisplay) balDisplay.innerText = `${userVaultBalance.toFixed(4)} POL`;
+  
   const refEarnedEl = document.getElementById("totalRefEarnedDisplay");
   if (refEarnedEl) refEarnedEl.innerText = `${totalRefEarned.toFixed(4)} POL`;
 }
 
 function updateFaucetPayCustom() {
-  const amt = document.getElementById("depositAmountInput").value;
-  document.getElementById("faucetPayCustomField").value = JSON.stringify({
-    account_id: currentActiveUserAccount,
-    amount: amt
-  });
+  const amtInput = document.getElementById("depositAmountInput");
+  const customField = document.getElementById("faucetPayCustomField");
+  if (amtInput && customField) {
+    customField.value = JSON.stringify({
+      account_id: currentActiveUserAccount,
+      amount: amtInput.value
+    });
+  }
 }
 
-function startLiveBalancePolling() {
-  setInterval(async () => {
-    if (!currentActiveUserAccount) return;
-    const sb = getSupabase();
-    if (!sb) return;
+// SECURE SESSION BALANCE POLLING
+async function fetchLatestVaultBalance() {
+  const sb = getSupabase();
+  if (!sb) return;
 
-    const { data, error } = await sb
-      .from("profiles")
-      .select("vault_balance")
-      .eq("username", currentActiveUserAccount)
-      .single();
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    
+    let profile = null;
+    if (session && session.user) {
+      const { data } = await sb
+        .from("profiles")
+        .select("vault_balance")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      profile = data;
+    } else if (currentActiveUserAccount) {
+      const { data } = await sb
+        .from("profiles")
+        .select("vault_balance")
+        .ilike("username", currentActiveUserAccount)
+        .maybeSingle();
+      profile = data;
+    }
 
-    if (data && !error) {
-      const newServerBalance = parseFloat(data.vault_balance);
-      if (newServerBalance !== userVaultBalance) {
-        if (newServerBalance > userVaultBalance) playAudioSFX("deposit");
-        userVaultBalance = newServerBalance;
+    if (profile && profile.vault_balance !== undefined) {
+      const serverBalance = parseFloat(profile.vault_balance);
+      if (serverBalance !== userVaultBalance) {
+        if (serverBalance > userVaultBalance) playAudioSFX("deposit");
+        userVaultBalance = serverBalance;
         updateVaultBalanceUI();
       }
     }
-  }, 5000);
+  } catch (err) {
+    console.error("Polling fetch error:", err.message);
+  }
+}
+
+function startLiveBalancePolling() {
+  fetchLatestVaultBalance();
+  setInterval(fetchLatestVaultBalance, 4000);
+}
+
+async function submitManualDeposit() {
+  const amountInput = document.getElementById("manualDepositAmount");
+  const txidInput = document.getElementById("manualDepositTxid");
+  const statusMsg = document.getElementById("depositStatusMsg");
+
+  const amount = parseFloat(amountInput.value);
+  const txid = txidInput.value.trim();
+
+  if (!amount || amount <= 0) {
+    statusMsg.innerText = "❌ Please enter a valid deposit amount.";
+    return;
+  }
+  if (!txid) {
+    statusMsg.innerText = "❌ Please enter your FaucetPay TXID or email.";
+    return;
+  }
+
+  statusMsg.innerText = "⏳ Processing deposit...";
+  const sb = getSupabase();
+  if (!sb) {
+    statusMsg.innerText = "❌ Supabase client not initialized.";
+    return;
+  }
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    let query = sb.from('profiles').select('id, vault_balance');
+
+    if (session && session.user) {
+      query = query.eq('id', session.user.id);
+    } else {
+      query = query.ilike('username', currentActiveUserAccount);
+    }
+
+    const { data: profile, error: fetchErr } = await query.maybeSingle();
+
+    if (fetchErr || !profile) {
+      statusMsg.innerText = "❌ Profile record not found.";
+      return;
+    }
+
+    const currentBal = parseFloat(profile.vault_balance || 0);
+    const newBalance = currentBal + amount;
+
+    const { error: updateErr } = await sb
+      .from('profiles')
+      .update({ vault_balance: newBalance })
+      .eq('id', profile.id);
+
+    if (updateErr) {
+      statusMsg.innerText = "❌ Database update failed: " + updateErr.message;
+      return;
+    }
+
+    userVaultBalance = newBalance;
+    updateVaultBalanceUI();
+    playAudioSFX("win");
+    
+    statusMsg.innerText = `✅ Successfully credited +${amount.toFixed(4)} POL!`;
+
+    setTimeout(() => {
+      amountInput.value = "";
+      txidInput.value = "";
+      statusMsg.innerText = "";
+      closeDepositModal();
+    }, 2000);
+
+  } catch (err) {
+    statusMsg.innerText = "❌ Deposit error: " + err.message;
+  }
 }
 
 function getNextMondayMidnight() {
@@ -473,7 +563,8 @@ function startSprintCountdownTimer() {
     const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
 
     const pad = (num) => String(num).padStart(2, "0");
-    document.getElementById("sprintCountdown").innerText = `${pad(days)}D ${pad(hours)}H ${pad(minutes)}M ${pad(seconds)}S`;
+    const sprintEl = document.getElementById("sprintCountdown");
+    if (sprintEl) sprintEl.innerText = `${pad(days)}D ${pad(hours)}H ${pad(minutes)}M ${pad(seconds)}S`;
   }
   updateTimer();
   setInterval(updateTimer, 1000);
@@ -578,10 +669,14 @@ function recordWagerVolume(stakeAmount) {
 
 function updateWagerSprintUI() {
   const nextMilestone = WAGER_MILESTONES.find(m => weeklyWageredPOL < m.target) || WAGER_MILESTONES[WAGER_MILESTONES.length - 1];
-  document.getElementById("weeklyWagerText").innerText = `${weeklyWageredPOL.toFixed(1)} / ${nextMilestone.target} POL WAGORED`;
+  const wagerTextEl = document.getElementById("weeklyWagerText");
+  if (wagerTextEl) wagerTextEl.innerText = `${weeklyWageredPOL.toFixed(1)} / ${nextMilestone.target} POL WAGERED`;
+  
   const pct = Math.min(100, Math.round((weeklyWageredPOL / nextMilestone.target) * 100));
-  document.getElementById("sprintProgressPct").innerText = `${pct}%`;
-  document.getElementById("sprintProgressBar").style.width = `${pct}%`;
+  const sprintPctEl = document.getElementById("sprintProgressPct");
+  const sprintBarEl = document.getElementById("sprintProgressBar");
+  if (sprintPctEl) sprintPctEl.innerText = `${pct}%`;
+  if (sprintBarEl) sprintBarEl.style.width = `${pct}%`;
 
   WAGER_MILESTONES.forEach(m => {
     const tierEl = document.getElementById(`mTier-${m.target}`);
@@ -602,11 +697,12 @@ function claimMilestone(targetTier) {
   userVaultBalance += milestone.reward;
   updateVaultBalanceUI();
   const claimBtn = document.getElementById(`mTier-${targetTier}`).querySelector("button");
-  claimBtn.innerText = "CLAIMED";
-  claimBtn.setAttribute("disabled", "true");
+  if (claimBtn) {
+    claimBtn.innerText = "CLAIMED";
+    claimBtn.setAttribute("disabled", "true");
+  }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-                                              }
-    // ==========================================================================
+      }  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -852,8 +948,7 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-  // ==========================================================================
+}  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1056,8 +1151,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-}
-// ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1265,5 +1359,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-  }
-    
+}

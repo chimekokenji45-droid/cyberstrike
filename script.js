@@ -1,5 +1,6 @@
-// ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH)
+
+  // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH) - WORKING LOGIN
 // ==========================================================================
 
 const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
@@ -189,24 +190,24 @@ function switchAuthTab(tab) {
   const tabReg = document.getElementById("tabRegisterBtn");
 
   if (tab === 'login') {
-    tabBox.style.display = "flex";
-    loginForm.style.display = "block";
-    regForm.style.display = "none";
-    resetForm.style.display = "none";
-    tabLogin.className = "btn btn-primary";
-    tabReg.className = "btn btn-secondary";
+    if (tabBox) tabBox.style.display = "flex";
+    if (loginForm) loginForm.style.display = "block";
+    if (regForm) regForm.style.display = "none";
+    if (resetForm) resetForm.style.display = "none";
+    if (tabLogin) tabLogin.className = "btn btn-primary";
+    if (tabReg) tabReg.className = "btn btn-secondary";
   } else if (tab === 'register') {
-    tabBox.style.display = "flex";
-    loginForm.style.display = "none";
-    regForm.style.display = "block";
-    resetForm.style.display = "none";
-    tabLogin.className = "btn btn-secondary";
-    tabReg.className = "btn btn-primary";
+    if (tabBox) tabBox.style.display = "flex";
+    if (loginForm) loginForm.style.display = "none";
+    if (regForm) regForm.style.display = "block";
+    if (resetForm) resetForm.style.display = "none";
+    if (tabLogin) tabLogin.className = "btn btn-secondary";
+    if (tabReg) tabReg.className = "btn btn-primary";
   } else if (tab === 'reset') {
-    tabBox.style.display = "none";
-    loginForm.style.display = "none";
-    regForm.style.display = "none";
-    resetForm.style.display = "block";
+    if (tabBox) tabBox.style.display = "none";
+    if (loginForm) loginForm.style.display = "none";
+    if (regForm) regForm.style.display = "none";
+    if (resetForm) resetForm.style.display = "block";
   }
 }
 
@@ -214,7 +215,7 @@ async function handleRegisterSubmit(e) {
   e.preventDefault();
   const username = document.getElementById("regUsername").value.trim().toLowerCase();
   const email = document.getElementById("regEmail").value.trim();
-  const faucetEmail = document.getElementById("regFaucetEmail").value.trim();
+  const faucetEmail = document.getElementById("regFaucetEmail") ? document.getElementById("regFaucetEmail").value.trim() : email;
   const password = document.getElementById("regPassword").value;
   const statusMsg = document.getElementById("authStatusMsg");
 
@@ -241,17 +242,21 @@ async function handleRegisterSubmit(e) {
 
     currentActiveUserAccount = username;
     currentActiveFaucetEmail = faucetEmail;
+    userVaultBalance = 0.0;
+
     localStorage.setItem("cyberstrike_user", username);
     localStorage.setItem("cyberstrike_faucet_email", faucetEmail);
 
     playAudioSFX("win");
     initUserSessionUI();
+    updateVaultBalanceUI();
     showCustomAlert(`🎉 Account created successfully! Welcome to CyberStrike, ${username}.`, "WELCOME");
   } catch (err) {
     statusMsg.innerText = "❌ Connection error.";
   }
 }
 
+// FIXED: Handles Login smoothly without throwing PGRST116 errors
 async function handleLoginSubmit(e) {
   e.preventDefault();
   const identifier = document.getElementById("loginUsername").value.trim().toLowerCase();
@@ -262,43 +267,53 @@ async function handleLoginSubmit(e) {
 
   try {
     const sb = getSupabase();
-    if (!sb) { statusMsg.innerText = "❌ Supabase loading... try again in 3s."; return; }
+    if (!sb) {
+      statusMsg.innerText = "❌ Supabase loading... try again in 3s.";
+      return;
+    }
 
+    // 1. Look up profile safely using .maybeSingle() instead of .single()
     const { data: profile, error: fetchError } = await sb
       .from('profiles')
       .select('email, username, vault_balance, faucetpay_email')
       .or(`username.eq.${identifier},email.eq.${identifier}`)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !profile) {
-      statusMsg.innerText = "❌ Username or Email not found!";
+    if (fetchError) {
+      statusMsg.innerText = "❌ Database error checking credentials.";
       return;
     }
 
-    const { error: loginError } = await sb.auth.signInWithPassword({
-      email: profile.email,
+    // Determine target email for Supabase Auth
+    let authEmail = profile ? profile.email : identifier;
+
+    // 2. Authenticate with Supabase Auth
+    const { data: authData, error: loginError } = await sb.auth.signInWithPassword({
+      email: authEmail,
       password: password
     });
 
     if (loginError) {
-      statusMsg.innerText = "❌ Invalid password!";
+      statusMsg.innerText = "❌ Invalid email/username or password!";
       return;
     }
 
-    currentActiveUserAccount = profile.username;
-    currentActiveFaucetEmail = profile.faucetpay_email || "";
-    userVaultBalance = parseFloat(profile.vault_balance);
+    // 3. Set active user state and balance
+    const loggedInUsername = profile?.username || authData.user.user_metadata?.username || identifier;
+    currentActiveUserAccount = loggedInUsername;
+    currentActiveFaucetEmail = profile?.faucetpay_email || authData.user.email;
+    userVaultBalance = profile ? parseFloat(profile.vault_balance) : 0.0;
 
-    localStorage.setItem("cyberstrike_user", profile.username);
+    localStorage.setItem("cyberstrike_user", loggedInUsername);
     localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
 
     playAudioSFX("win");
     initUserSessionUI();
     updateVaultBalanceUI();
-    showCustomAlert(`🔓 Welcome back, ${profile.username}! Vault loaded.`, "LOGIN SUCCESSFUL");
+    showCustomAlert(`🔓 Welcome back, ${loggedInUsername}! Vault loaded.`, "LOGIN SUCCESSFUL");
 
   } catch (err) {
-    statusMsg.innerText = "❌ Authentication error.";
+    statusMsg.innerText = "❌ Authentication error: " + err.message;
   }
 }
 
@@ -342,7 +357,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
+                }
+                                        
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, WITHDRAWALS & WAGERS)
 // ==========================================================================

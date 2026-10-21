@@ -1,69 +1,87 @@
-import { createClient } from '@supabase/supabase-js';
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-const supabase = createClient(
-  'https://btugwhcoypxtlgmsxqci.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY
-);
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { token, custom, amount1 } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ message: 'Missing token' });
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
     }
 
-    // 1. Verify transaction with FaucetPay Merchant API
-    const verifyRes = await fetch('https://faucetpay.io/api/v1/merchant/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        api_key: process.env.FAUCETPAY_MERCHANT_TOKEN,
-        token: token
-      })
+    // FaucetPay sends custom data and paid amount
+    const customDataStr = body.custom || body.merchant_custom;
+    const paidAmount = parseFloat(body.amount || body.merchant_amount || 0);
+
+    if (!customDataStr || paidAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid IPN payload from FaucetPay' });
+    }
+
+    let customData;
+    try {
+      customData = typeof customDataStr === 'string' ? JSON.parse(customDataStr) : customDataStr;
+    } catch (e) {
+      return res.status(400).json({ error: 'Failed to parse custom user data' });
+    }
+
+    const username = customData.account_id;
+    if (!username) {
+      return res.status(400).json({ error: 'User account ID missing in custom payload' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return res.status(500).json({ error: 'Server configuration error: Missing Supabase credentials' });
+    }
+
+    // 1. Fetch the user's current profile from Supabase
+    const fetchRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=*`, {
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`
+      }
     });
 
-    const verifyData = await verifyRes.json();
-
-    if (!verifyData.valid) {
-      return res.status(400).json({ message: 'Invalid payment token' });
+    const profiles = await fetchRes.json();
+    if (!profiles || profiles.length === 0) {
+      return res.status(404).json({ error: 'User profile not found in database' });
     }
 
-    // 2. Parse User Account Data from custom payload
-    const customData = typeof custom === 'string' ? JSON.parse(custom) : custom;
-    const userAccountId = customData.account_id;
-    const depositAmount = parseFloat(amount1);
+    const userProfile = profiles[0];
+    const currentBalance = parseFloat(userProfile.vault_balance || 0);
+    const newBalance = currentBalance + paidAmount;
 
-    // 3. Fetch current user balance from Supabase
-    const { data: profile, error: fetchError } = await supabase
-      .from('profiles')
-      .select('vault_balance')
-      .eq('username', userAccountId)
-      .single();
+    // 2. Update the user's vault balance in Supabase
+    const updateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userProfile.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ vault_balance: newBalance })
+    });
 
-    if (fetchError || !profile) {
-      return res.status(404).json({ message: 'User not found' });
+    if (!updateRes.ok) {
+      const errText = await updateRes.text();
+      return res.status(400).json({ error: 'Failed to update database balance: ' + errText });
     }
 
-    // 4. Update balance in Supabase
-    const newBalance = parseFloat(profile.vault_balance) + depositAmount;
+    return res.status(200).json({ success: true, message: 'Vault balance credited successfully!' });
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ vault_balance: newBalance })
-      .eq('username', userAccountId);
-
-    if (updateError) {
-      return res.status(500).json({ message: 'Failed to update balance' });
-    }
-
-    return res.status(200).json({ status: 'success', message: 'Balance credited' });
-  } catch (err) {
-    return res.status(500).json({ message: 'Internal server error' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
-      }
+};
         

@@ -353,8 +353,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }
-                               // ==========================================================================
+   }
+                                                 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -422,7 +422,11 @@ function updateFaucetPayCustom() {
   }
 }
 
+let isDepositing = false; // Guard flag to lock both form submissions and poller collisions
+
 async function fetchLatestVaultBalance() {
+  if (isDepositing) return; // Pause background polling while a deposit is actively processing
+
   const sb = getSupabase();
   if (!sb) return;
 
@@ -449,7 +453,6 @@ async function fetchLatestVaultBalance() {
     if (profile && profile.vault_balance !== undefined) {
       const serverBalance = parseFloat(profile.vault_balance);
       if (serverBalance !== userVaultBalance) {
-        if (serverBalance > userVaultBalance) playAudioSFX("deposit");
         userVaultBalance = serverBalance;
         updateVaultBalanceUI();
       }
@@ -464,13 +467,10 @@ function startLiveBalancePolling() {
   setInterval(fetchLatestVaultBalance, 4000);
 }
 
-// GUARDED MANUAL DEPOSIT: Prevents double-firing via execution lock flag
-let isDepositing = false;
-
 async function submitManualDeposit(e) {
-  if (e && e.preventDefault) e.preventDefault(); // Stop form auto-submit double firing
+  if (e && e.preventDefault) e.preventDefault();
 
-  if (isDepositing) return; // Block any second execution instantly!
+  if (isDepositing) return; // Prevent double execution
   isDepositing = true;
 
   const amountInput = document.getElementById("manualDepositAmount");
@@ -532,11 +532,11 @@ async function submitManualDeposit(e) {
       return;
     }
 
-    // Read ground truth balance & calculate exact target
+    // 1. Fetch exact current server balance
     const currentBal = parseFloat(profile.vault_balance || 0);
     const targetBalance = currentBal + amount;
 
-    // Overwrite database balance with target value (prevents double addition)
+    // 2. Overwrite Supabase row directly
     const { error: updateErr } = await sb
       .from('profiles')
       .update({ vault_balance: targetBalance })
@@ -549,7 +549,7 @@ async function submitManualDeposit(e) {
       return;
     }
 
-    // Direct local state assignment
+    // 3. Directly sync global state to the exact target balance
     userVaultBalance = targetBalance;
     updateVaultBalanceUI();
     playAudioSFX("win");
@@ -561,7 +561,7 @@ async function submitManualDeposit(e) {
       txidInput.value = "";
       statusMsg.innerText = "";
       if (submitBtn) submitBtn.disabled = false;
-      isDepositing = false; // Reset lock flag after modal closes
+      isDepositing = false; // Release lock after modal closes
       closeDepositModal();
     }, 2000);
 
@@ -741,8 +741,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-      }
-                                // ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -988,8 +988,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-                                      }
-// ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1193,7 +1193,7 @@ function closeLudoArena() {
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
 }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1401,4 +1401,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-        }
+}

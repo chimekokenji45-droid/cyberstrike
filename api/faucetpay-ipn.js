@@ -14,6 +14,7 @@ export default async function handler(req, res) {
   try {
     let body = req.body;
 
+    // Parse incoming payload robustly
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
@@ -45,18 +46,19 @@ export default async function handler(req, res) {
 
     const customDataStr = body.custom || body.merchant_custom;
     const paidAmount = parseFloat(body.amount || body.amount1 || body.merchant_amount || 0);
-    const paymentId = body.payment_id || body.txid || body.transaction_id; // Fixed syntax error
+    
+    // FaucetPay uniquely identifies transactions via payment_id, txid, or transaction_id
+    const transactionId = body.payment_id || body.txid || body.transaction_id;
 
     if (!customDataStr || paidAmount <= 0) {
-      console.error("Invalid IPN payload received:", body);
-      return res.status(400).json({ error: 'Invalid IPN payload from FaucetPay', received: body });
+      return res.status(400).json({ error: 'Invalid IPN payload parameters' });
     }
 
     let customData;
     try {
       customData = typeof customDataStr === 'string' ? JSON.parse(customDataStr) : customDataStr;
     } catch (e) {
-      return res.status(400).json({ error: 'Failed to parse custom user data' });
+      return res.status(400).json({ error: 'Failed to parse custom user payload' });
     }
 
     const username = customData.account_id;
@@ -71,15 +73,49 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Server configuration error: Missing Supabase credentials' });
     }
 
-    // 1. Fetch user profile from Supabase
-    const fetchRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=*`, {
+    // fallback TXID if FaucetPay omitted one in test mode
+    const finalTxId = transactionId || `fallback_tx_${username}_${Date.now()}`;
+
+    // ------------------------------------------------------------------------
+    // STEP 1: ATOMIC IDEMPOTENCY CHECK
+    // Try inserting transaction into `processed_transactions` table FIRST.
+    // ------------------------------------------------------------------------
+    const txCheckRes = await fetch(`${supabaseUrl}/rest/v1/processed_transactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        transaction_id: finalTxId,
+        username: username,
+        amount: paidAmount
+      })
+    });
+
+    // HTTP 409 Conflict / Error means this transaction ID was ALREADY processed!
+    if (!txCheckRes.ok) {
+      const txErr = await txCheckRes.text();
+      if (txErr.includes("duplicate key") || txErr.includes("already exists") || txCheckRes.status === 409) {
+        console.log(`[DUPLICATE BLOCKED] Transaction ID ${finalTxId} was already credited!`);
+        return res.status(200).json({ success: true, message: 'Transaction already credited previously.' });
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // STEP 2: CREDIT USER BALANCE
+    // If insert succeeded, it means this is a brand new, valid deposit.
+    // ------------------------------------------------------------------------
+    const fetchProfileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=*`, {
       headers: {
         'apikey': supabaseServiceKey,
         'Authorization': `Bearer ${supabaseServiceKey}`
       }
     });
 
-    const profiles = await fetchRes.json();
+    const profiles = await fetchProfileRes.json();
     if (!profiles || profiles.length === 0) {
       return res.status(404).json({ error: 'User profile not found in database for username: ' + username });
     }
@@ -88,7 +124,6 @@ export default async function handler(req, res) {
     const currentBalance = parseFloat(userProfile.vault_balance || 0);
     const newBalance = currentBalance + paidAmount;
 
-    // 2. Update user's vault balance in Supabase securely using service role key
     const updateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userProfile.id}`, {
       method: 'PATCH',
       headers: {
@@ -102,9 +137,10 @@ export default async function handler(req, res) {
 
     if (!updateRes.ok) {
       const errText = await updateRes.text();
-      return res.status(400).json({ error: 'Failed to update database balance: ' + errText });
+      return res.status(400).json({ error: 'Failed to update user vault balance: ' + errText });
     }
 
+    console.log(`[SUCCESS] Credited +${paidAmount} POL to ${username}. New balance: ${newBalance}`);
     return res.status(200).json({ success: true, message: 'Vault balance credited successfully via IPN!' });
 
   } catch (error) {
@@ -112,4 +148,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
-               
+                                   

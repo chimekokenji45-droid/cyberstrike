@@ -353,8 +353,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-        }
-      // ==========================================================================
+  }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -464,6 +464,7 @@ function startLiveBalancePolling() {
   setInterval(fetchLatestVaultBalance, 4000);
 }
 
+// ATOMIC DEPOSIT FIX: Uses PostgreSQL RPC to avoid race conditions
 async function submitManualDeposit() {
   const amountInput = document.getElementById("manualDepositAmount");
   const txidInput = document.getElementById("manualDepositTxid");
@@ -484,7 +485,6 @@ async function submitManualDeposit() {
     return;
   }
 
-  // Lock the button instantly to prevent multi-clicking
   if (submitBtn) submitBtn.disabled = true;
   statusMsg.innerText = "⏳ Processing deposit...";
   
@@ -497,39 +497,40 @@ async function submitManualDeposit() {
 
   try {
     const { data: { session } } = await sb.auth.getSession();
-    let query = sb.from('profiles').select('id, vault_balance');
+    let userId = null;
 
     if (session && session.user) {
-      query = query.eq('id', session.user.id);
-    } else {
-      query = query.ilike('username', currentActiveUserAccount);
+      userId = session.user.id;
+    } else if (currentActiveUserAccount) {
+      const { data: profile } = await sb
+        .from('profiles')
+        .select('id')
+        .ilike('username', currentActiveUserAccount)
+        .maybeSingle();
+      if (profile) userId = profile.id;
     }
 
-    const { data: profile, error: fetchErr } = await query.maybeSingle();
-
-    if (fetchErr || !profile) {
-      statusMsg.innerText = "❌ Profile record not found.";
+    if (!userId) {
+      statusMsg.innerText = "❌ User session not found. Please log in again.";
       if (submitBtn) submitBtn.disabled = false;
       return;
     }
 
-    const currentBal = parseFloat(profile.vault_balance || 0);
-    const newBalance = currentBal + amount;
+    // Call atomic Postgres function to add balance safely on the server
+    const { data: newBalance, error: rpcErr } = await sb.rpc('increment_vault', {
+      user_id: userId,
+      amount: amount
+    });
 
-    // Update Supabase database
-    const { error: updateErr } = await sb
-      .from('profiles')
-      .update({ vault_balance: newBalance })
-      .eq('id', profile.id);
-
-    if (updateErr) {
-      statusMsg.innerText = "❌ Database update failed: " + updateErr.message;
+    if (rpcErr) {
+      statusMsg.innerText = "❌ Deposit failed: " + rpcErr.message;
       if (submitBtn) submitBtn.disabled = false;
       return;
     }
 
-    // Force strict sync directly from database ground truth
-    await fetchLatestVaultBalance();
+    // Sync state immediately with the ground-truth balance returned by PostgreSQL
+    userVaultBalance = parseFloat(newBalance);
+    updateVaultBalanceUI();
     playAudioSFX("win");
     
     statusMsg.innerText = `✅ Successfully credited +${amount.toFixed(4)} POL!`;
@@ -717,7 +718,7 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-      }
+}
   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
@@ -964,8 +965,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-    }
-  // ==========================================================================
+      }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1168,8 +1169,8 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-}
-// ==========================================================================
+                          }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 

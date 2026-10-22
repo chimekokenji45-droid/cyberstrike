@@ -354,7 +354,7 @@ function logoutUser() {
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
   }
-        // ==========================================================================
+                               // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -464,8 +464,15 @@ function startLiveBalancePolling() {
   setInterval(fetchLatestVaultBalance, 4000);
 }
 
-// ATOMIC DEPOSIT FIX: Uses PostgreSQL RPC to avoid race conditions
-async function submitManualDeposit() {
+// GUARDED MANUAL DEPOSIT: Prevents double-firing via execution lock flag
+let isDepositing = false;
+
+async function submitManualDeposit(e) {
+  if (e && e.preventDefault) e.preventDefault(); // Stop form auto-submit double firing
+
+  if (isDepositing) return; // Block any second execution instantly!
+  isDepositing = true;
+
   const amountInput = document.getElementById("manualDepositAmount");
   const txidInput = document.getElementById("manualDepositTxid");
   const statusMsg = document.getElementById("depositStatusMsg");
@@ -478,10 +485,12 @@ async function submitManualDeposit() {
 
   if (!amount || amount <= 0) {
     statusMsg.innerText = "❌ Please enter a valid deposit amount.";
+    isDepositing = false;
     return;
   }
   if (!txid) {
     statusMsg.innerText = "❌ Please enter your FaucetPay TXID or email.";
+    isDepositing = false;
     return;
   }
 
@@ -492,44 +501,56 @@ async function submitManualDeposit() {
   if (!sb) {
     statusMsg.innerText = "❌ Supabase client not initialized.";
     if (submitBtn) submitBtn.disabled = false;
+    isDepositing = false;
     return;
   }
 
   try {
     const { data: { session } } = await sb.auth.getSession();
-    let userId = null;
+    let profile = null;
 
     if (session && session.user) {
-      userId = session.user.id;
-    } else if (currentActiveUserAccount) {
-      const { data: profile } = await sb
+      const { data } = await sb
         .from('profiles')
-        .select('id')
+        .select('id, vault_balance')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      profile = data;
+    } else if (currentActiveUserAccount) {
+      const { data } = await sb
+        .from('profiles')
+        .select('id, vault_balance')
         .ilike('username', currentActiveUserAccount)
         .maybeSingle();
-      if (profile) userId = profile.id;
+      profile = data;
     }
 
-    if (!userId) {
-      statusMsg.innerText = "❌ User session not found. Please log in again.";
+    if (!profile) {
+      statusMsg.innerText = "❌ Profile record not found.";
       if (submitBtn) submitBtn.disabled = false;
+      isDepositing = false;
       return;
     }
 
-    // Call atomic Postgres function to add balance safely on the server
-    const { data: newBalance, error: rpcErr } = await sb.rpc('increment_vault', {
-      user_id: userId,
-      amount: amount
-    });
+    // Read ground truth balance & calculate exact target
+    const currentBal = parseFloat(profile.vault_balance || 0);
+    const targetBalance = currentBal + amount;
 
-    if (rpcErr) {
-      statusMsg.innerText = "❌ Deposit failed: " + rpcErr.message;
+    // Overwrite database balance with target value (prevents double addition)
+    const { error: updateErr } = await sb
+      .from('profiles')
+      .update({ vault_balance: targetBalance })
+      .eq('id', profile.id);
+
+    if (updateErr) {
+      statusMsg.innerText = "❌ Database update failed: " + updateErr.message;
       if (submitBtn) submitBtn.disabled = false;
+      isDepositing = false;
       return;
     }
 
-    // Sync state immediately with the ground-truth balance returned by PostgreSQL
-    userVaultBalance = parseFloat(newBalance);
+    // Direct local state assignment
+    userVaultBalance = targetBalance;
     updateVaultBalanceUI();
     playAudioSFX("win");
     
@@ -540,12 +561,14 @@ async function submitManualDeposit() {
       txidInput.value = "";
       statusMsg.innerText = "";
       if (submitBtn) submitBtn.disabled = false;
+      isDepositing = false; // Reset lock flag after modal closes
       closeDepositModal();
     }, 2000);
 
   } catch (err) {
     statusMsg.innerText = "❌ Deposit error: " + err.message;
     if (submitBtn) submitBtn.disabled = false;
+    isDepositing = false;
   }
 }
 
@@ -718,8 +741,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-}
-  // ==========================================================================
+      }
+                                // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -965,7 +988,7 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-      }
+                                      }
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
@@ -1169,8 +1192,8 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                          }
-    // ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1378,4 +1401,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-}
+        }

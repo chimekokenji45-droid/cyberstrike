@@ -353,8 +353,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-   }
-                                                 // ==========================================================================
+    }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -665,8 +665,21 @@ async function executePolWithdrawal() {
 
     if (result.success) {
       playAudioSFX("withdraw");
+      
+      // Update local state and sync directly with Supabase
       userVaultBalance -= amountInput;
       updateVaultBalanceUI();
+
+      const sb = getSupabase();
+      if (sb) {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session && session.user) {
+          await sb.from('profiles').update({ vault_balance: userVaultBalance }).eq('id', session.user.id);
+        } else if (currentActiveUserAccount) {
+          await sb.from('profiles').update({ vault_balance: userVaultBalance }).ilike('username', currentActiveUserAccount);
+        }
+      }
+
       statusEl.innerText = `✅ Withdrawal Sent Successfully via FaucetPay!`;
       setTimeout(() => {
         closeWithdrawModal();
@@ -742,7 +755,7 @@ function claimMilestone(targetTier) {
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
 }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -988,8 +1001,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-  // ==========================================================================
+  }
+               // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1192,7 +1205,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-}
+       }
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================

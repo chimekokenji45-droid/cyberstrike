@@ -353,8 +353,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }
-  // ==========================================================================
+        }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -468,6 +468,9 @@ async function submitManualDeposit() {
   const amountInput = document.getElementById("manualDepositAmount");
   const txidInput = document.getElementById("manualDepositTxid");
   const statusMsg = document.getElementById("depositStatusMsg");
+  
+  const depositModal = document.getElementById("depositModal");
+  const submitBtn = depositModal ? depositModal.querySelector("button.btn-primary") : null;
 
   const amount = parseFloat(amountInput.value);
   const txid = txidInput.value.trim();
@@ -481,10 +484,14 @@ async function submitManualDeposit() {
     return;
   }
 
+  // Lock the button instantly to prevent multi-clicking
+  if (submitBtn) submitBtn.disabled = true;
   statusMsg.innerText = "⏳ Processing deposit...";
+  
   const sb = getSupabase();
   if (!sb) {
     statusMsg.innerText = "❌ Supabase client not initialized.";
+    if (submitBtn) submitBtn.disabled = false;
     return;
   }
 
@@ -502,12 +509,14 @@ async function submitManualDeposit() {
 
     if (fetchErr || !profile) {
       statusMsg.innerText = "❌ Profile record not found.";
+      if (submitBtn) submitBtn.disabled = false;
       return;
     }
 
     const currentBal = parseFloat(profile.vault_balance || 0);
     const newBalance = currentBal + amount;
 
+    // Update Supabase database
     const { error: updateErr } = await sb
       .from('profiles')
       .update({ vault_balance: newBalance })
@@ -515,9 +524,11 @@ async function submitManualDeposit() {
 
     if (updateErr) {
       statusMsg.innerText = "❌ Database update failed: " + updateErr.message;
+      if (submitBtn) submitBtn.disabled = false;
       return;
     }
 
+    // Force strict sync directly from database ground truth
     await fetchLatestVaultBalance();
     playAudioSFX("win");
     
@@ -527,11 +538,13 @@ async function submitManualDeposit() {
       amountInput.value = "";
       txidInput.value = "";
       statusMsg.innerText = "";
+      if (submitBtn) submitBtn.disabled = false;
       closeDepositModal();
     }, 2000);
 
   } catch (err) {
     statusMsg.innerText = "❌ Deposit error: " + err.message;
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -704,8 +717,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-    }
-        // ==========================================================================
+      }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -951,8 +964,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-                      }
-    // ==========================================================================
+    }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1155,7 +1168,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                            }
+}
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
@@ -1364,4 +1377,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-  }
+}

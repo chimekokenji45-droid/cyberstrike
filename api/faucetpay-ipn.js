@@ -1,4 +1,4 @@
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -14,7 +14,6 @@ module.exports = async function handler(req, res) {
   try {
     let body = req.body;
 
-    // Robustly parse body whether it's JSON, URL-encoded string, or raw stream
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
@@ -46,6 +45,7 @@ module.exports = async function handler(req, res) {
 
     const customDataStr = body.custom || body.merchant_custom;
     const paidAmount = parseFloat(body.amount || body.amount1 || body.merchant_amount || 0);
+    const paymentId = body.payment_id || body.txid || body.]}$.transaction_id; // FaucetPay unique transaction ID
 
     if (!customDataStr || paidAmount <= 0) {
       console.error("Invalid IPN payload received:", body);
@@ -71,6 +71,10 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Server configuration error: Missing Supabase credentials' });
     }
 
+    // OPTIONAL SAFETY CHECK: If you have a table tracking processed transactions, 
+    // check if this paymentId was already credited. (If you don't have this table yet, 
+    // make sure your manual frontend button isn't also updating the database).
+    
     // 1. Fetch user profile from Supabase
     const fetchRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=*`, {
       headers: {
@@ -88,7 +92,7 @@ module.exports = async function handler(req, res) {
     const currentBalance = parseFloat(userProfile.vault_balance || 0);
     const newBalance = currentBalance + paidAmount;
 
-    // 2. Update user's vault balance in Supabase
+    // 2. Update user's vault balance in Supabase securely using service role key
     const updateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userProfile.id}`, {
       method: 'PATCH',
       headers: {
@@ -105,7 +109,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Failed to update database balance: ' + errText });
     }
 
-    return res.status(200).json({ success: true, message: 'Vault balance credited successfully!' });
+    return res.status(200).json({ success: true, message: 'Vault balance credited successfully via IPN!' });
 
   } catch (error) {
     console.error("IPN Error:", error.message);

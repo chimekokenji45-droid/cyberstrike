@@ -1,7 +1,6 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (FULL SCRIPT: AUTH, WALLET, POLLING & ARENAS)
+// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH)
 // ==========================================================================
-
 const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zLldbp2CcA_wqo5X24kURA_kyBEN2S-";
 let supabaseClient = null;
@@ -13,7 +12,7 @@ function getSupabase() {
   return supabaseClient;
 }
 
-let userVaultBalance = 0.0;
+let userVaultBalance = parseFloat(localStorage.getItem("cyberstrike_vault_balance")) || 0.0;
 let totalRefEarned = 0.0;
 let weeklyWageredPOL = 0.0;
 let currentSelectedStake = 1.0;
@@ -111,6 +110,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("soundToggleBtn");
   if (btn) btn.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
 
+  updateVaultBalanceUI();
   checkDepositReturnStatus();
   captureReferrerFromURL();
   initUserSessionUI();
@@ -348,12 +348,14 @@ function logoutUser() {
   currentActiveFaucetEmail = "";
   localStorage.removeItem("cyberstrike_user");
   localStorage.removeItem("cyberstrike_faucet_email");
+  localStorage.removeItem("cyberstrike_vault_balance");
   userVaultBalance = 0.0;
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }// ==========================================================================
-// WALLET, DEPOSITS, WITHDRAWALS & POLLING
+  }
+  // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
 function checkDepositReturnStatus() {
@@ -403,6 +405,8 @@ function updateVaultBalanceUI() {
   const balDisplay = document.getElementById("userBalanceDisplay");
   if (balDisplay) balDisplay.innerText = `${userVaultBalance.toFixed(4)} POL`;
   
+  localStorage.setItem("cyberstrike_vault_balance", userVaultBalance);
+
   const refEarnedEl = document.getElementById("totalRefEarnedDisplay");
   if (refEarnedEl) refEarnedEl.innerText = `${totalRefEarned.toFixed(4)} POL`;
 }
@@ -418,7 +422,6 @@ function updateFaucetPayCustom() {
   }
 }
 
-// SECURE SESSION BALANCE POLLING
 async function fetchLatestVaultBalance() {
   const sb = getSupabase();
   if (!sb) return;
@@ -515,8 +518,7 @@ async function submitManualDeposit() {
       return;
     }
 
-    userVaultBalance = newBalance;
-    updateVaultBalanceUI();
+    await fetchLatestVaultBalance();
     playAudioSFX("win");
     
     statusMsg.innerText = `✅ Successfully credited +${amount.toFixed(4)} POL!`;
@@ -702,7 +704,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-      }  // ==========================================================================
+    }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -948,7 +951,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}  // ==========================================================================
+                      }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1151,7 +1155,8 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-}// ==========================================================================
+                            }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1359,4 +1364,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-}
+  }

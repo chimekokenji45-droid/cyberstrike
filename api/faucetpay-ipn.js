@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
     const customDataStr = body.custom || body.merchant_custom;
     const paidAmount = parseFloat(body.amount || body.amount1 || body.merchant_amount || 0);
-    const paymentId = body.payment_id || body.txid || body.]}$.transaction_id; // FaucetPay unique transaction ID
+    const paymentId = body.payment_id || body.txid || body.transaction_id; // Fixed syntax error
 
     if (!customDataStr || paidAmount <= 0) {
       console.error("Invalid IPN payload received:", body);
@@ -71,10 +71,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Server configuration error: Missing Supabase credentials' });
     }
 
-    // OPTIONAL SAFETY CHECK: If you have a table tracking processed transactions, 
-    // check if this paymentId was already credited. (If you don't have this table yet, 
-    // make sure your manual frontend button isn't also updating the database).
-    
     // 1. Fetch user profile from Supabase
     const fetchRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=*`, {
       headers: {
@@ -116,4 +112,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
-        
+               

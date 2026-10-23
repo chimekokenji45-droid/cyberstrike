@@ -365,9 +365,9 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-                                                    }
+  }
   // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
+// CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & SPRINT)
 // ==========================================================================
 
 function checkDepositReturnStatus() {
@@ -436,10 +436,10 @@ function updateFaucetPayCustom() {
   }
 }
 
-let isDepositing = false; // Guard flag to lock both form submissions and poller collisions
+let isDepositing = false;
 
 async function fetchLatestVaultBalance() {
-  if (isDepositing) return; // Do NOT pull background updates while user is depositing!
+  if (isDepositing) return;
 
   const sb = getSupabase();
   if (!sb) return;
@@ -479,106 +479,6 @@ async function fetchLatestVaultBalance() {
 function startLiveBalancePolling() {
   fetchLatestVaultBalance();
   setInterval(fetchLatestVaultBalance, 4000);
-}
-
-async function submitManualDeposit(e) {
-  if (e && e.preventDefault) e.preventDefault();
-
-  if (isDepositing) return; // Prevent double execution
-  isDepositing = true;
-
-  const amountInput = document.getElementById("manualDepositAmount");
-  const txidInput = document.getElementById("manualDepositTxid");
-  const statusMsg = document.getElementById("depositStatusMsg");
-  
-  const depositModal = document.getElementById("depositModal");
-  const submitBtn = depositModal ? depositModal.querySelector("button.btn-primary") : null;
-
-  const amount = amountInput ? parseFloat(amountInput.value) : 0;
-  const txid = txidInput ? txidInput.value.trim() : "";
-
-  if (!amount || amount <= 0) {
-    if (statusMsg) statusMsg.innerText = "❌ Please enter a valid deposit amount.";
-    isDepositing = false;
-    return;
-  }
-
-  if (submitBtn) submitBtn.disabled = true;
-  if (statusMsg) statusMsg.innerText = "⏳ Processing deposit...";
-  
-  const sb = getSupabase();
-  if (!sb) {
-    if (statusMsg) statusMsg.innerText = "❌ Supabase client not initialized.";
-    if (submitBtn) submitBtn.disabled = false;
-    isDepositing = false;
-    return;
-  }
-
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    let profile = null;
-
-    if (session && session.user) {
-      const { data } = await sb
-        .from('profiles')
-        .select('id, vault_balance')
-        .eq('id', session.user.id)
-        .maybeSingle();
-      profile = data;
-    } else if (currentActiveUserAccount) {
-      const { data } = await sb
-        .from('profiles')
-        .select('id, vault_balance')
-        .ilike('username', currentActiveUserAccount)
-        .maybeSingle();
-      profile = data;
-    }
-
-    if (!profile) {
-      if (statusMsg) statusMsg.innerText = "❌ Profile record not found.";
-      if (submitBtn) submitBtn.disabled = false;
-      isDepositing = false;
-      return;
-    }
-
-    // 1. Read exact ground truth balance from database
-    const currentDbBal = parseFloat(profile.vault_balance || 0);
-    const targetBalance = currentDbBal + amount;
-
-    // 2. Update Supabase row directly
-    const { error: updateErr } = await sb
-      .from('profiles')
-      .update({ vault_balance: targetBalance })
-      .eq('id', profile.id);
-
-    if (updateErr) {
-      if (statusMsg) statusMsg.innerText = "❌ Database update failed: " + updateErr.message;
-      if (submitBtn) submitBtn.disabled = false;
-      isDepositing = false;
-      return;
-    }
-
-    // 3. Directly sync global state to the exact target balance
-    userVaultBalance = targetBalance;
-    updateVaultBalanceUI();
-    playAudioSFX("win");
-    
-    if (statusMsg) statusMsg.innerText = `✅ Successfully credited +${amount.toFixed(4)} POL!`;
-
-    setTimeout(() => {
-      if (amountInput) amountInput.value = "";
-      if (txidInput) txidInput.value = "";
-      if (statusMsg) statusMsg.innerText = "";
-      if (submitBtn) submitBtn.disabled = false;
-      isDepositing = false; // Release lock after modal closes
-      closeDepositModal();
-    }, 2000);
-
-  } catch (err) {
-    if (statusMsg) statusMsg.innerText = "❌ Deposit error: " + err.message;
-    if (submitBtn) submitBtn.disabled = false;
-    isDepositing = false;
-  }
 }
 
 function getNextMondayMidnight() {
@@ -687,7 +587,6 @@ async function executePolWithdrawal() {
     if (result.success) {
       playAudioSFX("withdraw");
       
-      // Read new balance returned from serverless backend and sync local UI
       if (result.newBalance !== undefined) {
         userVaultBalance = parseFloat(result.newBalance);
       } else {
@@ -711,7 +610,10 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
+                       }
+// ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 3: STAKES, PROFILE, HISTORY & LEADERBOARD)
+// ==========================================================================
 
 function selectStake(btnElement) {
   playAudioSFX("stake");
@@ -771,8 +673,209 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
+}
+
+function openProfileModal() {
+  playAudioSFX("action");
+  const curUserEl = document.getElementById("profileCurrentUsername");
+  if (curUserEl) curUserEl.value = currentActiveUserAccount || "";
+  const modal = document.getElementById("profileModal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById("profileModal");
+  if (modal) modal.classList.remove("active");
+  const msg = document.getElementById("profileStatusMsg");
+  if (msg) msg.innerText = "";
+}
+
+async function handleUpdateProfile(e) {
+  e.preventDefault();
+  const newUsername = document.getElementById("profileNewUsername").value.trim().toLowerCase();
+  const newPassword = document.getElementById("profileNewPassword").value;
+  const statusMsg = document.getElementById("profileStatusMsg");
+
+  if (!newUsername && !newPassword) {
+    statusMsg.innerText = "❌ Enter a new username or password to update.";
+    return;
   }
-                                      // ==========================================================================
+
+  statusMsg.innerText = "⏳ Updating profile...";
+  const sb = getSupabase();
+  if (!sb) { statusMsg.innerText = "❌ Supabase client not loaded."; return; }
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { statusMsg.innerText = "❌ Session expired. Please log in again."; return; }
+
+    if (newPassword) {
+      const { error: passErr } = await sb.auth.updateUser({ password: newPassword });
+      if (passErr) throw new Error(passErr.message);
+    }
+
+    if (newUsername) {
+      const { error: userErr } = await sb
+        .from('profiles')
+        .update({ username: newUsername })
+        .eq('id', session.user.id);
+
+      if (userErr) throw new Error(userErr.message);
+
+      currentActiveUserAccount = newUsername;
+      localStorage.setItem("cyberstrike_user", newUsername);
+      initUserSessionUI();
+    }
+
+    playAudioSFX("win");
+    statusMsg.innerText = "✅ Profile updated successfully!";
+    setTimeout(() => {
+      closeProfileModal();
+      document.getElementById("profileNewUsername").value = "";
+      document.getElementById("profileNewPassword").value = "";
+    }, 2000);
+
+  } catch (err) {
+    statusMsg.innerText = `❌ Update failed: ${err.message}`;
+  }
+}
+
+let currentHistoryTab = "deposits";
+
+function openHistoryModal(tab = "deposits") {
+  playAudioSFX("action");
+  const modal = document.getElementById("historyModal");
+  if (modal) modal.classList.add("active");
+  switchHistoryTab(tab);
+}
+
+function closeHistoryModal() {
+  const modal = document.getElementById("historyModal");
+  if (modal) modal.classList.remove("active");
+}
+
+function switchHistoryTab(tab) {
+  currentHistoryTab = tab;
+  const depBtn = document.getElementById("historyTabDeposits");
+  const withBtn = document.getElementById("historyTabWithdrawals");
+
+  if (tab === "deposits") {
+    if (depBtn) depBtn.className = "btn btn-primary";
+    if (withBtn) withBtn.className = "btn btn-secondary";
+  } else {
+    if (depBtn) depBtn.className = "btn btn-secondary";
+    if (withBtn) withBtn.className = "btn btn-primary";
+  }
+
+  fetchTransactionHistory(tab);
+}
+
+async function fetchTransactionHistory(type) {
+  const tableBody = document.getElementById("historyTableBody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">Loading ${type}...</td></tr>`;
+
+  const sb = getSupabase();
+  if (!sb || !currentActiveUserAccount) return;
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const userId = session ? session.user.id : null;
+
+    let query = sb.from("processed_transactions").select("*").order("created_at", { ascending: false }).limit(20);
+
+    if (userId) {
+      query = query.eq("user_id", userId);
+    } else {
+      query = query.ilike("account_id", currentActiveUserAccount);
+    }
+
+    if (type === "deposits") {
+      query = query.ilike("type", "%deposit%");
+    } else {
+      query = query.ilike("type", "%withdraw%");
+    }
+
+    const { data, error } = await query;
+
+    if (error || !data || data.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">No ${type} records found.</td></tr>`;
+      return;
+    }
+
+    tableBody.innerHTML = data.map(tx => {
+      const dateStr = new Date(tx.created_at || Date.now()).toLocaleDateString();
+      const amt = parseFloat(tx.amount || 0).toFixed(4);
+      const isDeposit = type === "deposits";
+      const color = isDeposit ? "var(--accent-green)" : "var(--accent-cyan)";
+      
+      return `
+        <tr style="border-bottom: 1px solid var(--border-color);">
+          <td style="padding: 10px 8px; color: var(--text-muted);">${dateStr}</td>
+          <td style="padding: 10px 8px; color: ${color}; font-weight: 800;">${isDeposit ? '+' : '-'}${amt} POL</td>
+          <td style="padding: 10px 8px;"><span style="color:var(--accent-green); font-weight:700;">COMPLETED</span></td>
+        </tr>
+      `;
+    }).join("");
+
+  } catch (err) {
+    tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Error loading records.</td></tr>`;
+  }
+}
+
+function openLeaderboardModal() {
+  playAudioSFX("action");
+  const modal = document.getElementById("leaderboardModal");
+  if (modal) modal.classList.add("active");
+  fetchLeaderboardData();
+}
+
+function closeLeaderboardModal() {
+  const modal = document.getElementById("leaderboardModal");
+  if (modal) modal.classList.remove("active");
+}
+
+async function fetchLeaderboardData() {
+  const tableBody = document.getElementById("leaderboardTableBody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">Loading rankings...</td></tr>`;
+
+  const sb = getSupabase();
+  if (!sb) return;
+
+  try {
+    const { data, error } = await sb
+      .from("profiles")
+      .select("username, total_wagered")
+      .order("total_wagered", { ascending: false })
+      .limit(10);
+
+    if (error || !data || data.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">No wager records yet.</td></tr>`;
+      return;
+    }
+
+    tableBody.innerHTML = data.map((player, index) => {
+      const rank = index + 1;
+      const rankBadge = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+      const total = parseFloat(player.total_wagered || 0).toFixed(2);
+      
+      return `
+        <tr style="border-bottom: 1px solid var(--border-color);">
+          <td style="padding: 10px 8px; font-weight: 800; color: var(--accent-cyan);">${rankBadge}</td>
+          <td style="padding: 10px 8px; font-weight: 700; color: #fff;">${player.username || "Anonymous"}</td>
+          <td style="padding: 10px 8px; text-align: right; color: var(--accent-green); font-weight: 800;">${total} POL</td>
+        </tr>
+      `;
+    }).join("");
+
+  } catch (err) {
+    tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
+  }
+      }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -1221,7 +1324,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                      }// ==========================================================================
+        }// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1429,4 +1532,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-                                               }
+}

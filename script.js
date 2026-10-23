@@ -138,7 +138,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-   }
+  }
    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
@@ -648,8 +648,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-// ==========================================================================
+    }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -804,7 +804,10 @@ async function fetchTransactionHistory(type) {
   tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">Loading ${type}...</td></tr>`;
 
   const sb = getSupabase();
-  if (!sb || !currentActiveUserAccount) return;
+  if (!sb || !currentActiveUserAccount) {
+    tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">Please log in to view history.</td></tr>`;
+    return;
+  }
 
   try {
     const { data: { session } } = await sb.auth.getSession();
@@ -813,9 +816,9 @@ async function fetchTransactionHistory(type) {
     let query = sb.from("processed_transactions").select("*").order("created_at", { ascending: false }).limit(20);
 
     if (userId) {
-      query = query.eq("user_id", userId);
+      query = query.or(`user_id.eq.${userId},account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
     } else {
-      query = query.ilike("account_id", currentActiveUserAccount);
+      query = query.or(`account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
     }
 
     if (type === "deposits") {
@@ -1146,8 +1149,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-  }
-                // ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1560,4 +1563,3 @@ function closeRpsArena() {
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
     }
-    

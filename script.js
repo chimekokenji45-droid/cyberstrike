@@ -1,5 +1,5 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & AUTH)
+// CYBERSTRIKE CORE SCRIPT (PART 1: SETUP, AUDIO & INIT)
 // ==========================================================================
 const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zLldbp2CcA_wqo5X24kURA_kyBEN2S-";
@@ -138,7 +138,10 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-}
+   }
+   // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
+// ==========================================================================
 
 function initUserSessionUI() {
   const authNavBox = document.getElementById("authNavBox");
@@ -365,10 +368,45 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }
+}
   // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & SPRINT)
+// CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, TRANSACTIONS & SPRINT)
 // ==========================================================================
+
+async function recordWagerVolume(stakeAmount) {
+  weeklyWageredPOL += stakeAmount;
+  updateWagerSprintUI();
+
+  const referrer = localStorage.getItem("cyberstrike_referrer");
+  if (referrer) {
+    const refCommission = stakeAmount * 0.10;
+    totalRefEarned += refCommission;
+  }
+
+  // --- PERSIST WAGER VOLUME TO SUPABASE FOR THE LEADERBOARD (ALL GAMES) ---
+  const sb = getSupabase();
+  if (!sb || !currentActiveUserAccount) return;
+
+  try {
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('id, total_wagered')
+      .ilike('username', currentActiveUserAccount)
+      .maybeSingle();
+
+    if (profile) {
+      const currentDbWagered = parseFloat(profile.total_wagered || 0);
+      const newTotalWagered = currentDbWagered + stakeAmount;
+
+      await sb
+        .from('profiles')
+        .update({ total_wagered: newTotalWagered })
+        .eq('id', profile.id);
+    }
+  } catch (err) {
+    console.error("Leaderboard wager update error:", err.message);
+  }
+}
 
 function checkDepositReturnStatus() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -610,9 +648,9 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-                       }
+}
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 3: STAKES, PROFILE, HISTORY & LEADERBOARD)
+// CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
 function selectStake(btnElement) {
@@ -625,17 +663,6 @@ function selectStake(btnElement) {
   const winnerPayoutEl = document.getElementById("summaryWinnerPayout");
   if (totalPoolEl) totalPoolEl.innerText = `${(currentSelectedStake * 2).toFixed(2)} POL`;
   if (winnerPayoutEl) winnerPayoutEl.innerText = `${(currentSelectedStake * 2 * 0.8).toFixed(2)} POL`;
-}
-
-function recordWagerVolume(stakeAmount) {
-  weeklyWageredPOL += stakeAmount;
-  updateWagerSprintUI();
-
-  const referrer = localStorage.getItem("cyberstrike_referrer");
-  if (referrer) {
-    const refCommission = stakeAmount * 0.10;
-    totalRefEarned += refCommission;
-  }
 }
 
 function updateWagerSprintUI() {
@@ -874,11 +901,9 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-      }
-        // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
-// ==========================================================================
+}
 
+// --- PENALTY SHOOTOUT ENGINE ---
 let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
 let p1PenaltyShotsTaken = 0;
@@ -889,7 +914,7 @@ let isP1PenaltyTurn = true;
 let isPenaltyActive = false;
 let isPenaltyTraining = false;
 
-function launchPenaltyArena(isTraining = false) {
+async function launchPenaltyArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isPenaltyTraining = isTraining;
@@ -901,7 +926,7 @@ function launchPenaltyArena(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    recordWagerVolume(currentSelectedStake);
+    await recordWagerVolume(currentSelectedStake);
   }
 
   p1PenaltyShotsTaken = 0;
@@ -1121,10 +1146,12 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}  // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
+  }
+                // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
+// --- LUDO RACE ENGINE ---
 let ludoTurnTimer = null;
 let ludoTimeLeft = 5;
 let p1TrackPosition = 0;
@@ -1133,7 +1160,7 @@ let isLudoP1Turn = true;
 let isLudoActive = false;
 let isLudoTraining = false;
 
-function launchLudoRace(isTraining = false) {
+async function launchLudoRace(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isLudoTraining = isTraining;
@@ -1145,7 +1172,7 @@ function launchLudoRace(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    recordWagerVolume(currentSelectedStake);
+    await recordWagerVolume(currentSelectedStake);
   }
 
   p1TrackPosition = 0;
@@ -1324,13 +1351,12 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-        }// ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
-// ==========================================================================
+}
 
+// --- COIN FLIP ENGINE ---
 let isCoinTraining = false;
 
-function launchCoinFlipArena(isTraining = false) {
+async function launchCoinFlipArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isCoinTraining = isTraining;
@@ -1342,7 +1368,7 @@ function launchCoinFlipArena(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    recordWagerVolume(currentSelectedStake);
+    await recordWagerVolume(currentSelectedStake);
   }
 
   document.getElementById("coinBanner").innerText = isCoinTraining ? "🤖 TRAINING MODE: CHOOSE HEADS OR TAILS" : "CHOOSE HEADS OR TAILS (50/50)";
@@ -1406,12 +1432,13 @@ function closeCoinFlipArena() {
   document.getElementById("coinFlipOverlay").classList.remove("active");
 }
 
+// --- ROCK PAPER SCISSORS ENGINE ---
 let rpsTimer = null;
 let rpsTimeLeft = 5;
 let isRpsActive = false;
 let isRpsTraining = false;
 
-function launchRpsArena(isTraining = false) {
+async function launchRpsArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isRpsTraining = isTraining;
@@ -1423,7 +1450,7 @@ function launchRpsArena(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    recordWagerVolume(currentSelectedStake);
+    await recordWagerVolume(currentSelectedStake);
   }
 
   isRpsActive = true;
@@ -1532,4 +1559,5 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-}
+    }
+    

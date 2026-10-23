@@ -353,8 +353,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-      }
-    // ==========================================================================
+  }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -686,7 +686,7 @@ async function executePolWithdrawal() {
       if (statusEl) statusEl.innerText = `✅ Withdrawal Sent Successfully via FaucetPay!`;
       setTimeout(() => {
         closeWithdrawModal();
-        if (amtInput) amtEl.value = "";
+        if (amtInput) amtInput.value = ""; // Corrected variable reference
         if (statusEl) statusEl.innerText = "";
         if (confirmBtn) confirmBtn.disabled = false;
       }, 2500);
@@ -759,8 +759,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-      }
-      // ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -1210,8 +1210,8 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-    }
-// ==========================================================================
+                          }
+                 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1420,4 +1420,3 @@ function closeRpsArena() {
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
 }
-  

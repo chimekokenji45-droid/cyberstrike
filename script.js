@@ -353,8 +353,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
-// ==========================================================================
+      }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
 
@@ -395,10 +395,12 @@ function initReferralUI() {
 function copyReferralLink() {
   playAudioSFX("action");
   const refInput = document.getElementById("referralLinkInput");
-  refInput.select();
-  refInput.setSelectionRange(0, 99999);
-  navigator.clipboard.writeText(refInput.value);
-  showCustomAlert("📋 Referral link copied to clipboard!", "REFERRAL PROGRAM");
+  if (refInput) {
+    refInput.select();
+    refInput.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(refInput.value);
+    showCustomAlert("📋 Referral link copied to clipboard!", "REFERRAL PROGRAM");
+  }
 }
 
 function updateVaultBalanceUI() {
@@ -470,7 +472,7 @@ function startLiveBalancePolling() {
 async function submitManualDeposit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
-  if (isDepositing) return; // Lock against double execution
+  if (isDepositing) return; // Prevent double execution
   isDepositing = true;
 
   const amountInput = document.getElementById("manualDepositAmount");
@@ -480,7 +482,7 @@ async function submitManualDeposit(e) {
   const depositModal = document.getElementById("depositModal");
   const submitBtn = depositModal ? depositModal.querySelector("button.btn-primary") : null;
 
-  const amount = parseFloat(amountInput.value);
+  const amount = amountInput ? parseFloat(amountInput.value) : 0;
   const txid = txidInput ? txidInput.value.trim() : "";
 
   if (!amount || amount <= 0) {
@@ -527,12 +529,11 @@ async function submitManualDeposit(e) {
       return;
     }
 
-    // Read current exact database balance
+    // 1. Read exact ground truth balance from database
     const currentDbBal = parseFloat(profile.vault_balance || 0);
-    // Add deposit amount to database ground truth
     const targetBalance = currentDbBal + amount;
 
-    // Save exact target balance back to Supabase
+    // 2. Update Supabase row directly
     const { error: updateErr } = await sb
       .from('profiles')
       .update({ vault_balance: targetBalance })
@@ -545,7 +546,7 @@ async function submitManualDeposit(e) {
       return;
     }
 
-    // Force local balance to match the new database total
+    // 3. Directly sync global state to the exact target balance
     userVaultBalance = targetBalance;
     updateVaultBalanceUI();
     playAudioSFX("win");
@@ -557,7 +558,7 @@ async function submitManualDeposit(e) {
       if (txidInput) txidInput.value = "";
       if (statusMsg) statusMsg.innerText = "";
       if (submitBtn) submitBtn.disabled = false;
-      isDepositing = false; // Unlock poller after completion
+      isDepositing = false; // Release lock after modal closes
       closeDepositModal();
     }, 2000);
 
@@ -632,9 +633,13 @@ function closeWithdrawModal() {
 }
 
 async function executePolWithdrawal() {
-  const faucetEmail = document.getElementById("withdrawEmailInput").value.trim();
-  const amountInput = parseFloat(document.getElementById("withdrawAmountInput").value);
+  const emailInput = document.getElementById("withdrawEmailInput");
+  const amtInput = document.getElementById("withdrawAmountInput");
   const statusEl = document.getElementById("withdrawStatus");
+  const confirmBtn = document.getElementById("confirmWithdrawBtn");
+
+  const faucetEmail = emailInput ? emailInput.value.trim() : "";
+  const amountInput = amtInput ? parseFloat(amtInput.value) : 0;
   const MIN_WITHDRAWAL = 2.0;
 
   if (!faucetEmail || !faucetEmail.includes("@")) {
@@ -651,7 +656,6 @@ async function executePolWithdrawal() {
   }
 
   if (statusEl) statusEl.innerText = "⏳ Processing FaucetPay Payout...";
-  const confirmBtn = document.getElementById("confirmWithdrawBtn");
   if (confirmBtn) confirmBtn.disabled = true;
 
   try {
@@ -671,24 +675,18 @@ async function executePolWithdrawal() {
     if (result.success) {
       playAudioSFX("withdraw");
       
-      userVaultBalance -= amountInput;
-      updateVaultBalanceUI();
-
-      const sb = getSupabase();
-      if (sb) {
-        const { data: { session } } = await sb.auth.getSession();
-        if (session && session.user) {
-          await sb.from('profiles').update({ vault_balance: userVaultBalance }).eq('id', session.user.id);
-        } else if (currentActiveUserAccount) {
-          await sb.from('profiles').update({ vault_balance: userVaultBalance }).ilike('username', currentActiveUserAccount);
-        }
+      // Read new balance returned from serverless backend and sync local UI
+      if (result.newBalance !== undefined) {
+        userVaultBalance = parseFloat(result.newBalance);
+      } else {
+        userVaultBalance = Math.max(0, userVaultBalance - amountInput);
       }
+      updateVaultBalanceUI();
 
       if (statusEl) statusEl.innerText = `✅ Withdrawal Sent Successfully via FaucetPay!`;
       setTimeout(() => {
         closeWithdrawModal();
-        const amtEl = document.getElementById("withdrawAmountInput");
-        if (amtEl) amtEl.value = "";
+        if (amtInput) amtEl.value = "";
         if (statusEl) statusEl.innerText = "";
         if (confirmBtn) confirmBtn.disabled = false;
       }, 2500);
@@ -761,8 +759,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-                                              }
-  // ==========================================================================
+      }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -1008,8 +1006,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-    }
-// ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1213,7 +1211,7 @@ function closeLudoArena() {
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
     }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1421,5 +1419,5 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-    }
-    
+}
+  

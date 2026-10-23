@@ -6,8 +6,10 @@
   <title>CYBERSTRIKE 1v1 Arena | FaucetPay Platform</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
   <style>
-:root {
+    :root {
   --bg-dark: #070b12;
   --panel-bg: #0f1722;
   --accent-cyan: #00e5ff;
@@ -21,27 +23,194 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
 body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; padding-bottom: 40px; overflow-x: hidden; }
 
-/* NAVBAR */
-.navbar {
-  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
-  padding: 12px 16px; background: #0b111c; border-bottom: 1px solid var(--border-color); gap: 12px;
-}
-.logo { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
-.logo-cyber { color: #fff; }
-.logo-strike { color: var(--accent-magenta); }
-.badge-polygon {
-  font-size: 9px; background: #0047ff; color: #fff; padding: 2px 6px; border-radius: 12px; margin-left: 6px; vertical-align: middle;
-}
-.wallet-bar { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: space-between; }
-@media (min-width: 768px) {
-  .navbar { padding: 16px 32px; }
-  .logo { font-size: 22px; }
-  .wallet-bar { width: auto; justify-content: flex-end; gap: 12px; }
+/* TRONLUX-STYLE TOP NAVIGATION BAR */
+.top-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: #0b111c;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-.balance-box { background: #152233; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 140px; }
-.balance-box .label { font-size: 9px; color: var(--text-muted); display: block; }
-.balance-box .value { font-size: 14px; color: var(--accent-cyan); font-weight: 800; }
+.nav-hamburger-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-balance-box {
+  display: flex;
+  align-items: center;
+  background: #152233;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 14px;
+  gap: 10px;
+}
+
+.token-logo {
+  width: 22px;
+  height: 22px;
+  display: block;
+  border-radius: 50%;
+}
+
+.balance-text {
+  color: var(--accent-cyan);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+.wallet-dropdown-wrapper {
+  position: relative;
+}
+
+.nav-wallet-btn {
+  background: #1a283a;
+  border: 1px solid var(--border-color);
+  color: #fff;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.nav-wallet-btn:active {
+  background: #253850;
+}
+
+.wallet-dropdown-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 50px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  width: 150px;
+  overflow: hidden;
+  z-index: 1001;
+}
+
+.wallet-dropdown-menu.active {
+  display: block;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: #1a283a;
+}
+
+.dropdown-item.deposit-item {
+  color: var(--accent-green);
+}
+
+.dropdown-item.withdraw-item {
+  color: var(--accent-cyan);
+}
+
+/* SIDE NAVIGATION DRAWER (HAMBURGER MENU) */
+.side-nav-drawer {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100vh;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border-color);
+  z-index: 2000;
+  transition: left 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+}
+
+.side-nav-drawer.active {
+  left: 0;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #131e2c;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.drawer-item:hover {
+  border-color: var(--accent-cyan);
+}
+
+.drawer-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1500;
+}
+
+.drawer-overlay.active {
+  display: block;
+}
 
 /* BUTTONS */
 .btn { border: none; padding: 8px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 12px; }
@@ -128,9 +297,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .center { left: 50%; transform: translateX(-50%); }
 .left { left: 20%; }
 .right { left: 80%; }
-.top-left { top: 15px; left: 20%; }
-.top-center { top: 15px; left: 50%; transform: translateX(-50%); }
-.top-right { top: 15px; left: 80%; }
 .status-banner { text-align: center; font-weight: 800; font-size: 12px; color: var(--accent-cyan); min-height: 20px; margin-bottom: 12px; }
 .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .btn-shoot { background: #162436; color: #fff; border: 1px solid var(--border-color); padding: 10px 0; font-size: 12px; }
@@ -143,8 +309,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .cell { flex: 1; height: 30px; background: #121c2b; border: 1px solid var(--border-color); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #5a6e85; transition: all 0.2s; }
 .cell.start { font-size: 8px; background: #1a283a; }
 .cell.finish { font-size: 8px; background: rgba(0, 255, 102, 0.1); color: var(--accent-green); border-color: var(--accent-green); }
-.cell.has-p1 { background: var(--accent-cyan) !important; color: #000 !important; font-weight: 900; box-shadow: 0 0 10px var(--accent-cyan); }
-.cell.has-p2 { background: var(--accent-magenta) !important; color: #fff !important; font-weight: 900; box-shadow: 0 0 10px var(--accent-magenta); }
 .ludo-controls { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .dice-box { font-size: 22px; font-weight: 900; background: #131f30; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); color: var(--accent-cyan); min-width: 70px; text-align: center; }
 
@@ -157,45 +321,90 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
     
-    </style>
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
-  
+  </style>
 </head>
 <body>
 
-  <!-- TOP NAVBAR -->
-  <header class="navbar">
-    <div class="logo">
-      <span class="logo-cyber">CYBER</span><span class="logo-strike">STRIKE</span>
-      <span class="badge-polygon">FAUCETPAY INTEGRATED</span>
+  <!-- TRONLUX-STYLE TOP NAVIGATION BAR -->
+  <header class="top-nav-bar">
+    <!-- Left: Hamburger Menu Button -->
+    <button class="nav-hamburger-btn" id="hamburgerMenuBtn" onclick="toggleNavDrawer()" title="Menu">
+      ☰
+    </button>
+
+    <!-- Center: Balance Display Box -->
+    <div class="nav-balance-box">
+      <img src="https://cryptologos.cc/logos/polygon-matic-logo.png" alt="POL" class="token-logo" />
+      <span class="balance-text" id="userBalanceDisplay">0.0000 POL</span>
     </div>
 
-    <div class="wallet-bar">
-      <!-- SOUND SFX TOGGLE BUTTON -->
-      <button id="soundToggleBtn" class="btn btn-secondary" onclick="toggleSoundSFX()" style="font-size: 11px;">
-        🔊 SFX: ON
+    <!-- Right: Wallet Action Button -->
+    <div class="wallet-dropdown-wrapper" id="walletDropdownWrapper">
+      <button class="nav-wallet-btn" id="walletActionBtn" onclick="toggleWalletDropdown()" title="Wallet">
+        💼
       </button>
 
-      <!-- AUTH STATE CONTAINER -->
-      <div id="authNavBox" style="display: flex; gap: 8px; align-items: center;">
-        <button id="authBtn" class="btn btn-primary" onclick="openAuthModal('login')">🔑 LOGIN / REGISTER</button>
-      </div>
-
-      <!-- BALANCE CONTAINER (VISIBLE WHEN LOGGED IN) -->
-      <div id="userWalletBox" style="display: none; align-items: center; gap: 8px;">
-        <div class="balance-box">
-          <span class="label" id="loggedInUserTag">USER: -</span>
-          <span id="userBalanceDisplay" class="value">0.0000 POL</span>
-        </div>
-        <button id="depositBtn" class="btn btn-primary" onclick="openDepositModal()">📥 DEPOSIT</button>
-        <button id="withdrawBtn" class="btn btn-secondary" onclick="openWithdrawModal()">📤 WITHDRAW</button>
-        <button class="btn btn-secondary" style="color: var(--accent-magenta);" onclick="logoutUser()">🚪</button>
+      <!-- Wallet Dropdown (Deposit & Withdraw) -->
+      <div class="wallet-dropdown-menu" id="walletDropdownMenu">
+        <button class="dropdown-item deposit-item" onclick="openDepositModal(); toggleWalletDropdown();">
+          📥 Deposit
+        </button>
+        <button class="dropdown-item withdraw-item" onclick="openWithdrawModal(); toggleWalletDropdown();">
+          📤 Withdraw
+        </button>
       </div>
     </div>
   </header>
 
-  <!-- MAIN DASHBOARD CONTAINER (HIDDEN UNTIL LOGGED IN) -->
+  <!-- SIDE NAVIGATION DRAWER (HAMBURGER MENU) -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="toggleNavDrawer()"></div>
+  <aside id="sideNavDrawer" class="side-nav-drawer">
+    <div class="drawer-header">
+      <div style="font-size: 18px; font-weight: 900; letter-spacing: 1px;">
+        <span style="color: #fff;">CYBER</span><span style="color: var(--accent-magenta);">STRIKE</span>
+      </div>
+      <button class="close-btn" onclick="toggleNavDrawer()" style="position:static; font-size:20px;">✖</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- AUTH / USER INFO -->
+      <div id="drawerAuthBox" style="padding: 14px; background: #131e2c; border-radius: 8px; border: 1px solid var(--border-color);">
+        <div id="drawerAuthNotLoggedIn">
+          <p class="subtitle" style="margin-bottom: 8px;">Not logged in</p>
+          <button class="btn btn-primary" style="width: 100%;" onclick="openAuthModal('login'); toggleNavDrawer();">🔑 LOGIN / REGISTER</button>
+        </div>
+        <div id="drawerAuthLoggedIn" style="display: none;">
+          <span style="display: block; font-size: 9px; color: var(--text-muted);">ACTIVE USER:</span>
+          <strong id="drawerLoggedInUserTag" style="font-size: 14px; color: var(--accent-cyan); display: block; margin-bottom: 10px;">-</strong>
+          <button class="btn btn-secondary" style="width: 100%; color: var(--accent-magenta);" onclick="logoutUser(); toggleNavDrawer();">🚪 LOGOUT</button>
+        </div>
+      </div>
+
+      <!-- SOUND SETTING -->
+      <div class="drawer-item" onclick="toggleSoundSFX()">
+        <span>🔊 Sound Effects</span>
+        <span id="drawerSoundStatus" style="color: var(--accent-cyan);">ON</span>
+      </div>
+
+      <!-- PLATFORM INFO -->
+      <div class="drawer-item" style="cursor: default;">
+        <span>🛡️ Provably Fair</span>
+        <span style="color: var(--accent-green); font-size: 11px;">ACTIVE</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- HIDDEN AUTH NAV BOXES FOR JS COMPATIBILITY -->
+  <div id="authNavBox" style="display: none;">
+    <button id="authBtn" onclick="openAuthModal('login')"></button>
+  </div>
+  <div id="userWalletBox" style="display: none;">
+    <span id="loggedInUserTag"></span>
+    <button id="depositBtn"></button>
+    <button id="withdrawBtn"></button>
+    <button id="soundToggleBtn"></button>
+  </div>
+    <!-- MAIN DASHBOARD CONTAINER -->
   <main class="container" id="mainDashboard" style="display: none;">
     
     <!-- LEFT COLUMN -->
@@ -328,9 +537,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       </div>
     </section>
 
-  </main>
-
-  <!-- FOOTER -->
+          </main>
+    <!-- FOOTER -->
   <footer class="footer-container" id="mainFooter" style="display: none;">
     <div class="fairness-card">
       <div class="fairness-header">
@@ -344,8 +552,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <div class="copyright-bar">
       <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
     </div>
-        </footer>
-    <!-- MANDATORY AUTH GATEWAY MODAL (FORCED ACTIVE BY DEFAULT VIA HTML CLASS) -->
+  </footer>
+
+  <!-- MANDATORY AUTH GATEWAY MODAL -->
   <div id="authModal" class="modal-overlay active">
     <div class="modal-card">
       <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="display:none;">✖</button>
@@ -604,7 +813,34 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
+  <script>
+    // Navigation drawer and wallet dropdown UI helpers
+    function toggleNavDrawer() {
+      const drawer = document.getElementById("sideNavDrawer");
+      const overlay = document.getElementById("drawerOverlay");
+      if (drawer && overlay) {
+        drawer.classList.toggle("active");
+        overlay.classList.toggle("active");
+      }
+    }
+
+    function toggleWalletDropdown() {
+      const menu = document.getElementById("walletDropdownMenu");
+      if (menu) {
+        menu.classList.toggle("active");
+      }
+    }
+
+    // Close wallet dropdown when clicking outside
+    window.addEventListener("click", function(e) {
+      const wrapper = document.getElementById("walletDropdownWrapper");
+      const menu = document.getElementById("walletDropdownMenu");
+      if (menu && wrapper && !wrapper.contains(e.target)) {
+        menu.classList.remove("active");
+      }
+    });
+  </script>
   <script src="script.js"></script>
 </body>
           </html>
-            
+  

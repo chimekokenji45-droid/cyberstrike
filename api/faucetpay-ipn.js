@@ -46,8 +46,6 @@ export default async function handler(req, res) {
 
     const customDataStr = body.custom || body.merchant_custom;
     const paidAmount = parseFloat(body.amount || body.amount1 || body.merchant_amount || 0);
-    
-    // FaucetPay uniquely identifies transactions via payment_id, txid, or transaction_id
     const transactionId = body.payment_id || body.txid || body.transaction_id;
 
     if (!customDataStr || paidAmount <= 0) {
@@ -73,41 +71,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Server configuration error: Missing Supabase credentials' });
     }
 
-    // fallback TXID if FaucetPay omitted one in test mode
-    const finalTxId = transactionId || `fallback_tx_${username}_${Date.now()}`;
-
-    // ------------------------------------------------------------------------
-    // STEP 1: ATOMIC IDEMPOTENCY CHECK
-    // Try inserting transaction into `processed_transactions` table FIRST.
-    // ------------------------------------------------------------------------
-    const txCheckRes = await fetch(`${supabaseUrl}/rest/v1/processed_transactions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseServiceKey,
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        transaction_id: finalTxId,
-        username: username,
-        amount: paidAmount
-      })
-    });
-
-    // HTTP 409 Conflict / Error means this transaction ID was ALREADY processed!
-    if (!txCheckRes.ok) {
-      const txErr = await txCheckRes.text();
-      if (txErr.includes("duplicate key") || txErr.includes("already exists") || txCheckRes.status === 409) {
-        console.log(`[DUPLICATE BLOCKED] Transaction ID ${finalTxId} was already credited!`);
-        return res.status(200).json({ success: true, message: 'Transaction already credited previously.' });
-      }
-    }
-
-    // ------------------------------------------------------------------------
-    // STEP 2: CREDIT USER BALANCE
-    // If insert succeeded, it means this is a brand new, valid deposit.
-    // ------------------------------------------------------------------------
+    // Fetch user profile first to get their Supabase UUID (`user_id`)
     const fetchProfileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=*`, {
       headers: {
         'apikey': supabaseServiceKey,
@@ -121,6 +85,40 @@ export default async function handler(req, res) {
     }
 
     const userProfile = profiles[0];
+    const finalTxId = transactionId || `fallback_tx_${username}_${Date.now()}`;
+
+    // ------------------------------------------------------------------------
+    // STEP 1: ATOMIC IDEMPOTENCY CHECK & TRANSACTION LOGGING
+    // ------------------------------------------------------------------------
+    const txCheckRes = await fetch(`${supabaseUrl}/rest/v1/processed_transactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        transaction_id: finalTxId,
+        user_id: userProfile.id,
+        account_id: username,
+        amount: paidAmount,
+        type: 'deposit',
+        status: 'completed'
+      })
+    });
+
+    if (!txCheckRes.ok) {
+      const txErr = await txCheckRes.text();
+      if (txErr.includes("duplicate key") || txErr.includes("already exists") || txCheckRes.status === 409) {
+        console.log(`[DUPLICATE BLOCKED] Transaction ID ${finalTxId} was already credited!`);
+        return res.status(200).json({ success: true, message: 'Transaction already credited previously.' });
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // STEP 2: CREDIT USER BALANCE
+    // ------------------------------------------------------------------------
     const currentBalance = parseFloat(userProfile.vault_balance || 0);
     const newBalance = currentBalance + paidAmount;
 
@@ -148,4 +146,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
-                                   
+               

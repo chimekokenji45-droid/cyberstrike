@@ -90,6 +90,30 @@ export default async function handler(req, res) {
         console.error("Failed to deduct database balance after withdrawal");
       }
 
+      // 5. INSERT RECORD INTO processed_transactions FOR WITHDRAWAL HISTORY
+      const finalTxId = result.payout_id || `withdraw_${account_id}_${Date.now()}`;
+      const txInsertRes = await fetch(`${supabaseUrl}/rest/v1/processed_transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          transaction_id: finalTxId,
+          user_id: userProfile.id,
+          account_id: account_id,
+          amount: numAmount,
+          type: 'withdraw',
+          status: 'completed'
+        })
+      });
+
+      if (!txInsertRes.ok) {
+        console.error("Failed to log withdrawal transaction to database");
+      }
+
       return res.status(200).json({ 
         success: true, 
         newBalance: newBalance,
@@ -108,5 +132,4 @@ export default async function handler(req, res) {
       message: 'Network error connecting to FaucetPay gateway.' 
     });
   }
-        }
-  
+                                   }

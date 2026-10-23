@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Allow CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,7 +14,8 @@ export default async function handler(req, res) {
   try {
     const { email, amount, currency } = req.body;
 
-    if (!email || !amount || amount < 2.0) {
+    const numAmount = parseFloat(amount);
+    if (!email || isNaN(numAmount) || numAmount < 2.0) {
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid parameters or amount below 2 POL minimum limit.' 
@@ -24,25 +24,24 @@ export default async function handler(req, res) {
 
     const apiKey = process.env.FAUCETPAY_API_KEY;
     if (!apiKey) {
-      console.error("FAUCETPAY_API_KEY is missing in Vercel environment variables.");
       return res.status(500).json({ 
         success: false, 
-        message: 'Server configuration error: Missing FAUCETPAY_API_KEY on Vercel.' 
+        message: 'Missing FAUCETPAY_API_KEY environment variable on Vercel.' 
       });
     }
 
-    // FaucetPay API requires urlencoded form data
+    // IMPORTANT FIX: FaucetPay API requires amount in satoshis (1 POL = 100,000,000 satoshis)
+    const amountInSatoshis = Math.round(numAmount * 100000000);
+
     const params = new URLSearchParams();
     params.append('api_key', apiKey);
     params.append('to', email);
-    params.append('amount', amount);
+    params.append('amount', amountInSatoshis); // Pass converted satoshi integer
     params.append('currency', currency || 'POL');
 
     const faucetResponse = await fetch('https://faucetpay.io/api/v1/send', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString()
     });
 
@@ -56,15 +55,14 @@ export default async function handler(req, res) {
     } else {
       return res.status(400).json({ 
         success: false, 
-        message: result.message || 'FaucetPay API error: Check API key or pool balance.' 
+        message: result.message || 'FaucetPay API error' 
       });
     }
   } catch (error) {
-    console.error("Withdrawal Endpoint Error:", error.message);
     return res.status(500).json({ 
       success: false, 
-      message: 'Network error connecting to FaucetPay gateway: ' + error.message 
+      message: 'Network error connecting to FaucetPay gateway.' 
     });
   }
-  }
-  
+      }
+                  

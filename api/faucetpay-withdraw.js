@@ -12,10 +12,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, amount, currency } = req.body;
+    const { account_id, email, amount, currency } = req.body;
 
     const numAmount = parseFloat(amount);
-    if (!email || isNaN(numAmount) || numAmount < 2.0) {
+    if (!email || isNaN(numAmount) || numAmount < 2.0 || !account_id) {
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid parameters or amount below 2 POL minimum limit.' 
@@ -23,22 +23,46 @@ export default async function handler(req, res) {
     }
 
     const apiKey = process.env.FAUCETPAY_API_KEY;
-    if (!apiKey) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
       return res.status(500).json({ 
         success: false, 
-        message: 'Missing FAUCETPAY_API_KEY environment variable on Vercel.' 
+        message: 'Missing server environment variables (API Key or Supabase Credentials).' 
       });
     }
 
-    // IMPORTANT FIX: FaucetPay API requires amount in satoshis (1 POL = 100,000,000 satoshis)
+    // 1. Fetch user profile securely via Supabase REST API
+    const fetchRes = await fetch(`${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(account_id)}&select=*`, {
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`
+      }
+    });
+
+    const profiles = await fetchRes.json();
+    if (!profiles || profiles.length === 0) {
+      return res.status(404).json({ success: false, message: 'User profile not found.' });
+    }
+
+    const userProfile = profiles[0];
+    const currentBal = parseFloat(userProfile.vault_balance || 0);
+
+    if (currentBal < numAmount) {
+      return res.status(400).json({ success: false, message: 'Insufficient Vault Balance in database.' });
+    }
+
+    // 2. Convert amount to satoshis (1 POL = 100,000,000 units) for FaucetPay API
     const amountInSatoshis = Math.round(numAmount * 100000000);
 
     const params = new URLSearchParams();
     params.append('api_key', apiKey);
     params.append('to', email);
-    params.append('amount', amountInSatoshis); // Pass converted satoshi integer
+    params.append('amount', amountInSatoshis);
     params.append('currency', currency || 'POL');
 
+    // 3. Send payout request to FaucetPay
     const faucetResponse = await fetch('https://faucetpay.io/api/v1/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -48,8 +72,27 @@ export default async function handler(req, res) {
     const result = await faucetResponse.json();
 
     if (result.status === 200) {
+      // 4. Deduct balance from Supabase using Service Role Key
+      const newBalance = Math.max(0, currentBal - numAmount);
+
+      const updateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userProfile.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ vault_balance: newBalance })
+      });
+
+      if (!updateRes.ok) {
+        console.error("Failed to deduct database balance after withdrawal");
+      }
+
       return res.status(200).json({ 
         success: true, 
+        newBalance: newBalance,
         message: 'Payout sent successfully via FaucetPay!' 
       });
     } else {
@@ -59,10 +102,11 @@ export default async function handler(req, res) {
       });
     }
   } catch (error) {
+    console.error("Withdrawal Error:", error.message);
     return res.status(500).json({ 
       success: false, 
       message: 'Network error connecting to FaucetPay gateway.' 
     });
   }
-      }
-                  
+        }
+  

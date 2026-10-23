@@ -138,8 +138,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-  }
-   // ==========================================================================
+                }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -368,288 +368,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
-  // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, TRANSACTIONS & SPRINT)
-// ==========================================================================
-
-async function recordWagerVolume(stakeAmount) {
-  weeklyWageredPOL += stakeAmount;
-  updateWagerSprintUI();
-
-  const referrer = localStorage.getItem("cyberstrike_referrer");
-  if (referrer) {
-    const refCommission = stakeAmount * 0.10;
-    totalRefEarned += refCommission;
-  }
-
-  // --- PERSIST WAGER VOLUME TO SUPABASE FOR THE LEADERBOARD (ALL GAMES) ---
-  const sb = getSupabase();
-  if (!sb || !currentActiveUserAccount) return;
-
-  try {
-    const { data: profile } = await sb
-      .from('profiles')
-      .select('id, total_wagered')
-      .ilike('username', currentActiveUserAccount)
-      .maybeSingle();
-
-    if (profile) {
-      const currentDbWagered = parseFloat(profile.total_wagered || 0);
-      const newTotalWagered = currentDbWagered + stakeAmount;
-
-      await sb
-        .from('profiles')
-        .update({ total_wagered: newTotalWagered })
-        .eq('id', profile.id);
-    }
-  } catch (err) {
-    console.error("Leaderboard wager update error:", err.message);
-  }
-}
-
-function checkDepositReturnStatus() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const status = urlParams.get("deposit");
-
-  if (status === "success") {
-    playAudioSFX("deposit");
-    showCustomAlert(
-      "🎉 Your payment was submitted! Your Vault Balance will update in a few seconds.",
-      "DEPOSIT SUBMITTED"
-    );
-    window.history.replaceState({}, document.title, window.location.pathname);
-  } else if (status === "cancelled") {
-    playAudioSFX("lose");
-    showCustomAlert("❌ Deposit checkout was cancelled.", "DEPOSIT CANCELLED");
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-}
-
-function captureReferrerFromURL() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const refUser = urlParams.get("ref");
-  if (refUser && refUser !== currentActiveUserAccount) {
-    localStorage.setItem("cyberstrike_referrer", refUser);
-  }
-}
-
-function initReferralUI() {
-  const refInput = document.getElementById("referralLinkInput");
-  if (refInput && currentActiveUserAccount) {
-    const currentDomain = window.location.origin + window.location.pathname;
-    refInput.value = `${currentDomain}?ref=${currentActiveUserAccount}`;
-  }
-}
-
-function copyReferralLink() {
-  playAudioSFX("action");
-  const refInput = document.getElementById("referralLinkInput");
-  if (refInput) {
-    refInput.select();
-    refInput.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(refInput.value);
-    showCustomAlert("📋 Referral link copied to clipboard!", "REFERRAL PROGRAM");
-  }
-}
-
-function updateVaultBalanceUI() {
-  const balDisplay = document.getElementById("userBalanceDisplay");
-  if (balDisplay) balDisplay.innerText = `${userVaultBalance.toFixed(4)} POL`;
-  
-  localStorage.setItem("cyberstrike_vault_balance", userVaultBalance);
-
-  const refEarnedEl = document.getElementById("totalRefEarnedDisplay");
-  if (refEarnedEl) refEarnedEl.innerText = `${totalRefEarned.toFixed(4)} POL`;
-}
-
-function updateFaucetPayCustom() {
-  const amtInput = document.getElementById("depositAmountInput");
-  const customField = document.getElementById("faucetPayCustomField");
-  if (amtInput && customField) {
-    customField.value = JSON.stringify({
-      account_id: currentActiveUserAccount,
-      amount: amtInput.value
-    });
-  }
-}
-
-let isDepositing = false;
-
-async function fetchLatestVaultBalance() {
-  if (isDepositing) return;
-
-  const sb = getSupabase();
-  if (!sb) return;
-
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    
-    let profile = null;
-    if (session && session.user) {
-      const { data } = await sb
-        .from("profiles")
-        .select("vault_balance")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      profile = data;
-    } else if (currentActiveUserAccount) {
-      const { data } = await sb
-        .from("profiles")
-        .select("vault_balance")
-        .ilike("username", currentActiveUserAccount)
-        .maybeSingle();
-      profile = data;
-    }
-
-    if (profile && profile.vault_balance !== undefined) {
-      const serverBalance = parseFloat(profile.vault_balance);
-      if (!isDepositing && serverBalance !== userVaultBalance) {
-        userVaultBalance = serverBalance;
-        updateVaultBalanceUI();
-      }
-    }
-  } catch (err) {
-    console.error("Polling fetch error:", err.message);
-  }
-}
-
-function startLiveBalancePolling() {
-  fetchLatestVaultBalance();
-  setInterval(fetchLatestVaultBalance, 4000);
-}
-
-function getNextMondayMidnight() {
-  const now = new Date();
-  const nextMonday = new Date(now);
-  const dayOfWeek = now.getDay();
-  let daysUntilMonday = (1 - dayOfWeek + 7) % 7;
-  if (daysUntilMonday === 0) daysUntilMonday = 7;
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  nextMonday.setHours(0, 0, 0, 0);
-  return nextMonday.getTime();
-}
-
-function startSprintCountdownTimer() {
-  function updateTimer() {
-    const now = new Date().getTime();
-    const targetMonday = getNextMondayMidnight();
-    const timeRemaining = targetMonday - now;
-
-    if (timeRemaining <= 0) {
-      weeklyWageredPOL = 0.0;
-      WAGER_MILESTONES.forEach(m => m.claimed = false);
-      updateWagerSprintUI();
-      return;
-    }
-
-    const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
-
-    const pad = (num) => String(num).padStart(2, "0");
-    const sprintEl = document.getElementById("sprintCountdown");
-    if (sprintEl) sprintEl.innerText = `${pad(days)}D ${pad(hours)}H ${pad(minutes)}M ${pad(seconds)}S`;
-  }
-  updateTimer();
-  setInterval(updateTimer, 1000);
-}
-
-function openDepositModal() {
-  playAudioSFX("action");
-  const modal = document.getElementById("depositModal");
-  if (modal) modal.classList.add("active");
-}
-
-function closeDepositModal() { 
-  const modal = document.getElementById("depositModal");
-  if (modal) modal.classList.remove("active"); 
-}
-
-function openWithdrawModal() {
-  playAudioSFX("action");
-  const emailInput = document.getElementById("withdrawEmailInput");
-  if (emailInput && typeof currentActiveFaucetEmail !== "undefined" && currentActiveFaucetEmail) {
-    emailInput.value = currentActiveFaucetEmail;
-  }
-  const modal = document.getElementById("withdrawModal");
-  if (modal) modal.classList.add("active");
-}
-
-function closeWithdrawModal() { 
-  const modal = document.getElementById("withdrawModal");
-  if (modal) modal.classList.remove("active"); 
-}
-
-async function executePolWithdrawal() {
-  const emailInput = document.getElementById("withdrawEmailInput");
-  const amtInput = document.getElementById("withdrawAmountInput");
-  const statusEl = document.getElementById("withdrawStatus");
-  const confirmBtn = document.getElementById("confirmWithdrawBtn");
-
-  const faucetEmail = emailInput ? emailInput.value.trim() : "";
-  const amountInput = amtInput ? parseFloat(amtInput.value) : 0;
-  const MIN_WITHDRAWAL = 2.0;
-
-  if (!faucetEmail || !faucetEmail.includes("@")) {
-    if (statusEl) statusEl.innerText = "❌ Enter a valid FaucetPay withdrawal email address!";
-    return;
-  }
-  if (!amountInput || amountInput < MIN_WITHDRAWAL) {
-    if (statusEl) statusEl.innerText = `❌ Min withdrawal is ${MIN_WITHDRAWAL} POL!`;
-    return;
-  }
-  if (amountInput > userVaultBalance) {
-    if (statusEl) statusEl.innerText = "❌ Insufficient Vault Balance!";
-    return;
-  }
-
-  if (statusEl) statusEl.innerText = "⏳ Processing FaucetPay Payout...";
-  if (confirmBtn) confirmBtn.disabled = true;
-
-  try {
-    const response = await fetch("/api/faucetpay-withdraw", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        account_id: currentActiveUserAccount,
-        email: faucetEmail,
-        amount: amountInput,
-        currency: "POL"
-      })
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      playAudioSFX("withdraw");
-      
-      if (result.newBalance !== undefined) {
-        userVaultBalance = parseFloat(result.newBalance);
-      } else {
-        userVaultBalance = Math.max(0, userVaultBalance - amountInput);
-      }
-      updateVaultBalanceUI();
-
-      if (statusEl) statusEl.innerText = `✅ Withdrawal Sent Successfully via FaucetPay!`;
-      setTimeout(() => {
-        closeWithdrawModal();
-        if (amtInput) amtInput.value = "";
-        if (statusEl) statusEl.innerText = "";
-        if (confirmBtn) confirmBtn.disabled = false;
-      }, 2500);
-    } else {
-      playAudioSFX("lose");
-      if (statusEl) statusEl.innerText = `❌ Payout Failed: ${result.message || 'Check balance/API limits'}`;
-      if (confirmBtn) confirmBtn.disabled = false;
-    }
-  } catch (err) {
-    if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
-    if (confirmBtn) confirmBtn.disabled = false;
-  }
-    }
-      // ==========================================================================
+                                          }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -813,7 +533,7 @@ async function fetchTransactionHistory(type) {
     const { data: { session } } = await sb.auth.getSession();
     const userId = session ? session.user.id : null;
 
-    let query = sb.from("processed_transactions").select("*").order("created_at", { ascending: false }).limit(20);
+    let query = sb.from("processed_transactions").select("*").order("created_at", { ascending: false }).limit(50);
 
     if (userId) {
       query = query.or(`user_id.eq.${userId},account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
@@ -821,35 +541,54 @@ async function fetchTransactionHistory(type) {
       query = query.or(`account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
     }
 
-    if (type === "deposits") {
-      query = query.ilike("type", "%deposit%");
-    } else {
-      query = query.ilike("type", "%withdraw%");
-    }
-
     const { data, error } = await query;
 
-    if (error || !data || data.length === 0) {
+    if (error) {
+      console.error("Supabase Query Error:", error);
+      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Database error: ${error.message}</td></tr>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
       tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">No ${type} records found.</td></tr>`;
       return;
     }
 
-    tableBody.innerHTML = data.map(tx => {
+    // Filter by type or fallback to numeric amounts
+    const filteredData = data.filter(tx => {
+      const txType = (tx.type || "").toLowerCase();
+      const amt = parseFloat(tx.amount || 0);
+
+      if (type === "deposits") {
+        return txType.includes("deposit") || (!txType && amt > 0);
+      } else {
+        return txType.includes("withdraw") || txType.includes("payout") || amt < 0;
+      }
+    });
+
+    if (filteredData.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">No ${type} records found.</td></tr>`;
+      return;
+    }
+
+    tableBody.innerHTML = filteredData.map(tx => {
       const dateStr = new Date(tx.created_at || Date.now()).toLocaleDateString();
-      const amt = parseFloat(tx.amount || 0).toFixed(4);
+      const amt = Math.abs(parseFloat(tx.amount || 0)).toFixed(4);
       const isDeposit = type === "deposits";
       const color = isDeposit ? "var(--accent-green)" : "var(--accent-cyan)";
+      const statusText = (tx.status || "COMPLETED").toUpperCase();
       
       return `
         <tr style="border-bottom: 1px solid var(--border-color);">
           <td style="padding: 10px 8px; color: var(--text-muted);">${dateStr}</td>
           <td style="padding: 10px 8px; color: ${color}; font-weight: 800;">${isDeposit ? '+' : '-'}${amt} POL</td>
-          <td style="padding: 10px 8px;"><span style="color:var(--accent-green); font-weight:700;">COMPLETED</span></td>
+          <td style="padding: 10px 8px;"><span style="color:var(--accent-green); font-weight:700;">${statusText}</span></td>
         </tr>
       `;
     }).join("");
 
   } catch (err) {
+    console.error("Fetch History Catch Error:", err);
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Error loading records.</td></tr>`;
   }
 }
@@ -1150,7 +889,7 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
 }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1562,4 +1301,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-    }
+}

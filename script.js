@@ -102,13 +102,17 @@ function toggleSoundSFX() {
   soundEnabled = !soundEnabled;
   localStorage.setItem("cyberstrike_sfx_enabled", soundEnabled);
   const btn = document.getElementById("soundToggleBtn");
+  const drawerSoundStatus = document.getElementById("drawerSoundStatus");
   if (btn) btn.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
+  if (drawerSoundStatus) drawerSoundStatus.innerText = soundEnabled ? "ON" : "OFF";
   if (soundEnabled) playAudioSFX("action");
 }
 
 window.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("soundToggleBtn");
+  const drawerSoundStatus = document.getElementById("drawerSoundStatus");
   if (btn) btn.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
+  if (drawerSoundStatus) drawerSoundStatus.innerText = soundEnabled ? "ON" : "OFF";
 
   updateVaultBalanceUI();
   checkDepositReturnStatus();
@@ -140,15 +144,22 @@ function initUserSessionUI() {
   const authNavBox = document.getElementById("authNavBox");
   const userWalletBox = document.getElementById("userWalletBox");
   const userTag = document.getElementById("loggedInUserTag");
+  
+  const drawerAuthNotLoggedIn = document.getElementById("drawerAuthNotLoggedIn");
+  const drawerAuthLoggedIn = document.getElementById("drawerAuthLoggedIn");
+  const drawerUserTag = document.getElementById("drawerLoggedInUserTag");
+
   const mainDash = document.getElementById("mainDashboard");
   const mainFooter = document.getElementById("mainFooter");
   const closeBtn = document.getElementById("authCloseBtn");
   const authModal = document.getElementById("authModal");
 
   if (currentActiveUserAccount) {
-    if (authNavBox) authNavBox.style.display = "none";
-    if (userWalletBox) userWalletBox.style.display = "flex";
+    if (drawerAuthNotLoggedIn) drawerAuthNotLoggedIn.style.display = "none";
+    if (drawerAuthLoggedIn) drawerAuthLoggedIn.style.display = "block";
+    if (drawerUserTag) drawerUserTag.innerText = currentActiveUserAccount;
     if (userTag) userTag.innerText = `USER: ${currentActiveUserAccount}`;
+
     if (mainDash) mainDash.style.display = "flex";
     if (mainFooter) mainFooter.style.display = "block";
     if (closeBtn) closeBtn.style.display = "block";
@@ -156,8 +167,9 @@ function initUserSessionUI() {
     initReferralUI();
     closeAuthModal();
   } else {
-    if (authNavBox) authNavBox.style.display = "flex";
-    if (userWalletBox) userWalletBox.style.display = "none";
+    if (drawerAuthNotLoggedIn) drawerAuthNotLoggedIn.style.display = "block";
+    if (drawerAuthLoggedIn) drawerAuthLoggedIn.style.display = "none";
+
     if (mainDash) mainDash.style.display = "none";
     if (mainFooter) mainFooter.style.display = "none";
     if (closeBtn) closeBtn.style.display = "none";
@@ -353,7 +365,7 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }
+                                                    }
   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: WALLET, DEPOSITS, WITHDRAWALS & POLLING)
 // ==========================================================================
@@ -686,7 +698,7 @@ async function executePolWithdrawal() {
       if (statusEl) statusEl.innerText = `✅ Withdrawal Sent Successfully via FaucetPay!`;
       setTimeout(() => {
         closeWithdrawModal();
-        if (amtInput) amtInput.value = ""; // Corrected variable reference
+        if (amtInput) amtInput.value = "";
         if (statusEl) statusEl.innerText = "";
         if (confirmBtn) confirmBtn.disabled = false;
       }, 2500);
@@ -759,8 +771,8 @@ function claimMilestone(targetTier) {
     claimBtn.setAttribute("disabled", "true");
   }
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
-}
-  // ==========================================================================
+  }
+                                      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: PENALTY SHOOTOUT ENGINE)
 // ==========================================================================
 
@@ -1006,8 +1018,7 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-  // ==========================================================================
+}  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: LUDO RACE ENGINE)
 // ==========================================================================
 
@@ -1210,8 +1221,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   document.getElementById("ludoOverlay").classList.remove("active");
-                          }
-                 // ==========================================================================
+                      }// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: COIN FLIP & RPS ENGINES)
 // ==========================================================================
 
@@ -1419,4 +1429,4 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-}
+                                               }

@@ -104,6 +104,7 @@ export default async function handler(req, res) {
           transaction_id: finalTxId,
           user_id: userProfile.id,
           account_id: account_id,
+          username: account_id, // <-- FIXED: Added to satisfy NOT NULL constraint
           amount: numAmount,
           type: 'withdraw',
           status: 'completed'
@@ -111,7 +112,8 @@ export default async function handler(req, res) {
       });
 
       if (!txInsertRes.ok) {
-        console.error("Failed to log withdrawal transaction to database");
+        const insertErrText = await txInsertRes.text();
+        console.error("Failed to log withdrawal transaction to database:", insertErrText);
       }
 
       return res.status(200).json({ 
@@ -132,4 +134,5 @@ export default async function handler(req, res) {
       message: 'Network error connecting to FaucetPay gateway.' 
     });
   }
-                                   }
+}
+  

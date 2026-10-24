@@ -102,6 +102,7 @@ export default async function handler(req, res) {
         transaction_id: finalTxId,
         user_id: userProfile.id,
         account_id: username,
+        username: username, // <-- ADDED HERE TO PREVENT NULL CONSTRAINT ERROR
         amount: paidAmount,
         type: 'deposit',
         status: 'completed'
@@ -114,6 +115,7 @@ export default async function handler(req, res) {
         console.log(`[DUPLICATE BLOCKED] Transaction ID ${finalTxId} was already credited!`);
         return res.status(200).json({ success: true, message: 'Transaction already credited previously.' });
       }
+      return res.status(400).json({ error: 'Failed to log transaction: ' + txErr });
     }
 
     // ------------------------------------------------------------------------
@@ -146,4 +148,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
-               
+      

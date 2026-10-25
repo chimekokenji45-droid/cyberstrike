@@ -135,7 +135,7 @@ function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
   }
-   // ==========================================================================
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -364,8 +364,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }
-// ==========================================================================
+                                           }
+                    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -634,8 +634,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-                    }
-        // ==========================================================================
+      }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -705,6 +705,7 @@ function closeProfileModal() {
 
 async function handleUpdateProfile(e) {
   e.preventDefault();
+  const oldUsername = currentActiveUserAccount;
   const newUsername = document.getElementById("profileNewUsername").value.trim().toLowerCase();
   const newPassword = document.getElementById("profileNewPassword").value;
   const statusMsg = document.getElementById("profileStatusMsg");
@@ -727,13 +728,26 @@ async function handleUpdateProfile(e) {
       if (passErr) throw new Error(passErr.message);
     }
 
-    if (newUsername) {
+    if (newUsername && newUsername !== oldUsername) {
+      // 1. Update profiles table
       const { error: userErr } = await sb
         .from('profiles')
         .update({ username: newUsername })
         .eq('id', session.user.id);
 
       if (userErr) throw new Error(userErr.message);
+
+      // 2. Cascade update past transactions to the new username & user_id (Permanent Fix)
+      if (oldUsername) {
+        await sb
+          .from('processed_transactions')
+          .update({ 
+            account_id: newUsername,
+            username: newUsername,
+            user_id: session.user.id
+          })
+          .or(`account_id.ilike.${oldUsername},username.ilike.${oldUsername}`);
+      }
 
       currentActiveUserAccount = newUsername;
       localStorage.setItem("cyberstrike_user", newUsername);
@@ -1153,8 +1167,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-  }
-        // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 

@@ -320,6 +320,38 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-header h3 { font-size: 14px; color: var(--accent-cyan); }
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
+
+    /* COMPACT SPRINT STYLING TO FIT ALL TIERS WITHOUT SCROLLING */
+.milestones-list { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+  max-height: none; 
+  overflow-y: visible; 
+}
+
+.milestone-item { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  background: #131e2c; 
+  padding: 6px 10px; 
+  border-radius: 6px; 
+  font-size: 11px; 
+  gap: 8px; 
+}
+
+.milestone-item .title { 
+  font-size: 10px; 
+  display: block; 
+}
+
+.milestone-item .reward { 
+  color: var(--accent-green); 
+  font-size: 9px; 
+  font-weight: 700; 
+  display: block; 
+                  }
     
     </style>
 </head>

@@ -256,11 +256,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .progress-label-row { display: flex; justify-content: space-between; font-size: 11px; }
 .progress-track { background: #142030; height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 16px; }
 .progress-fill { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta)); height: 100%; transition: width 0.3s; }
-.milestones-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; padding-right: 2px; }
-.milestone-item { display: flex; justify-content: space-between; align-items: center; background: #131e2c; padding: 10px 12px; border-radius: 6px; font-size: 12px; gap: 8px; }
-.milestone-item .title { font-size: 11px; display: block; }
-.milestone-item .reward { color: var(--accent-green); font-size: 10px; font-weight: 700; display: block; }
-.grand-prize { border: 1px solid var(--accent-cyan); background: rgba(0, 229, 255, 0.05); }
 
 /* MODALS & FULLSCREEN ARENA OVERLAYS */
 .modal-overlay {
@@ -321,7 +316,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
 
-    /* COMPACT SPRINT STYLING TO FIT ALL TIERS WITHOUT SCROLLING */
+/* COMPACT SPRINT STYLING TO FIT ALL TIERS WITHOUT SCROLLING */
 .milestones-list { 
   display: flex; 
   flex-direction: column; 
@@ -351,9 +346,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   font-size: 9px; 
   font-weight: 700; 
   display: block; 
-                  }
-    
-    </style>
+}
+  </style>
 </head>
 <body>
 
@@ -451,9 +445,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <button id="depositBtn"></button>
     <button id="withdrawBtn"></button>
     <button id="soundToggleBtn"></button>
-  </div>
-
-  <!-- MAIN DASHBOARD CONTAINER -->
+  </div>  <!-- MAIN DASHBOARD CONTAINER -->
   <main class="container" id="mainDashboard" style="display: none;">
     
     <!-- LEFT COLUMN -->
@@ -614,7 +606,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </div>
       </section>
 
-          </div> <!-- RIGHT COLUMN: WEEKLY WAGER SPRINT -->
+    </div>
+
+    <!-- RIGHT COLUMN: WEEKLY WAGER SPRINT -->
     <section class="card sprint-card">
       <div class="sprint-header">
         <div>
@@ -673,9 +667,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       </div>
     </section>
 
-  </main>
-
-  <!-- FOOTER -->
+  </main> <!-- FOOTER -->
   <footer class="footer-container" id="mainFooter" style="display: none;">
     <div class="fairness-card">
       <div class="fairness-header">
@@ -840,7 +832,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- PROFILE SETTINGS MODAL (USERNAME REMOVED) -->
+  <!-- PROFILE SETTINGS MODAL -->
   <div id="profileModal" class="modal-overlay">
     <div class="modal-card">
       <button class="close-btn" onclick="closeProfileModal()">✖</button>
@@ -866,7 +858,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- TRANSACTION HISTORY MODAL (DEPOSITS & WITHDRAWALS SEPARATED) -->
+  <!-- TRANSACTION HISTORY MODAL -->
   <div id="historyModal" class="modal-overlay">
     <div class="modal-card" style="max-width: 520px;">
       <button class="close-btn" onclick="closeHistoryModal()">✖</button>
@@ -895,7 +887,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </table>
       </div>
     </div>
-  </div> <!-- LEADERBOARD MODAL -->
+  </div>
+
+  <!-- LEADERBOARD MODAL -->
   <div id="leaderboardModal" class="modal-overlay">
     <div class="modal-card" style="max-width: 520px;">
       <button class="close-btn" onclick="closeLeaderboardModal()">✖</button>
@@ -919,11 +913,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- PENALTY SHOOTOUT OVERLAY -->
+  <!-- PENALTY SHOOTOUT OVERLAY (EXIT BUTTON REMOVED) -->
   <div id="penaltyOverlay" class="modal-overlay">
     <div class="arena-box">
-      <button class="close-btn" onclick="closePenaltyArena()">✖</button>
-      
       <div class="scoreboard">
         <div>
           <div class="player-tag">YOU <span id="p1TurnTimer" style="color:var(--accent-cyan); font-weight:bold;"></span></div>
@@ -953,11 +945,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- LUDO RACE OVERLAY -->
+  <!-- LUDO RACE OVERLAY (EXIT BUTTON REMOVED) -->
   <div id="ludoOverlay" class="modal-overlay">
     <div class="arena-box ludo-arena">
-      <button class="close-btn" onclick="closeLudoArena()">✖</button>
-      
       <div class="scoreboard">
         <div>
           <div class="player-tag">YOU <span id="ludoP1Timer" style="color:var(--accent-cyan); font-weight:bold;"></span></div>
@@ -996,10 +986,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- COIN FLIP OVERLAY -->
+  <!-- COIN FLIP OVERLAY (EXIT BUTTON REMOVED) -->
   <div id="coinFlipOverlay" class="modal-overlay">
     <div class="arena-box" style="text-align:center;">
-      <button class="close-btn" onclick="closeCoinFlipArena()">✖</button>
       <h2>🪙 1v1 COIN FLIP</h2>
       <p id="coinBanner" class="subtitle" style="margin-top:8px;">CHOOSE HEADS OR TAILS</p>
 
@@ -1012,10 +1001,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- ROCK PAPER SCISSORS OVERLAY -->
+  <!-- ROCK PAPER SCISSORS OVERLAY (EXIT BUTTON REMOVED) -->
   <div id="rpsOverlay" class="modal-overlay">
     <div class="arena-box" style="text-align:center;">
-      <button class="close-btn" onclick="closeRpsArena()">✖</button>
       <h2>✂️ ROCK PAPER SCISSORS</h2>
       <p id="rpsBanner" class="status-banner" style="margin-top:10px;">CHOOSE YOUR MOVE (5s)</p>
 
@@ -1108,4 +1096,4 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </script>
   <script src="script.js"></script>
 </body>
-  </html>
+                                      </html>

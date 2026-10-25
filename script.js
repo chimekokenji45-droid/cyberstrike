@@ -31,7 +31,6 @@ const WAGER_MILESTONES = [
   { target: 100000, reward: 15000.0, claimed: false }
 ];
 
-// Defined early to prevent any ReferenceErrors across parts
 function updateVaultBalanceUI() {
   const balDisplay = document.getElementById("userBalanceDisplay");
   if (balDisplay) balDisplay.innerText = `${userVaultBalance.toFixed(4)} POL`;
@@ -134,8 +133,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-    }
-        // ==========================================================================
+  }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -364,8 +363,8 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
-// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -379,7 +378,6 @@ async function recordWagerVolume(stakeAmount) {
     totalRefEarned += refCommission;
   }
 
-  // --- PERSIST WAGER VOLUME TO SUPABASE FOR THE LEADERBOARD (ALL GAMES) ---
   const sb = getSupabase();
   if (!sb || !currentActiveUserAccount) return;
 
@@ -634,8 +632,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-// ==========================================================================
+      }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -737,7 +735,7 @@ async function handleUpdateProfile(e) {
 
       if (userErr) throw new Error(userErr.message);
 
-      // 2. Cascade update past transactions to the new username & user_id
+      // 2. Cascade update past transactions to the new username & user_id (Permanent Fix)
       if (oldUsername) {
         await sb
           .from('processed_transactions')
@@ -804,7 +802,7 @@ async function fetchTransactionHistory(type) {
   tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">Loading ${type}...</td></tr>`;
 
   const sb = getSupabase();
-  if (!sb) {
+  if (!sb || !currentActiveUserAccount) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">Please log in to view history.</td></tr>`;
     return;
   }
@@ -815,14 +813,10 @@ async function fetchTransactionHistory(type) {
 
     let query = sb.from("processed_transactions").select("*").order("created_at", { ascending: false }).limit(50);
 
-    // Query primarily by permanent userId first, fallback to account_id/username
     if (userId) {
       query = query.or(`user_id.eq.${userId},account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
-    } else if (currentActiveUserAccount) {
-      query = query.or(`account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
     } else {
-      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--text-muted);">No active user session found.</td></tr>`;
-      return;
+      query = query.or(`account_id.ilike.${currentActiveUserAccount},username.ilike.${currentActiveUserAccount}`);
     }
 
     const { data, error } = await query;
@@ -1171,8 +1165,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-      }
-    // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1601,3 +1595,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
+      

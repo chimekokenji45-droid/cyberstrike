@@ -430,7 +430,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <!-- STAKE SELECTOR -->
       <section class="card stake-card">
         <h2>⚡ SELECT MATCH STAKE</h2>
-        <p class="subtitle">20% House Rake (80% Winner / 20% Platform Fee)</p>
+        <p class="subtitle">10% House Rake (90% Winner / 0% Fee on Draws)</p>
         
         <div class="stake-selector">
           <label style="font-size: 11px; color: var(--text-muted);">ENTRY STAKE (POL):</label>
@@ -445,7 +445,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 
         <div class="stake-summary">
           <div class="summary-row"><span>Total Match Prize Pool:</span><strong id="summaryTotalPool">2.00 POL</strong></div>
-          <div class="summary-row"><span>Winner Payout (80%):</span><strong id="summaryWinnerPayout" class="highlight-green">1.60 POL</strong></div>
+          <div class="summary-row"><span>Winner Payout (90%):</span><strong id="summaryWinnerPayout" class="highlight-green">1.80 POL</strong></div>
         </div>
       </section>
 
@@ -470,7 +470,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
           <div>
             <span style="font-size: 10px; color: var(--text-muted); display: block;">STAKES:</span>
-            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 25.0 POL</strong>
+            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 50.0 POL</strong>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchPenaltyArena(true)">🤖 BOT</button>
@@ -499,7 +499,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
           <div>
             <span style="font-size: 10px; color: var(--text-muted); display: block;">STAKES:</span>
-            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 25.0 POL</strong>
+            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 50.0 POL</strong>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchLudoRace(true)">🤖 BOT</button>
@@ -528,7 +528,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
           <div>
             <span style="font-size: 10px; color: var(--text-muted); display: block;">STAKES:</span>
-            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 25.0 POL</strong>
+            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 50.0 POL</strong>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchCoinFlipArena(true)">🤖 BOT</button>
@@ -557,18 +557,19 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
           <div>
             <span style="font-size: 10px; color: var(--text-muted); display: block;">STAKES:</span>
-            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 25.0 POL</strong>
+            <strong style="font-size: 13px; color: var(--accent-cyan);">1.0 - 50.0 POL</strong>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchRpsArena(true)">🤖 BOT</button>
             <button class="btn btn-launch" style="background:#e74c3c; padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="launchRpsArena(false)">PLAY 1V1 RPS</button>
           </div>
         </div>
-  </section>
-  <!-- REFERRAL CARD -->
+      </section>
+
+      <!-- REFERRAL CARD -->
       <section class="card ref-card">
-        <h2>🤝 10% REFERRAL PROGRAM</h2>
-        <p class="subtitle">Earn 10% instant commission on every match your referrals play!</p>
+        <h2>🤝 1% REFERRAL PROGRAM</h2>
+        <p class="subtitle">Earn 1% instant commission paid from house net worth on every match your referrals play!</p>
         <div class="form-group">
           <label>YOUR REFERRAL LINK:</label>
           <div style="display: flex; gap: 8px;">
@@ -581,9 +582,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </div>
       </section>
 
-    </div>
-
-    <!-- RIGHT COLUMN: WEEKLY WAGER SPRINT -->
+          </div> <!-- RIGHT COLUMN: WEEKLY WAGER SPRINT -->
     <section class="card sprint-card">
       <div class="sprint-header">
         <div>
@@ -608,32 +607,36 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 
       <div class="milestones-list">
         <div class="milestone-item" id="mTier-50">
-          <div><strong class="title">50 POL WAGORED</strong><span class="reward">+6 POL REWARD</span></div>
+          <div><strong class="title">50 POL WAGORED</strong><span class="reward">+1.5 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(50)">CLAIM</button>
         </div>
         <div class="milestone-item" id="mTier-150">
-          <div><strong class="title">150 POL WAGORED</strong><span class="reward">+20 POL REWARD</span></div>
+          <div><strong class="title">150 POL WAGORED</strong><span class="reward">+6 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(150)">CLAIM</button>
         </div>
         <div class="milestone-item" id="mTier-500">
-          <div><strong class="title">500 POL WAGORED</strong><span class="reward">+65 POL REWARD</span></div>
+          <div><strong class="title">500 POL WAGORED</strong><span class="reward">+25 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(500)">CLAIM</button>
         </div>
         <div class="milestone-item" id="mTier-2000">
-          <div><strong class="title">2,000 POL WAGORED</strong><span class="reward">+280 POL REWARD</span></div>
+          <div><strong class="title">2,000 POL WAGORED</strong><span class="reward">+100 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(2000)">CLAIM</button>
         </div>
         <div class="milestone-item" id="mTier-10000">
-          <div><strong class="title">10,000 POL WAGORED</strong><span class="reward">+1,500 POL REWARD</span></div>
+          <div><strong class="title">10,000 POL WAGORED</strong><span class="reward">+600 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(10000)">CLAIM</button>
         </div>
         <div class="milestone-item" id="mTier-50000">
-          <div><strong class="title">50,000 POL WAGORED</strong><span class="reward">+7,500 POL REWARD</span></div>
+          <div><strong class="title">50,000 POL WAGORED</strong><span class="reward">+3,250 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(50000)">CLAIM</button>
         </div>
-        <div class="milestone-item grand-prize" id="mTier-100000">
-          <div><strong class="title">🏆 100,000 POL WAGORED</strong><span class="reward">+15,000 POL REWARD</span></div>
+        <div class="milestone-item" id="mTier-100000">
+          <div><strong class="title">100,000 POL WAGORED</strong><span class="reward">+7,000 POL REWARD</span></div>
           <button class="btn btn-claim" disabled onclick="claimMilestone(100000)">CLAIM</button>
+        </div>
+        <div class="milestone-item grand-prize" id="mTier-200000">
+          <div><strong class="title">👑 200,000 POL WAGORED</strong><span class="reward">+15,000 POL REWARD</span></div>
+          <button class="btn btn-claim" disabled onclick="claimMilestone(200000)">CLAIM</button>
         </div>
       </div>
     </section>
@@ -860,7 +863,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </table>
       </div>
     </div>
-          </div><!-- LEADERBOARD MODAL -->
+  </div> <!-- LEADERBOARD MODAL -->
   <div id="leaderboardModal" class="modal-overlay">
     <div class="modal-card" style="max-width: 520px;">
       <button class="close-btn" onclick="closeLeaderboardModal()">✖</button>
@@ -1073,4 +1076,4 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </script>
   <script src="script.js"></script>
 </body>
-</html>
+  </html>

@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-   }
-   // ==========================================================================
+    }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -384,15 +384,15 @@ async function fetchUserProfileFromSupabase() {
   try {
     const { data: profile, error } = await sb
       .from("profiles")
-      .select("vault_balance, total_wagered, faucetpay_email")
+      .select("vault_balance, total_wagered, sprint_pool_points, faucetpay_email")
       .ilike("username", currentActiveUserAccount)
       .maybeSingle();
 
     if (profile && !error) {
-      if (profile.vault_balance !== undefined) {
+      if (profile.vault_balance !== undefined && profile.vault_balance !== null) {
         userVaultBalance = parseFloat(profile.vault_balance || 0.0);
       }
-      if (profile.total_wagered !== undefined) {
+      if (profile.total_wagered !== undefined && profile.total_wagered !== null) {
         weeklyWageredPOL = parseFloat(profile.total_wagered || 0.0);
       }
       if (profile.faucetpay_email) {
@@ -414,7 +414,7 @@ async function recordWagerVolume(stakeAmount, outcome) {
     return;
   }
 
-  // 1. Add to local weekly wager variable and immediately update UI
+  // 1. Immediately update local weekly wager variable and UI
   weeklyWageredPOL += stakeAmount;
   updateWagerSprintUI();
 
@@ -434,37 +434,34 @@ async function recordWagerVolume(stakeAmount, outcome) {
   if (!sb || !currentActiveUserAccount) return;
 
   try {
-    // Fetch current database values first to prevent overwriting with stale data
+    // Fetch current database values first
     const { data: profile } = await sb
       .from('profiles')
-      .select('id, total_wagered, sprint_pool_points, vault_balance')
+      .select('total_wagered, sprint_pool_points, vault_balance')
       .ilike('username', currentActiveUserAccount)
       .maybeSingle();
 
-    if (profile) {
-      const currentDbWagered = parseFloat(profile.total_wagered || 0);
-      const currentSprintPoints = parseFloat(profile.sprint_pool_points || 0);
-      
-      const newTotalWagered = currentDbWagered + stakeAmount;
-      const newSprintPoints = currentSprintPoints + sprintContribution;
+    const currentDbWagered = profile ? parseFloat(profile.total_wagered || 0) : weeklyWageredPOL - stakeAmount;
+    const currentSprintPoints = profile ? parseFloat(profile.sprint_pool_points || 0) : 0;
+    
+    const newTotalWagered = currentDbWagered + stakeAmount;
+    const newSprintPoints = currentSprintPoints + sprintContribution;
 
-      // Send both vault balance (which includes wins) and wager updates to Supabase
-      const { error: updateError } = await sb
-        .from('profiles')
-        .update({ 
-          total_wagered: newTotalWagered,
-          sprint_pool_points: newSprintPoints,
-          vault_balance: userVaultBalance
-        })
-        .eq('id', profile.id);
+    // Update Supabase using username to bypass ID mismatch / RLS blocks
+    const { error: updateError } = await sb
+      .from('profiles')
+      .update({ 
+        total_wagered: newTotalWagered,
+        sprint_pool_points: newSprintPoints,
+        vault_balance: userVaultBalance
+      })
+      .ilike('username', currentActiveUserAccount);
 
-      if (updateError) {
-        console.error("Supabase wager update failed:", updateError.message);
-      } else {
-        // Sync local tracker with confirmed database value
-        weeklyWageredPOL = newTotalWagered;
-        updateWagerSprintUI();
-      }
+    if (updateError) {
+      console.error("Supabase wager update failed:", updateError.message);
+    } else {
+      weeklyWageredPOL = newTotalWagered;
+      updateWagerSprintUI();
     }
   } catch (err) {
     console.error("Leaderboard wager update network error:", err.message);
@@ -668,8 +665,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1198,8 +1195,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-// ==========================================================================
+    }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1650,4 +1647,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-    
+      

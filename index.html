@@ -320,7 +320,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-header h3 { font-size: 14px; color: var(--accent-cyan); }
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
-  
+                   
   </style>
 </head>
 <body>
@@ -420,6 +420,51 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <button id="withdrawBtn"></button>
     <button id="soundToggleBtn"></button>
   </div>
+
+  <!-- MAIN GAME DASHBOARD (FIXED: NOW VISIBLE UPON LOGIN) -->
+  <main id="mainDashboard" style="display: none; flex-direction: column; padding: 15px; max-width: 500px; margin: 0 auto; gap: 15px;">
+    
+    <!-- WELCOME / STAKE SELECTOR CARD -->
+    <div class="modal-card" style="text-align: center; margin-bottom: 0;">
+      <h3 style="color: var(--accent-cyan); margin-bottom: 5px;">SELECT MATCH STAKE</h3>
+      <p class="subtitle" style="font-size: 11px; margin-bottom: 12px;">Choose your stake amount in POL</p>
+      
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px;">
+        <button class="btn btn-secondary" onclick="setSelectedStake(0.5)">0.5 POL</button>
+        <button class="btn btn-primary" onclick="setSelectedStake(1.0)">1.0 POL</button>
+        <button class="btn btn-secondary" onclick="setSelectedStake(2.5)">2.5 POL</button>
+        <button class="btn btn-secondary" onclick="setSelectedStake(5.0)">5.0 POL</button>
+      </div>
+    </div>
+
+    <!-- GAME ARENA SELECTION CARDS -->
+    <div class="modal-card" style="margin-bottom: 0;">
+      <h3 style="color: var(--accent-magenta); margin-bottom: 10px;">🎮 1v1 ARENAS</h3>
+      
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn btn-primary" style="padding: 14px; text-align: left; display: flex; justify-content: space-between; align-items: center;" onclick="openPenaltyArena()">
+          <span>⚽ Penalty Shootout 1v1</span>
+          <span style="font-size: 12px; color: var(--accent-cyan);">PLAY ➔</span>
+        </button>
+
+        <button class="btn btn-primary" style="padding: 14px; text-align: left; display: flex; justify-content: space-between; align-items: center;" onclick="openLudoArena()">
+          <span>🎲 Ludo Race 1v1</span>
+          <span style="font-size: 12px; color: var(--accent-cyan);">PLAY ➔</span>
+        </button>
+
+        <button class="btn btn-primary" style="padding: 14px; text-align: left; display: flex; justify-content: space-between; align-items: center;" onclick="openCoinFlipArena()">
+          <span>🪙 Coin Flip 1v1</span>
+          <span style="font-size: 12px; color: var(--accent-cyan);">PLAY ➔</span>
+        </button>
+
+        <button class="btn btn-primary" style="padding: 14px; text-align: left; display: flex; justify-content: space-between; align-items: center;" onclick="openRpsArena()">
+          <span>✂️ Rock Paper Scissors</span>
+          <span style="font-size: 12px; color: var(--accent-cyan);">PLAY ➔</span>
+        </button>
+      </div>
+    </div>
+
+  </main>
   
   <!-- FOOTER -->
   <footer class="footer-container" id="mainFooter" style="display: none;">
@@ -523,7 +568,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 
       <div id="authStatusMsg" class="status-msg"></div>
     </div>
-  </div>
+          </div>
     <!-- CUSTOM CYBERSTRIKE NOTIFICATION MODAL -->
   <div id="notificationModal" class="modal-overlay">
     <div class="modal-card" style="text-align: center;">
@@ -855,5 +900,5 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </script>
   <script src="script.js"></script>
 </body>
-  </html>
-                                                                                                                      
+                                               </html>
+                                               

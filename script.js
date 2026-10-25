@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-    }
-  // ==========================================================================
+  }
+   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -372,7 +372,7 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
+  }
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
@@ -384,7 +384,7 @@ async function fetchUserProfileFromSupabase() {
   try {
     const { data: profile, error } = await sb
       .from("profiles")
-      .select("vault_balance, total_wagered, sprint_pool_points, faucetpay_email")
+      .select("vault_balance, total_wagered, faucetpay_email")
       .ilike("username", currentActiveUserAccount)
       .maybeSingle();
 
@@ -418,10 +418,7 @@ async function recordWagerVolume(stakeAmount, outcome) {
   weeklyWageredPOL += stakeAmount;
   updateWagerSprintUI();
 
-  // 2. 5% Sprint Pool Allocation
-  const sprintContribution = stakeAmount * 0.05;
-
-  // 3. Referral Commission logic
+  // 2. Referral Commission logic
   const referrer = localStorage.getItem("cyberstrike_referrer");
   if (referrer) {
     const refCommission = stakeAmount * 0.01;
@@ -437,22 +434,18 @@ async function recordWagerVolume(stakeAmount, outcome) {
     // Fetch current database values first
     const { data: profile } = await sb
       .from('profiles')
-      .select('total_wagered, sprint_pool_points, vault_balance')
+      .select('total_wagered, vault_balance')
       .ilike('username', currentActiveUserAccount)
       .maybeSingle();
 
     const currentDbWagered = profile ? parseFloat(profile.total_wagered || 0) : weeklyWageredPOL - stakeAmount;
-    const currentSprintPoints = profile ? parseFloat(profile.sprint_pool_points || 0) : 0;
-    
     const newTotalWagered = currentDbWagered + stakeAmount;
-    const newSprintPoints = currentSprintPoints + sprintContribution;
 
-    // Update Supabase using username to bypass ID mismatch / RLS blocks
+    // Update Supabase using existing columns (total_wagered and vault_balance)
     const { error: updateError } = await sb
       .from('profiles')
       .update({ 
         total_wagered: newTotalWagered,
-        sprint_pool_points: newSprintPoints,
         vault_balance: userVaultBalance
       })
       .ilike('username', currentActiveUserAccount);
@@ -665,8 +658,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-    }
-    // ==========================================================================
+      }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1195,8 +1188,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-    }
-        // ==========================================================================
+  }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1647,4 +1640,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-      
+    

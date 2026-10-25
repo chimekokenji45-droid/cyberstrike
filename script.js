@@ -135,7 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-                                                    }// ==========================================================================
+      }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -364,11 +365,18 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-      }// ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
-async function recordWagerVolume(stakeAmount) {
+async function recordWagerVolume(stakeAmount, outcome) {
+  // If the outcome is a draw or tie, do not add wager volume
+  if (outcome === 'draw' || outcome === 'tie') {
+    console.log("🤝 Draw/Tie match: Wager volume not added.");
+    return;
+  }
+
   // 1. Record 100% of entry stake toward user weekly volume
   weeklyWageredPOL += stakeAmount;
   updateWagerSprintUI();
@@ -642,7 +650,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-  }// ==========================================================================
+  }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -943,7 +952,6 @@ async function launchPenaltyArena(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    await recordWagerVolume(currentSelectedStake);
   }
 
   p1PenaltyShotsTaken = 0;
@@ -1116,7 +1124,7 @@ function setPenaltyControlsActive(active) {
   document.querySelectorAll(".btn-shoot").forEach(b => b.disabled = !active);
 }
 
-function endPenaltyMatch() {
+async function endPenaltyMatch() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   setPenaltyControlsActive(false);
@@ -1127,8 +1135,10 @@ function endPenaltyMatch() {
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
   let resultMsg = "";
+  let outcome = 'draw';
 
   if (p1PenaltyScore > p2PenaltyScore) {
+    outcome = 'win';
     playAudioSFX("win");
     if (!isPenaltyTraining) {
       userVaultBalance += winnerPayout;
@@ -1137,9 +1147,11 @@ function endPenaltyMatch() {
       resultMsg = `🎉 TRAINING WIN! (Practice Mode)`;
     }
   } else if (p2PenaltyScore > p1PenaltyScore) {
+    outcome = 'loss';
     playAudioSFX("lose");
     resultMsg = isPenaltyTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT WON THE SHOOTOUT!`;
   } else {
+    outcome = 'draw';
     playAudioSFX("action");
     if (!isPenaltyTraining) {
       userVaultBalance += currentSelectedStake; // 0% Rake on Draw (Full 100% refund)
@@ -1147,6 +1159,10 @@ function endPenaltyMatch() {
     } else {
       resultMsg = `🤝 TRAINING DRAW!`;
     }
+  }
+
+  if (!isPenaltyTraining) {
+    await recordWagerVolume(currentSelectedStake, outcome);
   }
 
   document.getElementById("penaltyBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
@@ -1164,8 +1180,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-    }
-            // ==========================================================================
+      }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1190,7 +1206,6 @@ async function launchLudoRace(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    await recordWagerVolume(currentSelectedStake);
   }
 
   p1TrackPosition = 0;
@@ -1322,7 +1337,7 @@ function updateLudoTrackUI() {
   if (p2TrackPosition > 0) document.getElementById(`p2-${p2TrackPosition}`)?.classList.add("has-p2");
 }
 
-function endLudoRace() {
+async function endLudoRace() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
 
@@ -1332,8 +1347,10 @@ function endLudoRace() {
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
   let resultMsg = "";
+  let outcome = 'draw';
 
   if (p1TrackPosition >= 10 && p2TrackPosition < 10) {
+    outcome = 'win';
     playAudioSFX("win");
     if (!isLudoTraining) {
       userVaultBalance += winnerPayout;
@@ -1342,9 +1359,11 @@ function endLudoRace() {
       resultMsg = `🎉 TRAINING WIN! (Practice Mode)`;
     }
   } else if (p2TrackPosition >= 10 && p1TrackPosition < 10) {
+    outcome = 'loss';
     playAudioSFX("lose");
     resultMsg = isLudoTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT CROSSED FIRST! YOU LOST.`;
   } else {
+    outcome = 'draw';
     playAudioSFX("action");
     if (!isLudoTraining) {
       userVaultBalance += currentSelectedStake; // 0% Rake on Draw
@@ -1352,6 +1371,10 @@ function endLudoRace() {
     } else {
       resultMsg = `🤝 TRAINING DRAW!`;
     }
+  }
+
+  if (!isLudoTraining) {
+    await recordWagerVolume(currentSelectedStake, outcome);
   }
 
   document.getElementById("ludoBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
@@ -1387,7 +1410,6 @@ async function launchCoinFlipArena(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    await recordWagerVolume(currentSelectedStake);
   }
 
   document.getElementById("coinBanner").innerText = isCoinTraining ? "🤖 TRAINING MODE: CHOOSE HEADS OR TAILS" : "CHOOSE HEADS OR TAILS (50/50)";
@@ -1413,7 +1435,7 @@ function flipCoin(playerChoice) {
     spins++;
   }, 150);
 
-  setTimeout(() => {
+  setTimeout(async () => {
     clearInterval(spinInterval);
     const outcomes = ["heads", "tails"];
     const winningOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
@@ -1422,8 +1444,9 @@ function flipCoin(playerChoice) {
     const totalPool = currentSelectedStake * 2;
     const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
     let resultMsg = "";
+    let outcome = (playerChoice === winningOutcome) ? 'win' : 'loss';
 
-    if (playerChoice === winningOutcome) {
+    if (outcome === 'win') {
       playAudioSFX("win");
       if (!isCoinTraining) {
         userVaultBalance += winnerPayout;
@@ -1434,6 +1457,10 @@ function flipCoin(playerChoice) {
     } else {
       playAudioSFX("lose");
       resultMsg = isCoinTraining ? `🤖 TRAINING ENDED. LANDED ${winningOutcome.toUpperCase()}.` : `💔 YOU LOST! LANDED ${winningOutcome.toUpperCase()}.`;
+    }
+
+    if (!isCoinTraining) {
+      await recordWagerVolume(currentSelectedStake, outcome);
     }
 
     document.getElementById("coinBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
@@ -1470,7 +1497,6 @@ async function launchRpsArena(isTraining = false) {
     }
     userVaultBalance -= currentSelectedStake;
     updateVaultBalanceUI();
-    await recordWagerVolume(currentSelectedStake);
   }
 
   isRpsActive = true;
@@ -1522,7 +1548,7 @@ function playRps(playerChoice) {
   resolveRpsMatch(playerChoice, false);
 }
 
-function resolveRpsMatch(playerChoice, timedOut) {
+async function resolveRpsMatch(playerChoice, timedOut) {
   const choices = ["rock", "paper", "scissors"];
   const botChoice = choices[Math.floor(Math.random() * choices.length)];
 
@@ -1532,11 +1558,14 @@ function resolveRpsMatch(playerChoice, timedOut) {
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
   let resultMsg = "";
+  let outcome = 'win';
 
   if (timedOut) {
+    outcome = 'loss';
     playAudioSFX("lose");
     resultMsg = `💔 TIME OUT! BOT CHOSE ${botChoice.toUpperCase()}. YOU LOST.`;
   } else if (playerChoice === botChoice) {
+    outcome = 'tie';
     playAudioSFX("action");
     if (!isRpsTraining) {
       userVaultBalance += currentSelectedStake; // 0% Rake on Tie
@@ -1549,6 +1578,7 @@ function resolveRpsMatch(playerChoice, timedOut) {
     (playerChoice === "paper" && botChoice === "rock") ||
     (playerChoice === "scissors" && botChoice === "paper")
   ) {
+    outcome = 'win';
     playAudioSFX("win");
     if (!isRpsTraining) {
       userVaultBalance += winnerPayout;
@@ -1557,8 +1587,13 @@ function resolveRpsMatch(playerChoice, timedOut) {
       resultMsg = `🎉 TRAINING WIN!`;
     }
   } else {
+    outcome = 'loss';
     playAudioSFX("lose");
     resultMsg = isRpsTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 YOU LOST! ${botChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
+  }
+
+  if (!isRpsTraining) {
+    await recordWagerVolume(currentSelectedStake, outcome);
   }
 
   document.getElementById("rpsBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;

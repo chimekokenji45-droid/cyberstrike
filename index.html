@@ -320,7 +320,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .fairness-header h3 { font-size: 14px; color: var(--accent-cyan); }
 .fairness-text { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 .copyright-bar { text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; font-size: 11px; color: var(--text-muted); }
-    
+  
   </style>
 </head>
 <body>
@@ -380,7 +380,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </div>
       </div>
 
-      <!-- NEW DRAWER OPTIONS -->
+      <!-- DRAWER OPTIONS -->
       <div class="drawer-item" onclick="openProfileModal(); toggleNavDrawer();">
         <span>👤 Profile Settings</span>
         <span style="color: var(--accent-cyan);">➔</span>
@@ -419,142 +419,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <button id="depositBtn"></button>
     <button id="withdrawBtn"></button>
     <button id="soundToggleBtn"></button>
-            </div>
-    <!-- MAIN DASHBOARD CONTAINER -->
-  <main class="container" id="mainDashboard" style="display: none;">
-    
-    <!-- LEFT COLUMN -->
-    <div class="left-column">
-      
-      <!-- STAKE SELECTOR -->
-      <section class="card stake-card">
-        <h2>⚡ SELECT MATCH STAKE</h2>
-        <p class="subtitle">20% House Rake (80% Winner / 20% Platform Fee)</p>
-        
-        <div class="stake-selector">
-          <label style="font-size: 11px; color: var(--text-muted);">ENTRY STAKE (POL):</label>
-          <div class="stake-grid">
-            <button class="stake-btn active" data-stake="1.0" onclick="selectStake(this)">1 POL</button>
-            <button class="stake-btn" data-stake="2.0" onclick="selectStake(this)">2 POL</button>
-            <button class="stake-btn" data-stake="5.0" onclick="selectStake(this)">5 POL</button>
-            <button class="stake-btn" data-stake="10.0" onclick="selectStake(this)">10 POL</button>
-            <button class="stake-btn" data-stake="50.0" onclick="selectStake(this)">50 POL</button>
-          </div>
-        </div>
-
-        <div class="stake-summary">
-          <div class="summary-row"><span>Total Match Prize Pool:</span><strong id="summaryTotalPool">2.00 POL</strong></div>
-          <div class="summary-row"><span>Winner Payout (80%):</span><strong id="summaryWinnerPayout" class="highlight-green">1.60 POL</strong></div>
-        </div>
-      </section>
-
-      <!-- GAME 1: PENALTY SHOOTOUT -->
-      <section class="card game-card">
-        <h2>⚽ 1v1 PENALTY SHOOTOUT</h2>
-        <p class="subtitle">5 Shots Each • 5s Avatar Turn Timers</p>
-        <button class="btn btn-launch" onclick="launchPenaltyArena(false)">PLAY PENALTY SHOOTOUT</button>
-        <button class="btn btn-launch btn-training" onclick="launchPenaltyArena(true)">🤖 FREE TRAINING BOT</button>
-      </section>
-
-      <!-- GAME 2: LUDO RACE -->
-      <section class="card game-card highlighted-card">
-        <h2>🎲 LUDO RACE ARENA</h2>
-        <p class="subtitle">Track Sprint • 5s Avatar Turn Timers • First to 10 Wins!</p>
-        <button class="btn btn-launch btn-ludo" onclick="launchLudoRace(false)">PLAY LUDO RACE</button>
-        <button class="btn btn-launch btn-training" onclick="launchLudoRace(true)">🤖 FREE TRAINING BOT</button>
-      </section>
-
-      <!-- GAME 3: COIN FLIP -->
-      <section class="card game-card">
-        <h2>🪙 1v1 COIN FLIP ARENA</h2>
-        <p class="subtitle">Instant 50/50 Resolution • Heads or Tails</p>
-        <button class="btn btn-launch" style="background:#f39c12;" onclick="launchCoinFlipArena(false)">PLAY COIN FLIP</button>
-        <button class="btn btn-launch btn-training" onclick="launchCoinFlipArena(true)">🤖 FREE TRAINING BOT</button>
-      </section>
-
-      <!-- GAME 4: ROCK PAPER SCISSORS -->
-      <section class="card game-card">
-        <h2>✂️ 1v1 ROCK PAPER SCISSORS</h2>
-        <p class="subtitle">Fast-Paced Choice Duel • 5s Turn Timers</p>
-        <button class="btn btn-launch" style="background:#e74c3c;" onclick="launchRpsArena(false)">PLAY ROCK PAPER SCISSORS</button>
-        <button class="btn btn-launch btn-training" onclick="launchRpsArena(true)">🤖 FREE TRAINING BOT</button>
-      </section>
-
-      <!-- REFERRAL CARD -->
-      <section class="card ref-card">
-        <h2>🤝 10% REFERRAL PROGRAM</h2>
-        <p class="subtitle">Earn 10% instant commission on every match your referrals play!</p>
-        <div class="form-group">
-          <label>YOUR REFERRAL LINK:</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="referralLinkInput" readonly value="https://yourdomain.com/index.html?ref=USERNAME">
-            <button class="btn btn-primary" onclick="copyReferralLink()">COPY</button>
-          </div>
-        </div>
-        <div class="stake-summary" style="margin-top: 10px;">
-          <div class="summary-row"><span>Total Referral Earnings:</span><strong id="totalRefEarnedDisplay" class="highlight-green">0.0000 POL</strong></div>
-        </div>
-      </section>
-
-    </div>
-
-    <!-- RIGHT COLUMN: WEEKLY WAGER SPRINT -->
-    <section class="card sprint-card">
-      <div class="sprint-header">
-        <div>
-          <h2>🏆 WEEKLY POL WAGER SPRINT</h2>
-          <div id="weeklyWagerText" class="sprint-subtitle">0.0 / 50.0 POL WAGORED</div>
-        </div>
-        <div class="countdown-box">
-          <span class="label">RESETS MONDAY IN</span>
-          <span id="sprintCountdown" class="value">00D 00H 00M 00S</span>
-        </div>
-      </div>
-
-      <div class="progress-bar-container">
-        <div class="progress-label-row">
-          <span>WEEKLY VOLUME PROGRESS</span>
-          <span id="sprintProgressPct">0%</span>
-        </div>
-        <div class="progress-track">
-          <div id="sprintProgressBar" class="progress-fill" style="width: 0%;"></div>
-        </div>
-      </div>
-
-      <div class="milestones-list">
-        <div class="milestone-item" id="mTier-50">
-          <div><strong class="title">50 POL WAGORED</strong><span class="reward">+6 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(50)">CLAIM</button>
-        </div>
-        <div class="milestone-item" id="mTier-150">
-          <div><strong class="title">150 POL WAGORED</strong><span class="reward">+20 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(150)">CLAIM</button>
-        </div>
-        <div class="milestone-item" id="mTier-500">
-          <div><strong class="title">500 POL WAGORED</strong><span class="reward">+65 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(500)">CLAIM</button>
-        </div>
-        <div class="milestone-item" id="mTier-2000">
-          <div><strong class="title">2,000 POL WAGORED</strong><span class="reward">+280 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(2000)">CLAIM</button>
-        </div>
-        <div class="milestone-item" id="mTier-10000">
-          <div><strong class="title">10,000 POL WAGORED</strong><span class="reward">+1,500 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(10000)">CLAIM</button>
-        </div>
-        <div class="milestone-item" id="mTier-50000">
-          <div><strong class="title">50,000 POL WAGORED</strong><span class="reward">+7,500 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(50000)">CLAIM</button>
-        </div>
-        <div class="milestone-item grand-prize" id="mTier-100000">
-          <div><strong class="title">🏆 100,000 POL WAGORED</strong><span class="reward">+15,000 POL REWARD</span></div>
-          <button class="btn btn-claim" disabled onclick="claimMilestone(100000)">CLAIM</button>
-        </div>
-      </div>
-    </section>
-
-  </main>
-    <!-- FOOTER -->
+  </div>
+  
+  <!-- FOOTER -->
   <footer class="footer-container" id="mainFooter" style="display: none;">
     <div class="fairness-card">
       <div class="fairness-header">
@@ -657,8 +524,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <div id="authStatusMsg" class="status-msg"></div>
     </div>
   </div>
-
-  <!-- CUSTOM CYBERSTRIKE NOTIFICATION MODAL -->
+    <!-- CUSTOM CYBERSTRIKE NOTIFICATION MODAL -->
   <div id="notificationModal" class="modal-overlay">
     <div class="modal-card" style="text-align: center;">
       <button class="close-btn" onclick="closeNotificationModal()">✖</button>
@@ -719,31 +585,26 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- PROFILE SETTINGS MODAL -->
+  <!-- PROFILE SETTINGS MODAL (USERNAME REMOVED) -->
   <div id="profileModal" class="modal-overlay">
     <div class="modal-card">
       <button class="close-btn" onclick="closeProfileModal()">✖</button>
       <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">👤 PROFILE SETTINGS</h3>
-      <p class="subtitle">Update your account credentials</p>
+      <p class="subtitle">Update your account password</p>
 
       <form onsubmit="handleUpdateProfile(event)">
         <div class="form-group">
           <label>CURRENT USERNAME:</label>
-          <input type="text" id="profileCurrentUsername" readonly style="opacity: 0.7;">
-        </div>
-
-        <div class="form-group">
-          <label>NEW USERNAME:</label>
-          <input type="text" id="profileNewUsername" placeholder="Enter new username">
+          <input type="text" id="profileCurrentUsername" readonly style="opacity: 0.7; cursor: not-allowed;">
         </div>
 
         <div class="form-group">
           <label>NEW PASSWORD:</label>
-          <input type="password" id="profileNewPassword" placeholder="••••••••" minlength="6">
+          <input type="password" id="profileNewPassword" placeholder="••••••••" minlength="6" required>
         </div>
 
         <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; padding: 12px; font-weight: 900;">
-          UPDATE PROFILE 💾
+          UPDATE PASSWORD 💾
         </button>
       </form>
       <div id="profileStatusMsg" class="status-msg"></div>
@@ -941,8 +802,58 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         menu.classList.remove("active");
       }
     });
+
+    // Profile Settings Password-Only Update Function
+    async function handleUpdateProfile(e) {
+      e.preventDefault();
+      const newPassword = document.getElementById("profileNewPassword").value;
+      const statusMsg = document.getElementById("profileStatusMsg");
+
+      if (!newPassword) {
+        statusMsg.innerText = "❌ Please enter a new password.";
+        return;
+      }
+
+      statusMsg.innerText = "⏳ Updating password...";
+      const sb = getSupabase();
+      if (!sb) { statusMsg.innerText = "❌ Supabase client not loaded."; return; }
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { statusMsg.innerText = "❌ Session expired. Please log in again."; return; }
+
+        const { error: passErr } = await sb.auth.updateUser({ password: newPassword });
+        if (passErr) throw new Error(passErr.message);
+
+        playAudioSFX("win");
+        statusMsg.innerText = "✅ Password updated successfully!";
+        setTimeout(() => {
+          closeProfileModal();
+          document.getElementById("profileNewPassword").value = "";
+          statusMsg.innerText = "";
+        }, 2000);
+
+      } catch (err) {
+        statusMsg.innerText = `❌ Update failed: ${err.message}`;
+      }
+    }
+
+    function openProfileModal() {
+      playAudioSFX("action");
+      const curUserEl = document.getElementById("profileCurrentUsername");
+      if (curUserEl) curUserEl.value = currentActiveUserAccount || "";
+      const modal = document.getElementById("profileModal");
+      if (modal) modal.classList.add("active");
+    }
+
+    function closeProfileModal() {
+      const modal = document.getElementById("profileModal");
+      if (modal) modal.classList.remove("active");
+      const msg = document.getElementById("profileStatusMsg");
+      if (msg) msg.innerText = "";
+    }
   </script>
   <script src="script.js"></script>
 </body>
   </html>
-            
+                                                                                                                      

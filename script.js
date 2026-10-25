@@ -21,14 +21,16 @@ let soundEnabled = localStorage.getItem("cyberstrike_sfx_enabled") !== "false";
 let currentActiveUserAccount = localStorage.getItem("cyberstrike_user") || null;
 let currentActiveFaucetEmail = localStorage.getItem("cyberstrike_faucet_email") || "";
 
-const WAGER_MILESTONES = [
-  { target: 50, reward: 6.0, claimed: false },
-  { target: 150, reward: 20.0, claimed: false },
-  { target: 500, reward: 65.0, claimed: false },
-  { target: 2000, reward: 280.0, claimed: false },
-  { target: 10000, reward: 1500.0, claimed: false },
-  { target: 50000, reward: 7500.0, claimed: false },
-  { target: 100000, reward: 15000.0, claimed: false }
+// Option B: Cumulative Escalating Payout Curve + 200,000 POL Grand Master Crown Tier
+const SPRINT_MILESTONES = [
+  { target: 50, reward: 1.5, claimed: false },
+  { target: 150, reward: 6.0, claimed: false },
+  { target: 500, reward: 25.0, claimed: false },
+  { target: 2000, reward: 100.0, claimed: false },
+  { target: 10000, reward: 600.0, claimed: false },
+  { target: 50000, reward: 3250.0, claimed: false },
+  { target: 100000, reward: 7000.0, claimed: false },
+  { target: 200000, reward: 15000.0, claimed: false } // Grand Master Crown Tier
 ];
 
 function updateVaultBalanceUI() {
@@ -133,8 +135,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-  }
-  // ==========================================================================
+                                                    }// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -363,18 +364,22 @@ function logoutUser() {
   initUserSessionUI();
   updateVaultBalanceUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
-    // ==========================================================================
+      }// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
 async function recordWagerVolume(stakeAmount) {
+  // 1. Record 100% of entry stake toward user weekly volume
   weeklyWageredPOL += stakeAmount;
   updateWagerSprintUI();
 
+  // 2. 5% Sprint Pool Allocation
+  const sprintContribution = stakeAmount * 0.05;
+
+  // 3. 1% Referral Commission paid out of house net worth/revenue
   const referrer = localStorage.getItem("cyberstrike_referrer");
   if (referrer) {
-    const refCommission = stakeAmount * 0.10;
+    const refCommission = stakeAmount * 0.01;
     totalRefEarned += refCommission;
   }
 
@@ -384,17 +389,22 @@ async function recordWagerVolume(stakeAmount) {
   try {
     const { data: profile } = await sb
       .from('profiles')
-      .select('id, total_wagered')
+      .select('id, total_wagered, sprint_pool_points')
       .ilike('username', currentActiveUserAccount)
       .maybeSingle();
 
     if (profile) {
       const currentDbWagered = parseFloat(profile.total_wagered || 0);
+      const currentSprintPoints = parseFloat(profile.sprint_pool_points || 0);
       const newTotalWagered = currentDbWagered + stakeAmount;
+      const newSprintPoints = currentSprintPoints + sprintContribution;
 
       await sb
         .from('profiles')
-        .update({ total_wagered: newTotalWagered })
+        .update({ 
+          total_wagered: newTotalWagered,
+          sprint_pool_points: newSprintPoints
+        })
         .eq('id', profile.id);
     }
   } catch (err) {
@@ -522,7 +532,7 @@ function startSprintCountdownTimer() {
 
     if (timeRemaining <= 0) {
       weeklyWageredPOL = 0.0;
-      WAGER_MILESTONES.forEach(m => m.claimed = false);
+      SPRINT_MILESTONES.forEach(m => m.claimed = false);
       updateWagerSprintUI();
       return;
     }
@@ -632,8 +642,7 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-      }
-        // ==========================================================================
+  }// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -646,11 +655,11 @@ function selectStake(btnElement) {
   const totalPoolEl = document.getElementById("summaryTotalPool");
   const winnerPayoutEl = document.getElementById("summaryWinnerPayout");
   if (totalPoolEl) totalPoolEl.innerText = `${(currentSelectedStake * 2).toFixed(2)} POL`;
-  if (winnerPayoutEl) winnerPayoutEl.innerText = `${(currentSelectedStake * 2 * 0.8).toFixed(2)} POL`;
+  if (winnerPayoutEl) winnerPayoutEl.innerText = `${(currentSelectedStake * 2 * 0.9).toFixed(2)} POL`;
 }
 
 function updateWagerSprintUI() {
-  const nextMilestone = WAGER_MILESTONES.find(m => weeklyWageredPOL < m.target) || WAGER_MILESTONES[WAGER_MILESTONES.length - 1];
+  const nextMilestone = SPRINT_MILESTONES.find(m => weeklyWageredPOL < m.target) || SPRINT_MILESTONES[SPRINT_MILESTONES.length - 1];
   const wagerTextEl = document.getElementById("weeklyWagerText");
   if (wagerTextEl) wagerTextEl.innerText = `${weeklyWageredPOL.toFixed(1)} / ${nextMilestone.target} POL WAGERED`;
   
@@ -660,30 +669,49 @@ function updateWagerSprintUI() {
   if (sprintPctEl) sprintPctEl.innerText = `${pct}%`;
   if (sprintBarEl) sprintBarEl.style.width = `${pct}%`;
 
-  WAGER_MILESTONES.forEach(m => {
+  SPRINT_MILESTONES.forEach(m => {
     const tierEl = document.getElementById(`mTier-${m.target}`);
     if (tierEl) {
       const claimBtn = tierEl.querySelector("button");
-      if (weeklyWageredPOL >= m.target && !m.claimed) claimBtn.removeAttribute("disabled");
-      else claimBtn.setAttribute("disabled", "true");
+      if (claimBtn) {
+        if (m.claimed) {
+          claimBtn.innerText = "CLAIMED";
+          claimBtn.setAttribute("disabled", "true");
+        } else if (weeklyWageredPOL >= m.target) {
+          claimBtn.removeAttribute("disabled");
+          claimBtn.innerText = "CLAIM";
+        } else {
+          claimBtn.setAttribute("disabled", "true");
+          claimBtn.innerText = "CLAIM";
+        }
+      }
     }
   });
 }
 
-function claimMilestone(targetTier) {
-  const milestone = WAGER_MILESTONES.find(m => m.target === targetTier);
+async function claimMilestone(targetTier) {
+  const milestone = SPRINT_MILESTONES.find(m => m.target === targetTier);
   if (!milestone || milestone.claimed || weeklyWageredPOL < targetTier) return;
   
   playAudioSFX("milestone");
   milestone.claimed = true;
   userVaultBalance += milestone.reward;
   updateVaultBalanceUI();
-  const claimBtn = document.getElementById(`mTier-${targetTier}`).querySelector("button");
-  if (claimBtn) {
-    claimBtn.innerText = "CLAIMED";
-    claimBtn.setAttribute("disabled", "true");
-  }
+  
+  updateWagerSprintUI();
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
+
+  const sb = getSupabase();
+  if (sb && currentActiveUserAccount) {
+    try {
+      await sb
+        .from('profiles')
+        .update({ vault_balance: userVaultBalance })
+        .ilike('username', currentActiveUserAccount);
+    } catch (err) {
+      console.error("Balance update error on claim:", err.message);
+    }
+  }
 }
 
 function openProfileModal() {
@@ -704,16 +732,15 @@ function closeProfileModal() {
 async function handleUpdateProfile(e) {
   e.preventDefault();
   const oldUsername = currentActiveUserAccount;
-  const newUsername = document.getElementById("profileNewUsername").value.trim().toLowerCase();
   const newPassword = document.getElementById("profileNewPassword").value;
   const statusMsg = document.getElementById("profileStatusMsg");
 
-  if (!newUsername && !newPassword) {
-    statusMsg.innerText = "❌ Enter a new username or password to update.";
+  if (!newPassword) {
+    statusMsg.innerText = "❌ Enter a new password to update.";
     return;
   }
 
-  statusMsg.innerText = "⏳ Updating profile...";
+  statusMsg.innerText = "⏳ Updating password...";
   const sb = getSupabase();
   if (!sb) { statusMsg.innerText = "❌ Supabase client not loaded."; return; }
 
@@ -721,42 +748,13 @@ async function handleUpdateProfile(e) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { statusMsg.innerText = "❌ Session expired. Please log in again."; return; }
 
-    if (newPassword) {
-      const { error: passErr } = await sb.auth.updateUser({ password: newPassword });
-      if (passErr) throw new Error(passErr.message);
-    }
-
-    if (newUsername && newUsername !== oldUsername) {
-      // 1. Update profiles table
-      const { error: userErr } = await sb
-        .from('profiles')
-        .update({ username: newUsername })
-        .eq('id', session.user.id);
-
-      if (userErr) throw new Error(userErr.message);
-
-      // 2. Cascade update past transactions to the new username & user_id (Permanent Fix)
-      if (oldUsername) {
-        await sb
-          .from('processed_transactions')
-          .update({ 
-            account_id: newUsername,
-            username: newUsername,
-            user_id: session.user.id
-          })
-          .or(`account_id.ilike.${oldUsername},username.ilike.${oldUsername}`);
-      }
-
-      currentActiveUserAccount = newUsername;
-      localStorage.setItem("cyberstrike_user", newUsername);
-      initUserSessionUI();
-    }
+    const { error: passErr } = await sb.auth.updateUser({ password: newPassword });
+    if (passErr) throw new Error(passErr.message);
 
     playAudioSFX("win");
-    statusMsg.innerText = "✅ Profile updated successfully!";
+    statusMsg.innerText = "✅ Password updated successfully!";
     setTimeout(() => {
       closeProfileModal();
-      document.getElementById("profileNewUsername").value = "";
       document.getElementById("profileNewPassword").value = "";
     }, 2000);
 
@@ -1126,7 +1124,8 @@ function endPenaltyMatch() {
   document.getElementById("p1TurnTimer").innerText = "";
   document.getElementById("p2TurnTimer").innerText = "";
 
-  const winnerPayout = (currentSelectedStake * 2) * 0.80;
+  const totalPool = currentSelectedStake * 2;
+  const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
   let resultMsg = "";
 
   if (p1PenaltyScore > p2PenaltyScore) {
@@ -1143,8 +1142,8 @@ function endPenaltyMatch() {
   } else {
     playAudioSFX("action");
     if (!isPenaltyTraining) {
-      userVaultBalance += currentSelectedStake;
-      resultMsg = `🤝 DRAW MATCH! Stake Refunded.`;
+      userVaultBalance += currentSelectedStake; // 0% Rake on Draw (Full 100% refund)
+      resultMsg = `🤝 DRAW MATCH! 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING DRAW!`;
     }
@@ -1165,8 +1164,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-// ==========================================================================
+    }
+            // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1330,7 +1329,8 @@ function endLudoRace() {
   document.getElementById("ludoP1Timer").innerText = "";
   document.getElementById("ludoP2Timer").innerText = "";
 
-  const winnerPayout = (currentSelectedStake * 2) * 0.80;
+  const totalPool = currentSelectedStake * 2;
+  const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
   let resultMsg = "";
 
   if (p1TrackPosition >= 10 && p2TrackPosition < 10) {
@@ -1347,8 +1347,8 @@ function endLudoRace() {
   } else {
     playAudioSFX("action");
     if (!isLudoTraining) {
-      userVaultBalance += currentSelectedStake;
-      resultMsg = `🤝 DRAW RACE! Stake Refunded.`;
+      userVaultBalance += currentSelectedStake; // 0% Rake on Draw
+      resultMsg = `🤝 DRAW RACE! 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING DRAW!`;
     }
@@ -1419,7 +1419,8 @@ function flipCoin(playerChoice) {
     const winningOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
 
     document.getElementById("coinDisplayBox").innerText = winningOutcome === "heads" ? "👑" : "🦅";
-    const winnerPayout = (currentSelectedStake * 2) * 0.80;
+    const totalPool = currentSelectedStake * 2;
+    const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
     let resultMsg = "";
 
     if (playerChoice === winningOutcome) {
@@ -1528,7 +1529,8 @@ function resolveRpsMatch(playerChoice, timedOut) {
   const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
   document.getElementById("rpsDisplayBox").innerHTML = `YOU (${emojis[playerChoice]}) VS BOT (${emojis[botChoice]})`;
 
-  const winnerPayout = (currentSelectedStake * 2) * 0.80;
+  const totalPool = currentSelectedStake * 2;
+  const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
   let resultMsg = "";
 
   if (timedOut) {
@@ -1537,8 +1539,8 @@ function resolveRpsMatch(playerChoice, timedOut) {
   } else if (playerChoice === botChoice) {
     playAudioSFX("action");
     if (!isRpsTraining) {
-      userVaultBalance += currentSelectedStake;
-      resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. Stake Refunded.`;
+      userVaultBalance += currentSelectedStake; // 0% Rake on Tie
+      resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}`;
     }
@@ -1580,7 +1582,7 @@ function closeRpsArena() {
   document.getElementById("rpsOverlay").classList.remove("active");
 }
 
-// --- DOM INITIALIZER (PLACED AT THE VERY END TO ENSURE ALL FUNCTIONS EXIST) ---
+// --- DOM INITIALIZER ---
 window.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("soundToggleBtn");
   const drawerSoundStatus = document.getElementById("drawerSoundStatus");
@@ -1595,4 +1597,3 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-      

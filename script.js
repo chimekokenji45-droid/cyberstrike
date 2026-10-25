@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-}
-// ==========================================================================
+   }
+   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -373,7 +373,7 @@ function logoutUser() {
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
 }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -414,46 +414,60 @@ async function recordWagerVolume(stakeAmount, outcome) {
     return;
   }
 
-  // 1. Record 100% of entry stake toward user weekly volume
+  // 1. Add to local weekly wager variable and immediately update UI
   weeklyWageredPOL += stakeAmount;
   updateWagerSprintUI();
 
   // 2. 5% Sprint Pool Allocation
   const sprintContribution = stakeAmount * 0.05;
 
-  // 3. 1% Referral Commission paid out of house net worth/revenue
+  // 3. Referral Commission logic
   const referrer = localStorage.getItem("cyberstrike_referrer");
   if (referrer) {
     const refCommission = stakeAmount * 0.01;
     totalRefEarned += refCommission;
+    const refEarnedEl = document.getElementById("totalRefEarnedDisplay");
+    if (refEarnedEl) refEarnedEl.innerText = `${totalRefEarned.toFixed(4)} POL`;
   }
 
   const sb = getSupabase();
   if (!sb || !currentActiveUserAccount) return;
 
   try {
+    // Fetch current database values first to prevent overwriting with stale data
     const { data: profile } = await sb
       .from('profiles')
-      .select('id, total_wagered, sprint_pool_points')
+      .select('id, total_wagered, sprint_pool_points, vault_balance')
       .ilike('username', currentActiveUserAccount)
       .maybeSingle();
 
     if (profile) {
       const currentDbWagered = parseFloat(profile.total_wagered || 0);
       const currentSprintPoints = parseFloat(profile.sprint_pool_points || 0);
+      
       const newTotalWagered = currentDbWagered + stakeAmount;
       const newSprintPoints = currentSprintPoints + sprintContribution;
 
-      await sb
+      // Send both vault balance (which includes wins) and wager updates to Supabase
+      const { error: updateError } = await sb
         .from('profiles')
         .update({ 
           total_wagered: newTotalWagered,
-          sprint_pool_points: newSprintPoints
+          sprint_pool_points: newSprintPoints,
+          vault_balance: userVaultBalance
         })
         .eq('id', profile.id);
+
+      if (updateError) {
+        console.error("Supabase wager update failed:", updateError.message);
+      } else {
+        // Sync local tracker with confirmed database value
+        weeklyWageredPOL = newTotalWagered;
+        updateWagerSprintUI();
+      }
     }
   } catch (err) {
-    console.error("Leaderboard wager update error:", err.message);
+    console.error("Leaderboard wager update network error:", err.message);
   }
 }
 
@@ -517,7 +531,7 @@ let isDepositing = false;
 
 async function fetchLatestVaultBalance() {
   if (isDepositing) return;
-  await fetchUserProfileFromSupabase(); // Keeps balance & total wagered synced with server
+  await fetchUserProfileFromSupabase();
 }
 
 function startLiveBalancePolling() {
@@ -655,7 +669,7 @@ async function executePolWithdrawal() {
     if (confirmBtn) confirmBtn.disabled = false;
   }
 }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1184,8 +1198,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-                                }
-    // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1636,4 +1650,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-                   
+    

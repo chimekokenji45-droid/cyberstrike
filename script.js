@@ -136,7 +136,7 @@ function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
         }
-// ==========================================================================
+                       // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -372,8 +372,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-                                        }
-      // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -395,7 +395,7 @@ async function fetchUserProfileFromSupabase() {
     if (session && session.user) {
       const res = await sb
         .from("profiles")
-        .select("vault_balance, total_wagered, faucetpay_email")
+        .select("vault_balance, total_wagered, faucetpay_email, claimed_milestones")
         .eq("id", session.user.id)
         .maybeSingle();
       profile = res.data;
@@ -406,7 +406,7 @@ async function fetchUserProfileFromSupabase() {
     if (!profile && currentActiveUserAccount) {
       const res = await sb
         .from("profiles")
-        .select("vault_balance, total_wagered, faucetpay_email")
+        .select("vault_balance, total_wagered, faucetpay_email, claimed_milestones")
         .ilike("username", currentActiveUserAccount)
         .maybeSingle();
       profile = res.data;
@@ -425,6 +425,17 @@ async function fetchUserProfileFromSupabase() {
         currentActiveFaucetEmail = profile.faucetpay_email;
         localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
       }
+      
+      // Load claimed milestones from database so they stay persisted across refreshes
+      if (profile.claimed_milestones) {
+        const claimedArr = String(profile.claimed_milestones).split(',').map(Number);
+        SPRINT_MILESTONES.forEach(m => {
+          if (claimedArr.includes(m.target)) {
+            m.claimed = true;
+          }
+        });
+      }
+
       updateVaultBalanceUI();
       updateWagerSprintUI();
     }
@@ -696,7 +707,7 @@ async function executePolWithdrawal() {
   const MIN_WITHDRAWAL = 2.0;
 
   if (!faucetEmail || !faucetEmail.includes("@")) {
-    if (statusEst) statusEst.innerText = "❌ Enter a valid FaucetPay withdrawal email address!";
+    if (statusEl) statusEl.innerText = "❌ Enter a valid FaucetPay withdrawal email address!";
     return;
   }
   if (!amountInput || amountInput < MIN_WITHDRAWAL) {
@@ -751,8 +762,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-  // ==========================================================================
+                    }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1279,8 +1290,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-                }
-    // ==========================================================================
+    }
+            // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 

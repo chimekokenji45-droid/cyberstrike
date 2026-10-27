@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-        }
-                       // ==========================================================================
+  }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -372,8 +372,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
-// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -762,8 +762,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-                    }
-      // ==========================================================================
+    }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -818,8 +818,8 @@ async function claimMilestone(targetTier) {
   milestone.claimed = true;
   userVaultBalance += milestone.reward;
   updateVaultBalanceUI();
-  
   updateWagerSprintUI();
+  
   showCustomAlert(`🎉 Claimed +${milestone.reward} POL Milestone Reward!`, "SPRINT REWARD");
 
   const sb = getSupabase();
@@ -827,13 +827,25 @@ async function claimMilestone(targetTier) {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (session && session.user) {
-        await sb
+        // Compile all claimed milestone targets into a comma-separated string
+        const claimedTargets = SPRINT_MILESTONES.filter(m => m.claimed).map(m => m.target).join(',');
+
+        const { error: updateErr } = await sb
           .from('profiles')
-          .update({ vault_balance: userVaultBalance })
+          .update({ 
+            vault_balance: userVaultBalance,
+            claimed_milestones: claimedTargets
+          })
           .eq('id', session.user.id);
+
+        if (updateErr) {
+          console.error("❌ Supabase milestone save failed:", updateErr.message);
+        } else {
+          console.log("✅ Milestone successfully saved to Supabase!");
+        }
       }
     } catch (err) {
-      console.error("Balance update error on claim:", err.message);
+      console.error("Milestone update error on claim:", err.message);
     }
   }
 }
@@ -1291,7 +1303,7 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
     }
-            // ==========================================================================
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1730,4 +1742,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-    
+                          

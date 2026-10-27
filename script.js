@@ -377,9 +377,14 @@ function logoutUser() {
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
+let lastLocalBalanceUpdate = 0; // Cooldown timer to prevent polling race conditions
+
 async function fetchUserProfileFromSupabase() {
   const sb = getSupabase();
   if (!sb || !currentActiveUserAccount) return;
+
+  // Prevent background polling from overwriting local win/loss changes for 6 seconds
+  if (Date.now() - lastLocalBalanceUpdate < 6000) return;
 
   try {
     const { data: { session } } = await sb.auth.getSession();
@@ -429,6 +434,9 @@ async function fetchUserProfileFromSupabase() {
 }
 
 async function recordWagerVolume(stakeAmount, outcome) {
+  // Mark timestamp to block background polling from overwriting balance during/after game animation
+  lastLocalBalanceUpdate = Date.now();
+
   // If the outcome is a draw or tie, do not add wager volume
   if (outcome === 'draw' || outcome === 'tie') {
     console.log("🤝 Draw/Tie match: Wager volume not added.");
@@ -714,8 +722,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-          }
-      // ==========================================================================
+      }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1244,8 +1252,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-// ==========================================================================
+      }
+                                   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1696,4 +1704,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-        
+    

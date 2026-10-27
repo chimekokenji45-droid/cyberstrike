@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-   }
-   // ==========================================================================
+        }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -372,8 +372,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
-// ==========================================================================
+                                        }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -383,7 +383,7 @@ async function fetchUserProfileFromSupabase() {
   const sb = getSupabase();
   if (!sb || !currentActiveUserAccount) return;
 
-  // Prevent background polling from overwriting local win/loss changes for 6 seconds
+  // Prevent background polling from overwriting local changes for 6 seconds
   if (Date.now() - lastLocalBalanceUpdate < 6000) return;
 
   try {
@@ -431,6 +431,35 @@ async function fetchUserProfileFromSupabase() {
   } catch (err) {
     console.error("Error fetching user profile data:", err);
   }
+}
+
+// Helper function to safely deduct stakes at game start and pause polling
+async function deductStakeForGame(stakeAmount) {
+  if (userVaultBalance < stakeAmount) {
+    showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
+    return false;
+  }
+
+  userVaultBalance -= stakeAmount;
+  lastLocalBalanceUpdate = Date.now(); // Pause background polling so poller doesn't wipe the stake!
+  updateVaultBalanceUI();
+
+  // Instantly sync the deducted balance to Supabase
+  const sb = getSupabase();
+  if (sb && currentActiveUserAccount) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && session.user) {
+        await sb
+          .from('profiles')
+          .update({ vault_balance: userVaultBalance })
+          .eq('id', session.user.id);
+      }
+    } catch (err) {
+      console.error("Failed to sync stake deduction to Supabase:", err);
+    }
+  }
+  return true;
 }
 
 async function recordWagerVolume(stakeAmount, outcome) {
@@ -667,7 +696,7 @@ async function executePolWithdrawal() {
   const MIN_WITHDRAWAL = 2.0;
 
   if (!faucetEmail || !faucetEmail.includes("@")) {
-    if (statusEl) statusEl.innerText = "❌ Enter a valid FaucetPay withdrawal email address!";
+    if (statusEst) statusEst.innerText = "❌ Enter a valid FaucetPay withdrawal email address!";
     return;
   }
   if (!amountInput || amountInput < MIN_WITHDRAWAL) {
@@ -722,8 +751,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-      }
-// ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -785,10 +814,13 @@ async function claimMilestone(targetTier) {
   const sb = getSupabase();
   if (sb && currentActiveUserAccount) {
     try {
-      await sb
-        .from('profiles')
-        .update({ vault_balance: userVaultBalance })
-        .ilike('username', currentActiveUserAccount);
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && session.user) {
+        await sb
+          .from('profiles')
+          .update({ vault_balance: userVaultBalance })
+          .eq('id', session.user.id);
+      }
     } catch (err) {
       console.error("Balance update error on claim:", err.message);
     }
@@ -812,7 +844,6 @@ function closeProfileModal() {
 
 async function handleUpdateProfile(e) {
   e.preventDefault();
-  const oldUsername = currentActiveUserAccount;
   const newPassword = document.getElementById("profileNewPassword").value;
   const statusMsg = document.getElementById("profileStatusMsg");
 
@@ -1018,12 +1049,8 @@ async function launchPenaltyArena(isTraining = false) {
   isPenaltyTraining = isTraining;
 
   if (!isTraining) {
-    if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
-      return;
-    }
-    userVaultBalance -= currentSelectedStake;
-    updateVaultBalanceUI();
+    const success = await deductStakeForGame(currentSelectedStake);
+    if (!success) return;
   }
 
   p1PenaltyShotsTaken = 0;
@@ -1252,8 +1279,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-      }
-                                   // ==========================================================================
+                }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1272,12 +1299,8 @@ async function launchLudoRace(isTraining = false) {
   isLudoTraining = isTraining;
 
   if (!isTraining) {
-    if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
-      return;
-    }
-    userVaultBalance -= currentSelectedStake;
-    updateVaultBalanceUI();
+    const success = await deductStakeForGame(currentSelectedStake);
+    if (!success) return;
   }
 
   p1TrackPosition = 0;
@@ -1476,12 +1499,8 @@ async function launchCoinFlipArena(isTraining = false) {
   isCoinTraining = isTraining;
 
   if (!isTraining) {
-    if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
-      return;
-    }
-    userVaultBalance -= currentSelectedStake;
-    updateVaultBalanceUI();
+    const success = await deductStakeForGame(currentSelectedStake);
+    if (!success) return;
   }
 
   document.getElementById("coinBanner").innerText = isCoinTraining ? "🤖 TRAINING MODE: CHOOSE HEADS OR TAILS" : "CHOOSE HEADS OR TAILS (50/50)";
@@ -1563,12 +1582,8 @@ async function launchRpsArena(isTraining = false) {
   isRpsTraining = isTraining;
 
   if (!isTraining) {
-    if (userVaultBalance < currentSelectedStake) {
-      showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
-      return;
-    }
-    userVaultBalance -= currentSelectedStake;
-    updateVaultBalanceUI();
+    const success = await deductStakeForGame(currentSelectedStake);
+    if (!success) return;
   }
 
   isRpsActive = true;
@@ -1643,7 +1658,7 @@ async function resolveRpsMatch(playerChoice, timedOut) {
       userVaultBalance += currentSelectedStake; // 0% Rake on Tie
       resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
     } else {
-      resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}`;
+      resultMsg = `🤝 TRAINING TIE!`;
     }
   } else if (
     (playerChoice === "rock" && botChoice === "scissors") ||

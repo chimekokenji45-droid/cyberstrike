@@ -76,19 +76,19 @@ function playAudioSFX(type) {
       gain.gain.setValueAtTime(0.2, now);
       gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
       osc.start(now); osc.stop(now + 0.25);
-    } else if (type === 'win') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(523.25, now);
-      osc.frequency.setValueAtTime(659.25, now + 0.12);
-      osc.frequency.setValueAtTime(783.99, now + 0.24);
-      osc.frequency.setValueAtTime(1046.50, now + 0.36);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
-      osc.start(now); osc.stop(now + 0.5);
-    } else if (type === 'lose') {
+    } else if (type === 'win' || type === 'goal') {
+      // Cheerful rising fanfare for goals & match wins
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.3);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
+    } else if (type === 'lose' || type === 'miss') {
+      // Descending groan / block sound for misses & bot goals
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(400, now);
-      osc.frequency.exponentialRampToValueAtTime(150, now + 0.3);
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
       gain.gain.setValueAtTime(0.2, now);
       gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
       osc.start(now); osc.stop(now + 0.35);
@@ -135,7 +135,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-  }
+}
   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
@@ -372,8 +372,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-                                                        }
-  // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -1173,14 +1173,12 @@ function takeShot(direction) {
 
   setTimeout(() => {
     if (direction !== keeperDive) {
-      // GOAL SCORED: Cheerful crowd roar!
-      playAudioSFX("goal");
+      playAudioSFX("win");
       p1PenaltyScore++;
       document.getElementById("p1Score").innerText = p1PenaltyScore;
       document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
     } else {
-      // SAVED BY KEEPER: Keeper block / Miss groan
-      playAudioSFX("miss");
+      playAudioSFX("lose");
       document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
     }
     p1PenaltyShotsTaken++;
@@ -1209,14 +1207,12 @@ function processBotPenaltyShot() {
 
   setTimeout(() => {
     if (botShot !== myDive) {
-      // BOT SCORED: Disappointed crowd groan / miss sound
-      playAudioSFX("miss");
+      playAudioSFX("lose");
       p2PenaltyScore++;
       document.getElementById("p2Score").innerText = p2PenaltyScore;
       document.getElementById("penaltyBanner").innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
     } else {
-      // YOU SAVED IT: Cheerful crowd cheer!
-      playAudioSFX("goal");
+      playAudioSFX("win");
       document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
     }
     p2PenaltyShotsTaken++;
@@ -1265,7 +1261,7 @@ async function endPenaltyMatch() {
 
   if (p1PenaltyScore > p2PenaltyScore) {
     outcome = 'win';
-    playAudioSFX("goal"); // Final match win cheer!
+    playAudioSFX("win");
     if (!isPenaltyTraining) {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON! +${winnerPayout.toFixed(2)} POL!`;
@@ -1274,7 +1270,7 @@ async function endPenaltyMatch() {
     }
   } else if (p2PenaltyScore > p1PenaltyScore) {
     outcome = 'loss';
-    playAudioSFX("miss"); // Final match loss groan
+    playAudioSFX("lose");
     resultMsg = isPenaltyTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT WON THE SHOOTOUT!`;
   } else {
     outcome = 'draw';
@@ -1306,8 +1302,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-      }
-// ==========================================================================
+                                               }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1729,61 +1725,6 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   document.getElementById("rpsOverlay").classList.remove("active");
-}
-let soundEnabled = true;
-
-function toggleSoundSFX() {
-  soundEnabled = !soundEnabled;
-  const statusEl = document.getElementById("drawerSoundStatus");
-  const btnEl = document.getElementById("soundToggleBtn");
-  if (statusEl) statusEl.innerText = soundEnabled ? "ON" : "OFF";
-  if (btnEl) btnEl.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
-}
-
-function playAudioSFX(type) {
-  if (!soundEnabled) return;
-  
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    const now = ctx.currentTime;
-
-    if (type === "goal" || type === "win") {
-      // Cheerful rising fanfare for goals & wins
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(300, now);
-      osc.frequency.exponentialRampToValueAtTime(600, now + 0.3);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-      osc.start(now);
-      osc.stop(now + 0.4);
-    } else if (type === "miss" || type === "lose") {
-      // Descending groan / block sound for misses & bot goals
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
-    } else {
-      // Standard action click
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(440, now);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    }
-  } catch (e) {
-    console.log("Audio play error:", e);
-  }
 }
 
 // --- DOM INITIALIZER ---

@@ -347,6 +347,24 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   font-weight: 700; 
   display: block; 
 }
+    #penaltyOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 14, 23, 0.95);
+  display: none; /* Controlled by JS .active class */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  overflow-y: auto;
+}
+
+#penaltyOverlay.active {
+  display: flex;
+    }
+  
   </style>
 </head>
 <body>

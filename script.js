@@ -136,7 +136,7 @@ function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
   }
-// ==========================================================================
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -372,8 +372,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
-    // ==========================================================================
+                                                        }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -762,8 +762,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-    }
-        // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1173,12 +1173,14 @@ function takeShot(direction) {
 
   setTimeout(() => {
     if (direction !== keeperDive) {
-      playAudioSFX("win");
+      // GOAL SCORED: Cheerful crowd roar!
+      playAudioSFX("goal");
       p1PenaltyScore++;
       document.getElementById("p1Score").innerText = p1PenaltyScore;
       document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
     } else {
-      playAudioSFX("lose");
+      // SAVED BY KEEPER: Keeper block / Miss groan
+      playAudioSFX("miss");
       document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
     }
     p1PenaltyShotsTaken++;
@@ -1207,12 +1209,14 @@ function processBotPenaltyShot() {
 
   setTimeout(() => {
     if (botShot !== myDive) {
-      playAudioSFX("lose");
+      // BOT SCORED: Disappointed crowd groan / miss sound
+      playAudioSFX("miss");
       p2PenaltyScore++;
       document.getElementById("p2Score").innerText = p2PenaltyScore;
       document.getElementById("penaltyBanner").innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
     } else {
-      playAudioSFX("win");
+      // YOU SAVED IT: Cheerful crowd cheer!
+      playAudioSFX("goal");
       document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
     }
     p2PenaltyShotsTaken++;
@@ -1261,7 +1265,7 @@ async function endPenaltyMatch() {
 
   if (p1PenaltyScore > p2PenaltyScore) {
     outcome = 'win';
-    playAudioSFX("win");
+    playAudioSFX("goal"); // Final match win cheer!
     if (!isPenaltyTraining) {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON! +${winnerPayout.toFixed(2)} POL!`;
@@ -1270,7 +1274,7 @@ async function endPenaltyMatch() {
     }
   } else if (p2PenaltyScore > p1PenaltyScore) {
     outcome = 'loss';
-    playAudioSFX("lose");
+    playAudioSFX("miss"); // Final match loss groan
     resultMsg = isPenaltyTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT WON THE SHOOTOUT!`;
   } else {
     outcome = 'draw';
@@ -1302,8 +1306,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-    }
-  // ==========================================================================
+      }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1742,4 +1746,3 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-                          

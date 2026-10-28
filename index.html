@@ -347,23 +347,43 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   font-weight: 700; 
   display: block; 
 }
-    #penaltyOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(10, 14, 23, 0.95);
-  display: none; /* Controlled by JS .active class */
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  overflow-y: auto;
+    .modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(3, 6, 11, 0.95);
+  backdrop-filter: blur(12px);
+  display: none;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 9999 !important;
+  padding: 10px;
+  overflow: hidden;
 }
 
-#penaltyOverlay.active {
+.modal-overlay.active {
+  display: flex !important;
+}
+
+.arena-box {
+  background: #0c1420;
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 95vh;
+  padding: 16px;
+  position: relative;
   display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+  overflow-y: auto;
+  margin: auto; /* Ensures flex centering fallback */
     }
+    
   
   </style>
 </head>

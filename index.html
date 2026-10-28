@@ -289,9 +289,12 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .pitch-container { position: relative; height: 150px; background: linear-gradient(180deg, #102115, #08120b); border: 2px solid #1a4023; border-radius: 8px; margin: 16px 0; overflow: hidden; }
 .keeper { position: absolute; top: 15px; font-size: 30px; transition: all 0.3s ease; }
 .ball { position: absolute; bottom: 10px; font-size: 24px; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
-.center { left: 50%; transform: translateX(-50%); }
-.left { left: 20%; }
-.right { left: 80%; }
+
+/* --- CORRECTED PITCH POSITIONS --- */
+.center { left: 50% !important; transform: translateX(-50%); }
+.left { left: 15% !important; transform: translateX(-50%); }
+.right { left: 85% !important; transform: translateX(-50%); }
+
 .status-banner { text-align: center; font-weight: 800; font-size: 12px; color: var(--accent-cyan); min-height: 20px; margin-bottom: 12px; }
 .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .btn-shoot { background: #162436; color: #fff; border: 1px solid var(--border-color); padding: 10px 0; font-size: 12px; }
@@ -347,44 +350,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   font-weight: 700; 
   display: block; 
 }
-    .modal-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background: rgba(3, 6, 11, 0.95);
-  backdrop-filter: blur(12px);
-  display: none;
-  justify-content: center !important;
-  align-items: center !important;
-  z-index: 9999 !important;
-  padding: 10px;
-  overflow: hidden;
-}
-
-.modal-overlay.active {
-  display: flex !important;
-}
-
-.arena-box {
-  background: #0c1420;
-  border: 2px solid var(--border-color);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 95vh;
-  padding: 16px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
-  overflow-y: auto;
-  margin: auto; /* Ensures flex centering fallback */
-    }
-    
-  
   </style>
 </head>
 <body>
@@ -483,7 +448,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <button id="depositBtn"></button>
     <button id="withdrawBtn"></button>
     <button id="soundToggleBtn"></button>
-  </div>  <!-- MAIN DASHBOARD CONTAINER -->
+  </div>
+    <!-- MAIN DASHBOARD CONTAINER -->
   <main class="container" id="mainDashboard" style="display: none;">
     
     <!-- LEFT COLUMN -->
@@ -705,7 +671,9 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       </div>
     </section>
 
-  </main> <!-- FOOTER -->
+  </main>
+
+  <!-- FOOTER -->
   <footer class="footer-container" id="mainFooter" style="display: none;">
     <div class="fairness-card">
       <div class="fairness-header">
@@ -720,8 +688,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
     </div>
   </footer>
-
-  <!-- MANDATORY AUTH GATEWAY MODAL -->
+    <!-- MANDATORY AUTH GATEWAY MODAL -->
   <div id="authModal" class="modal-overlay active">
     <div class="modal-card">
       <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="display:none;">✖</button>
@@ -951,7 +918,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- PENALTY SHOOTOUT OVERLAY (EXIT BUTTON REMOVED) -->
+  <!-- PENALTY SHOOTOUT OVERLAY -->
   <div id="penaltyOverlay" class="modal-overlay">
     <div class="arena-box">
       <div class="scoreboard">
@@ -983,7 +950,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- LUDO RACE OVERLAY (EXIT BUTTON REMOVED) -->
+  <!-- LUDO RACE OVERLAY -->
   <div id="ludoOverlay" class="modal-overlay">
     <div class="arena-box ludo-arena">
       <div class="scoreboard">
@@ -1024,7 +991,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- COIN FLIP OVERLAY (EXIT BUTTON REMOVED) -->
+  <!-- COIN FLIP OVERLAY -->
   <div id="coinFlipOverlay" class="modal-overlay">
     <div class="arena-box" style="text-align:center;">
       <h2>🪙 1v1 COIN FLIP</h2>
@@ -1039,7 +1006,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </div>
 
-  <!-- ROCK PAPER SCISSORS OVERLAY (EXIT BUTTON REMOVED) -->
+  <!-- ROCK PAPER SCISSORS OVERLAY -->
   <div id="rpsOverlay" class="modal-overlay">
     <div class="arena-box" style="text-align:center;">
       <h2>✂️ ROCK PAPER SCISSORS</h2>
@@ -1056,7 +1023,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </div>
 
   <script>
-    // Navigation drawer and wallet dropdown UI helpers
     function toggleNavDrawer() {
       const drawer = document.getElementById("sideNavDrawer");
       const overlay = document.getElementById("drawerOverlay");
@@ -1073,7 +1039,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       }
     }
 
-    // Close wallet dropdown when clicking outside
     window.addEventListener("click", function(e) {
       const wrapper = document.getElementById("walletDropdownWrapper");
       const menu = document.getElementById("walletDropdownMenu");
@@ -1082,7 +1047,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       }
     });
 
-    // Profile Settings Password-Only Update Function
     async function handleUpdateProfile(e) {
       e.preventDefault();
       const newPassword = document.getElementById("profileNewPassword").value;
@@ -1134,4 +1098,5 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </script>
   <script src="script.js"></script>
 </body>
-                                      </html>
+  </html>
+  

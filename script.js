@@ -135,7 +135,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-      }
+   }
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
@@ -356,6 +356,24 @@ async function handleResetPasswordSubmit(e) {
     statusMsg.innerText = "❌ Network error.";
   }
 }
+
+// Listen for Supabase password recovery redirection event
+function initPasswordRecoveryListener() {
+  const sb = getSupabase();
+  if (!sb) return;
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      openProfileModal(); // Automatically open profile/password update modal on recovery return
+      showCustomAlert("🔒 Recovery link verified. Please enter your new password.", "PASSWORD RECOVERY");
+    }
+  });
+}
+
+// Automatically bind password recovery check on load
+document.addEventListener("DOMContentLoaded", () => {
+  initPasswordRecoveryListener();
+});
 
 function logoutUser() {
   playAudioSFX("action");
@@ -768,8 +786,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-                                  }
-      // ==========================================================================
+                                      }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -876,31 +894,30 @@ async function handleUpdateProfile(e) {
   const statusMsg = document.getElementById("profileStatusMsg");
 
   if (!newPassword) {
-    if (statusMsg) statusMsg.innerText = "❌ Enter a new password to update.";
+    statusMsg.innerText = "❌ Enter a new password to update.";
     return;
   }
 
-  if (statusMsg) statusMsg.innerText = "⏳ Updating password...";
+  statusMsg.innerText = "⏳ Updating password...";
   const sb = getSupabase();
-  if (!sb) { if (statusMsg) statusMsg.innerText = "❌ Supabase client not loaded."; return; }
+  if (!sb) { statusMsg.innerText = "❌ Supabase client not loaded."; return; }
 
   try {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) { if (statusMsg) statusMsg.innerText = "❌ Session expired. Please log in again."; return; }
+    if (!session) { statusMsg.innerText = "❌ Session expired. Please log in again."; return; }
 
     const { error: passErr } = await sb.auth.updateUser({ password: newPassword });
     if (passErr) throw new Error(passErr.message);
 
     playAudioSFX("win");
-    if (statusMsg) statusMsg.innerText = "✅ Password updated successfully!";
+    statusMsg.innerText = "✅ Password updated successfully!";
     setTimeout(() => {
       closeProfileModal();
-      const passInput = document.getElementById("profileNewPassword");
-      if (passInput) passInput.value = "";
+      document.getElementById("profileNewPassword").value = "";
     }, 2000);
 
   } catch (err) {
-    if (statusMsg) statusMsg.innerText = `❌ Update failed: ${err.message}`;
+    statusMsg.innerText = `❌ Update failed: ${err.message}`;
   }
 }
 
@@ -1089,33 +1106,24 @@ async function launchPenaltyArena(isTraining = false) {
   isP1PenaltyTurn = true;
   isPenaltyActive = true;
 
-  const p1ScoreEl = document.getElementById("p1Score");
-  const p2ScoreEl = document.getElementById("p2Score");
-  if (p1ScoreEl) p1ScoreEl.innerText = "0";
-  if (p2ScoreEl) p2ScoreEl.innerText = "0";
+  document.getElementById("p1Score").innerText = "0";
+  document.getElementById("p2Score").innerText = "0";
   updateShotTrackerDisplay();
 
-  const controlsBox = document.getElementById("controlsBox");
-  if (controlsBox) {
-    controlsBox.innerHTML = `
-      <button class="btn btn-shoot" onclick="takeShot('left')">👈 LEFT</button>
-      <button class="btn btn-shoot" onclick="takeShot('center')">🎯 CENTER</button>
-      <button class="btn btn-shoot" onclick="takeShot('right')">👉 RIGHT</button>
-    `;
-  }
+  document.getElementById("controlsBox").innerHTML = `
+    <button class="btn btn-shoot" onclick="takeShot('left')">👈 LEFT</button>
+    <button class="btn btn-shoot" onclick="takeShot('center')">🎯 CENTER</button>
+    <button class="btn btn-shoot" onclick="takeShot('right')">👉 RIGHT</button>
+  `;
 
   resetPenaltyVisuals();
   setPenaltyControlsActive(true);
-  const penaltyOverlay = document.getElementById("penaltyOverlay");
-  if (penaltyOverlay) penaltyOverlay.classList.add("active");
+  document.getElementById("penaltyOverlay").classList.add("active");
   startPenaltyAvatarTimer();
 }
 
 function updateShotTrackerDisplay() {
-  const roundDisplay = document.getElementById("penaltyRoundDisplay");
-  if (roundDisplay) {
-    roundDisplay.innerText = `SHOTS ${p1PenaltyShotsTaken}/5 - ${p2PenaltyShotsTaken}/5`;
-  }
+  document.getElementById("penaltyRoundDisplay").innerText = `SHOTS ${p1PenaltyShotsTaken}/5 - ${p2PenaltyShotsTaken}/5`;
 }
 
 function startPenaltyAvatarTimer() {
@@ -1138,8 +1146,10 @@ function updatePenaltyTimersUI() {
   const p2TimerEl = document.getElementById("p2TurnTimer");
   const bannerEl = document.getElementById("penaltyBanner");
 
-  if (p1TimerEl) p1TimerEl.innerText = isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
-  if (p2TimerEl) p2TimerEl.innerText = !isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
+  if (p1TimerEl && p2TimerEl) {
+    p1TimerEl.innerText = isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
+    p2TimerEl.innerText = !isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
+  }
 
   if (isP1PenaltyTurn && isPenaltyActive && bannerEl) {
     const prefix = isPenaltyTraining ? "🤖 TRAINING MODE" : "YOUR TURN";
@@ -1150,9 +1160,8 @@ function updatePenaltyTimersUI() {
 function handlePenaltyTimeout() {
   if (!isPenaltyActive) return;
   playAudioSFX("action");
-  const bannerEl = document.getElementById("penaltyBanner");
   if (isP1PenaltyTurn) {
-    if (bannerEl) bannerEl.innerText = "⏳ TIME OUT! SHOT MISSED. BOT'S TURN.";
+    document.getElementById("penaltyBanner").innerText = "⏳ TIME OUT! SHOT MISSED. BOT'S TURN.";
     setPenaltyControlsActive(false);
     p1PenaltyShotsTaken++;
     updateShotTrackerDisplay();
@@ -1161,7 +1170,7 @@ function handlePenaltyTimeout() {
       if (checkPenaltyMatchOver()) return;
       isP1PenaltyTurn = false;
       isPenaltyActive = true;
-      if (bannerEl) bannerEl.innerText = "BOT OPPONENT TAKING SHOT...";
+      document.getElementById("penaltyBanner").innerText = "BOT OPPONENT TAKING SHOT...";
       startPenaltyAvatarTimer();
       setTimeout(processBotPenaltyShot, 1000);
     }, 1200);
@@ -1180,33 +1189,27 @@ function takeShot(direction) {
   setPenaltyControlsActive(false);
 
   const ball = document.getElementById("ballEl");
-  if (ball) {
-    ball.className = "ball";
-    ball.classList.add(direction);
-  }
+  ball.className = "ball";
+  ball.classList.add(direction);
 
   const directions = ["left", "center", "right"];
   const keeperDive = directions[Math.floor(Math.random() * directions.length)];
 
   setTimeout(() => { 
     const keeper = document.getElementById("keeperEl");
-    if (keeper) {
-      keeper.className = "keeper";
-      keeper.classList.add(keeperDive);
-    }
+    keeper.className = "keeper";
+    keeper.classList.add(keeperDive);
   }, 100);
 
   setTimeout(() => {
-    const bannerEl = document.getElementById("penaltyBanner");
-    const p1ScoreEl = document.getElementById("p1Score");
     if (direction !== keeperDive) {
       playAudioSFX("win");
       p1PenaltyScore++;
-      if (p1ScoreEl) p1ScoreEl.innerText = p1PenaltyScore;
-      if (bannerEl) bannerEl.innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
+      document.getElementById("p1Score").innerText = p1PenaltyScore;
+      document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
     } else {
       playAudioSFX("lose");
-      if (bannerEl) bannerEl.innerText = `🧤 SAVED! KEEPER BLOCKED!`;
+      document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
     }
     p1PenaltyShotsTaken++;
     updateShotTrackerDisplay();
@@ -1215,7 +1218,7 @@ function takeShot(direction) {
       if (checkPenaltyMatchOver()) return;
       isP1PenaltyTurn = false;
       isPenaltyActive = true;
-      if (bannerEl) bannerEl.innerText = "BOT OPPONENT TAKING SHOT...";
+      document.getElementById("penaltyBanner").innerText = "BOT OPPONENT TAKING SHOT...";
       resetPenaltyVisuals();
       startPenaltyAvatarTimer();
       setTimeout(processBotPenaltyShot, 1200);
@@ -1230,28 +1233,24 @@ function processBotPenaltyShot() {
   const myDive = directions[Math.floor(Math.random() * directions.length)];
 
   const ball = document.getElementById("ballEl");
-  if (ball) {
-    ball.className = "ball";
-    ball.classList.add(botShot);
-  }
+  ball.className = "ball";
+  ball.classList.add(botShot);
 
   const keeper = document.getElementById("keeperEl");
-  if (keeper) {
-    keeper.className = "keeper";
-    keeper.classList.add(myDive);
-  }
+  keeper.className = "keeper";
+  keeper.classList.add(myDive);
 
   setTimeout(() => {
-    const bannerEl = document.getElementById("penaltyBanner");
-    const p2ScoreEl = document.getElementById("p2Score");
     if (botShot !== myDive) {
+      // FIXED: Bot scored -> Play goal/win sound
       playAudioSFX("goal");
       p2PenaltyScore++;
-      if (p2ScoreEl) p2ScoreEl.innerText = p2PenaltyScore;
-      if (bannerEl) bannerEl.innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
+      document.getElementById("p2Score").innerText = p2PenaltyScore;
+      document.getElementById("penaltyBanner").innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
     } else {
+      // FIXED: You saved it -> Play block/miss sound
       playAudioSFX("miss");
-      if (bannerEl) bannerEl.innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
+      document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
     }
     p2PenaltyShotsTaken++;
     updateShotTrackerDisplay();
@@ -1279,8 +1278,8 @@ function resetPenaltyVisuals() {
   const keeper = document.getElementById("keeperEl");
   const ball = document.getElementById("ballEl");
   
-  if (keeper) keeper.className = "keeper center";
-  if (ball) ball.className = "ball center";
+  keeper.className = "keeper center";
+  ball.className = "ball center";
 }
 
 function setPenaltyControlsActive(active) {
@@ -1292,10 +1291,8 @@ async function endPenaltyMatch() {
   isPenaltyActive = false;
   setPenaltyControlsActive(false);
 
-  const p1Timer = document.getElementById("p1TurnTimer");
-  const p2Timer = document.getElementById("p2Timer");
-  if (p1Timer) p1Timer.innerText = "";
-  if (p2Timer) p2Timer.innerText = "";
+  document.getElementById("p1TurnTimer").innerText = "";
+  document.getElementById("p2TurnTimer").innerText = "";
 
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90; // 10% House Rake on Win
@@ -1330,27 +1327,22 @@ async function endPenaltyMatch() {
     await recordWagerVolume(currentSelectedStake, outcome);
   }
 
-  const bannerEl = document.getElementById("penaltyBanner");
-  if (bannerEl) bannerEl.innerText = `🎮 GAME OVER! ${resultMsg}`;
+  document.getElementById("penaltyBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
-  const controlsBox = document.getElementById("controlsBox");
-  if (controlsBox) {
-    controlsBox.innerHTML = `
-      <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closePenaltyArena()">
-        🔄 GAME OVER - RETRY / CHOOSE GAME
-      </button>
-    `;
-  }
+  document.getElementById("controlsBox").innerHTML = `
+    <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closePenaltyArena()">
+      🔄 GAME OVER - RETRY / CHOOSE GAME
+    </button>
+  `;
 }
 
 function closePenaltyArena() {
   playAudioSFX("action");
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
-  const overlay = document.getElementById("penaltyOverlay");
-  if (overlay) overlay.classList.remove("active");
-               }
+  document.getElementById("penaltyOverlay").classList.remove("active");
+                        }
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
@@ -1790,3 +1782,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
+        

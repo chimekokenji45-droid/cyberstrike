@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-        }
-// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -166,7 +166,6 @@ function initUserSessionUI() {
 
     initReferralUI();
     closeAuthModal();
-    fetchUserProfileFromSupabase(); // Fetch balance & wager volume from DB on session start
   } else {
     if (drawerAuthNotLoggedIn) drawerAuthNotLoggedIn.style.display = "block";
     if (drawerAuthLoggedIn) drawerAuthLoggedIn.style.display = "none";
@@ -256,15 +255,13 @@ async function handleRegisterSubmit(e) {
     currentActiveUserAccount = username;
     currentActiveFaucetEmail = faucetEmail;
     userVaultBalance = 0.0;
-    weeklyWageredPOL = 0.0;
 
     localStorage.setItem("cyberstrike_user", username);
     localStorage.setItem("cyberstrike_faucet_email", faucetEmail);
 
     playAudioSFX("win");
-    updateVaultBalanceUI();
-    updateWagerSprintUI();
     initUserSessionUI();
+    updateVaultBalanceUI();
     showCustomAlert(`🎉 Account created successfully! Welcome to CyberStrike, ${username}.`, "WELCOME");
   } catch (err) {
     statusMsg.innerText = "❌ Connection error.";
@@ -288,7 +285,7 @@ async function handleLoginSubmit(e) {
 
     const { data: profile, error: fetchError } = await sb
       .from('profiles')
-      .select('email, username, vault_balance, total_wagered, faucetpay_email')
+      .select('email, username, vault_balance, faucetpay_email')
       .or(`username.eq.${identifier},email.eq.${identifier}`)
       .maybeSingle();
 
@@ -312,16 +309,14 @@ async function handleLoginSubmit(e) {
     const loggedInUsername = profile?.username || authData.user.user_metadata?.username || identifier;
     currentActiveUserAccount = loggedInUsername;
     currentActiveFaucetEmail = profile?.faucetpay_email || authData.user.email;
-    userVaultBalance = profile ? parseFloat(profile.vault_balance || 0.0) : 0.0;
-    weeklyWageredPOL = profile ? parseFloat(profile.total_wagered || 0.0) : 0.0;
+    userVaultBalance = profile ? parseFloat(profile.vault_balance) : 0.0;
 
     localStorage.setItem("cyberstrike_user", loggedInUsername);
     localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
 
     playAudioSFX("win");
-    updateVaultBalanceUI();   // Immediately update balance on screen
-    updateWagerSprintUI();    // Immediately update wager progress on screen
     initUserSessionUI();
+    fetchLatestVaultBalance();
     showCustomAlert(`🔓 Welcome back, ${loggedInUsername}! Vault loaded.`, "LOGIN SUCCESSFUL");
 
   } catch (err) {
@@ -367,13 +362,10 @@ function logoutUser() {
   localStorage.removeItem("cyberstrike_faucet_email");
   localStorage.removeItem("cyberstrike_vault_balance");
   userVaultBalance = 0.0;
-  weeklyWageredPOL = 0.0;
   initUserSessionUI();
   updateVaultBalanceUI();
-  updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
-// ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -477,12 +469,6 @@ async function recordWagerVolume(stakeAmount, outcome) {
   // Mark timestamp to block background polling from overwriting balance during/after game animation
   lastLocalBalanceUpdate = Date.now();
 
-  // If the outcome is a draw or tie, do not add wager volume
-  if (outcome === 'draw' || outcome === 'tie') {
-    console.log("🤝 Draw/Tie match: Wager volume not added.");
-    return;
-  }
-
   const sb = getSupabase();
   if (!sb || !currentActiveUserAccount) {
     console.log("⚠️ Supabase client or active user missing during wager record.");
@@ -512,51 +498,63 @@ async function recordWagerVolume(stakeAmount, outcome) {
       return;
     }
 
-    const currentDbWagered = parseFloat(profile.total_wagered || 0);
-    const newTotalWagered = currentDbWagered + stakeAmount;
+    // Always ensure the updated vault balance (including draw refunds) is synced
+    let updateData = { 
+      vault_balance: userVaultBalance 
+    };
+
+    // Only increment wager volume and pay referral commission if it is NOT a draw or tie
+    if (outcome !== 'draw' && outcome !== 'tie') {
+      const currentDbWagered = parseFloat(profile.total_wagered || 0);
+      const newTotalWagered = currentDbWagered + stakeAmount;
+      updateData.total_wagered = newTotalWagered;
+
+      // Referral Commission logic (Credits vault balance of the referrer directly)
+      const referrerUsername = localStorage.getItem("cyberstrike_referrer");
+      if (referrerUsername && referrerUsername.toLowerCase() !== currentActiveUserAccount.toLowerCase()) {
+        const refCommission = stakeAmount * 0.01;
+
+        const { data: referrerProfile } = await sb
+          .from('profiles')
+          .select('id, vault_balance')
+          .ilike('username', referrerUsername)
+          .maybeSingle();
+
+        if (referrerProfile) {
+          const currentRefVault = parseFloat(referrerProfile.vault_balance || 0.0);
+
+          await sb
+            .from('profiles')
+            .update({
+              vault_balance: currentRefVault + refCommission
+            })
+            .eq('id', referrerProfile.id);
+
+          console.log(`🎉 Paid 1% (${refCommission.toFixed(4)} POL) referral commission to ${referrerUsername}!`);
+        }
+      }
+    } else {
+      console.log("🤝 Draw/Tie match: Wager volume skipped, but vault refund synced to DB.");
+    }
 
     // Perform database update using the unique profile ID
     const { data: updatedRows, error: updateError } = await sb
       .from('profiles')
-      .update({ 
-        total_wagered: newTotalWagered,
-        vault_balance: userVaultBalance
-      })
+      .update(updateData)
       .eq('id', profile.id)
       .select();
 
     if (updateError) {
-      console.error("❌ Supabase wager update failed:", updateError.message);
+      console.error("❌ Supabase update failed:", updateError.message);
     } else if (!updatedRows || updatedRows.length === 0) {
       console.error("❌ Database update blocked! Please check Supabase Row Level Security (RLS) UPDATE policy on 'profiles' table.");
     } else {
-      weeklyWageredPOL = newTotalWagered;
-      updateWagerSprintUI();
-      console.log(`✅ Wager successfully saved & verified in Supabase! New Total: ${newTotalWagered} POL`);
-    }
-
-    // Referral Commission logic (Credits vault balance of the referrer directly)
-    const referrerUsername = localStorage.getItem("cyberstrike_referrer");
-    if (referrerUsername && referrerUsername.toLowerCase() !== currentActiveUserAccount.toLowerCase()) {
-      const refCommission = stakeAmount * 0.01;
-
-      const { data: referrerProfile } = await sb
-        .from('profiles')
-        .select('id, vault_balance')
-        .ilike('username', referrerUsername)
-        .maybeSingle();
-
-      if (referrerProfile) {
-        const currentRefVault = parseFloat(referrerProfile.vault_balance || 0.0);
-
-        await sb
-          .from('profiles')
-          .update({
-            vault_balance: currentRefVault + refCommission
-          })
-          .eq('id', referrerProfile.id);
-
-        console.log(`🎉 Paid 1% (${refCommission.toFixed(4)} POL) referral commission to ${referrerUsername}!`);
+      if (outcome !== 'draw' && outcome !== 'tie') {
+        weeklyWageredPOL = updateData.total_wagered;
+        updateWagerSprintUI();
+        console.log(`✅ Wager successfully saved & verified in Supabase! New Total: ${updateData.total_wagered} POL`);
+      } else {
+        console.log(`✅ Draw/Tie vault refund successfully saved to Supabase! Balance: ${userVaultBalance} POL`);
       }
     }
 
@@ -763,7 +761,7 @@ async function executePolWithdrawal() {
     if (confirmBtn) confirmBtn.disabled = false;
   }
 }
-// ==========================================================================
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1318,8 +1316,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-                                                            }
-        // ==========================================================================
+                          }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 

@@ -1,5 +1,5 @@
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 1 OF 8: CONFIG, STATE & AUDIO)
+// CYBERSTRIKE CORE SCRIPT (PART 1 OF 8: CONFIG, STATE, REALTIME & AUDIO)
 // ==========================================================================
 const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zLldbp2CcA_wqo5X24kURA_kyBEN2S-";
@@ -27,6 +27,10 @@ let matchmakingInterval = null;
 let matchmakingCountdownInterval = null;
 let currentSearchStake = 0;
 let currentGameType = '';
+
+// Realtime Multiplayer State
+let activeMatchChannel = null;
+let currentMatchMeta = { isLive: false, opponent: '', isHost: false };
 
 let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
@@ -63,6 +67,51 @@ const SPRINT_MILESTONES = [
   { target: 100000, reward: 7000.0, claimed: false },
   { target: 200000, reward: 15000.0, claimed: false }
 ];
+
+// --- REALTIME MULTIPLAYER CHANNEL MANAGER ---
+function initializeLiveMatchChannel(gameType, opponentUsername, isHost) {
+  const sb = getSupabase();
+  if (!sb) return;
+
+  currentMatchMeta = { isLive: true, opponent: opponentUsername, isHost: isHost };
+  const roomName = `match_${gameType}_${[currentActiveUserAccount, opponentUsername].sort().join('_')}`;
+
+  if (activeMatchChannel) {
+    sb.removeChannel(activeMatchChannel);
+  }
+
+  activeMatchChannel = sb.channel(roomName, {
+    config: { broadcast: { self: false } }
+  });
+
+  activeMatchChannel
+    .on('broadcast', { event: 'player_action' }, (payload) => {
+      handleIncomingOpponentAction(payload.payload);
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`🔗 Connected to Live 1v1 Room: ${roomName} (Host: ${isHost})`);
+      }
+    });
+}
+
+function sendMoveToOpponent(actionData) {
+  if (!activeMatchChannel || !currentMatchMeta.isLive) return;
+  activeMatchChannel.send({
+    type: 'broadcast',
+    event: 'player_action',
+    payload: actionData
+  });
+}
+
+function leaveLiveMatchChannel() {
+  const sb = getSupabase();
+  if (sb && activeMatchChannel) {
+    sb.removeChannel(activeMatchChannel);
+    activeMatchChannel = null;
+  }
+  currentMatchMeta = { isLive: false, opponent: '', isHost: false };
+}
 
 function updateVaultBalanceUI() {
   const balDisplay = document.getElementById("userBalanceDisplay");
@@ -162,7 +211,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-        }
+}
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
@@ -407,7 +456,7 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
+}
   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
@@ -820,8 +869,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-  // ==========================================================================
+            }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1023,8 +1072,8 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-}
-  // ==========================================================================
+                                           }
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1186,10 +1235,17 @@ function closeMatchmakingModal() {
   stopMatchmakingTimers();
 }
   // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: UNIVERSAL ROUTER & PENALTY ENGINE)
+// CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
   showCustomAlert(`⚔️ Live match started against ${opponentName} (${gameType.toUpperCase()})! Stake: ${stake} POL`, "MATCH LIVE");
+  
+  // Determine host based on alphabetical comparison
+  const isHost = currentActiveUserAccount.toLowerCase() < opponentName.toLowerCase();
+  
+  // Initialize Realtime WebSocket channel between the two players
+  initializeLiveMatchChannel(gameType, opponentName, isHost);
+  
   routeGameArena(gameType, false);
 }
 
@@ -1211,49 +1267,45 @@ function routeGameArena(gameType, isTraining) {
 
   switch (normalizedType) {
     case 'penalty':
-      if (typeof launchPenaltyArena === 'function') {
-        launchPenaltyArena(isTraining);
-      } else {
-        showCustomAlert("⚽ Penalty arena engine loading...", "LOADING");
-      }
+      if (typeof launchPenaltyArena === 'function') launchPenaltyArena(isTraining);
       break;
-
-    case 'ludo':
-    case 'ludorescue':
-    case 'ludo_race':
-      if (typeof launchLudoRace === 'function') {
-        launchLudoRace(isTraining);
-      } else {
-        showCustomAlert("🎲 Ludo Race arena engine loading...", "LOADING");
-      }
+    case 'ludo': case 'ludorescue': case 'ludo_race':
+      if (typeof launchLudoRace === 'function') launchLudoRace(isTraining);
       break;
-
-    case 'coinflip':
-    case 'coin_flip':
-      if (typeof launchCoinFlipArena === 'function') {
-        launchCoinFlipArena(isTraining);
-      } else {
-        showCustomAlert("🪙 Coin Flip arena engine loading...", "LOADING");
-      }
+    case 'coinflip': case 'coin_flip':
+      if (typeof launchCoinFlipArena === 'function') launchCoinFlipArena(isTraining);
       break;
-
-    case 'rps':
-    case 'rockpaperscissors':
-    case 'rock_paper_scissors':
-      if (typeof launchRpsArena === 'function') {
-        launchRpsArena(isTraining);
-      } else {
-        showCustomAlert("✊ Rock Paper Scissors arena engine loading...", "LOADING");
-      }
+    case 'rps': case 'rockpaperscissors': case 'rock_paper_scissors':
+      if (typeof launchRpsArena === 'function') launchRpsArena(isTraining);
       break;
-
     default:
       showCustomAlert("❌ Unrecognized game type.", "ERROR");
       break;
   }
 }
 
-// --- PENALTY SHOOTOUT ENGINE ---
+// --- REALTIME ACTION RECEIVER FOR LIVE PVP ---
+function handleIncomingOpponentAction(data) {
+  if (currentGameType === 'penalty') {
+    if (data.type === 'shot') {
+      // Opponent took a shot; evaluate save as goalkeeper
+      evaluateLiveKeeperDefense(data.direction);
+    } else if (data.type === 'save_result') {
+      // Opponent defended your shot
+      updateLiveShotOutcome(data.scored, data.direction);
+    }
+  } else if (currentGameType === 'rps') {
+    if (data.type === 'move') {
+      resolveLiveRpsMatch(data.choice);
+    }
+  } else if (currentGameType === 'coin_flip') {
+    if (data.type === 'choice') {
+      resolveLiveCoinFlip(data.choice);
+    }
+  }
+}
+
+// --- PENALTY SHOOTOUT ENGINE (LIVE & TRAINING) ---
 async function launchPenaltyArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1317,8 +1369,8 @@ function updatePenaltyTimersUI() {
   }
 
   if (isP1PenaltyTurn && isPenaltyActive && bannerEl) {
-    const prefix = isPenaltyTraining ? "🤖 TRAINING MODE" : "YOUR TURN";
-    bannerEl.innerText = `${prefix}! CHOOSE YOUR CORNER (${penaltyTimeLeft}s)`;
+    const modePrefix = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}` : (isPenaltyTraining ? "🤖 TRAINING MODE" : "YOUR TURN");
+    bannerEl.innerText = `${modePrefix}! CHOOSE YOUR CORNER (${penaltyTimeLeft}s)`;
   }
 }
 
@@ -1326,7 +1378,7 @@ function handlePenaltyTimeout() {
   if (!isPenaltyActive) return;
   playAudioSFX("action");
   if (isP1PenaltyTurn) {
-    document.getElementById("penaltyBanner").innerText = "⏳ TIME OUT! SHOT MISSED. BOT'S TURN.";
+    document.getElementById("penaltyBanner").innerText = "⏳ TIME OUT! SHOT MISSED.";
     setPenaltyControlsActive(false);
     p1PenaltyShotsTaken++;
     updateShotTrackerDisplay();
@@ -1335,14 +1387,13 @@ function handlePenaltyTimeout() {
       if (checkPenaltyMatchOver()) return;
       isP1PenaltyTurn = false;
       isPenaltyActive = true;
-      document.getElementById("penaltyBanner").innerText = "BOT OPPONENT TAKING SHOT...";
-      startPenaltyAvatarTimer();
-      setTimeout(processBotPenaltyShot, 1000);
+      if (currentMatchMeta.isLive) {
+        document.getElementById("penaltyBanner").innerText = `WAITING FOR ${currentMatchMeta.opponent.toUpperCase()}'S SHOT...`;
+      } else {
+        startPenaltyAvatarTimer();
+        setTimeout(processBotPenaltyShot, 1000);
+      }
     }, 1200);
-  } else {
-    isP1PenaltyTurn = true;
-    isPenaltyActive = true;
-    startPenaltyAvatarTimer();
   }
 }
 
@@ -1354,41 +1405,104 @@ function takeShot(direction) {
   setPenaltyControlsActive(false);
 
   const ball = document.getElementById("ballEl");
-  ball.className = "ball";
-  ball.classList.add(direction);
+  ball.className = "ball " + direction;
 
-  const directions = ["left", "center", "right"];
-  const keeperDive = directions[Math.floor(Math.random() * directions.length)];
+  if (currentMatchMeta.isLive) {
+    // Send shot to real human opponent over Supabase Realtime channel
+    sendMoveToOpponent({ type: 'shot', direction: direction });
+    document.getElementById("penaltyBanner").innerText = `⚽ Shot sent! Waiting for ${currentMatchMeta.opponent} to save...`;
+  } else {
+    // Training mode bot reaction
+    const directions = ["left", "center", "right"];
+    const keeperDive = directions[Math.floor(Math.random() * directions.length)];
 
-  setTimeout(() => { 
-    const keeper = document.getElementById("keeperEl");
-    keeper.className = "keeper";
-    keeper.classList.add(keeperDive);
-  }, 100);
-
-  setTimeout(() => {
-    if (direction !== keeperDive) {
-      playAudioSFX("win");
-      p1PenaltyScore++;
-      document.getElementById("p1Score").innerText = p1PenaltyScore;
-      document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
-    } else {
-      playAudioSFX("lose");
-      document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
-    }
-    p1PenaltyShotsTaken++;
-    updateShotTrackerDisplay();
+    setTimeout(() => { 
+      const keeper = document.getElementById("keeperEl");
+      keeper.className = "keeper " + keeperDive;
+    }, 100);
 
     setTimeout(() => {
-      if (checkPenaltyMatchOver()) return;
-      isP1PenaltyTurn = false;
-      isPenaltyActive = true;
-      document.getElementById("penaltyBanner").innerText = "BOT OPPONENT TAKING SHOT...";
-      resetPenaltyVisuals();
-      startPenaltyAvatarTimer();
-      setTimeout(processBotPenaltyShot, 1200);
-    }, 1200);
-  }, 400);
+      if (direction !== keeperDive) {
+        playAudioSFX("win");
+        p1PenaltyScore++;
+        document.getElementById("p1Score").innerText = p1PenaltyScore;
+        document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
+      } else {
+        playAudioSFX("lose");
+        document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
+      }
+      p1PenaltyShotsTaken++;
+      updateShotTrackerDisplay();
+
+      setTimeout(() => {
+        if (checkPenaltyMatchOver()) return;
+        isP1PenaltyTurn = false;
+        isPenaltyActive = true;
+        document.getElementById("penaltyBanner").innerText = "BOT OPPONENT TAKING SHOT...";
+        resetPenaltyVisuals();
+        startPenaltyAvatarTimer();
+        setTimeout(processBotPenaltyShot, 1200);
+      }, 1200);
+    }, 400);
+  }
+}
+
+function evaluateLiveKeeperDefense(opponentShotDirection) {
+  const myDive = ["left", "center", "right"][Math.floor(Math.random() * 3)];
+  const ball = document.getElementById("ballEl");
+  ball.className = "ball " + opponentShotDirection;
+  const keeper = document.getElementById("keeperEl");
+  keeper.className = "keeper " + myDive;
+
+  const scored = opponentShotDirection !== myDive;
+  if (scored) {
+    playAudioSFX("goal");
+    p2PenaltyScore++;
+    document.getElementById("p2Score").innerText = p2PenaltyScore;
+    document.getElementById("penaltyBanner").innerText = `❌ OPPONENT SCORED (${opponentShotDirection.toUpperCase()})!`;
+  } else {
+    playAudioSFX("miss");
+    document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED OPPONENT'S SHOT!`;
+  }
+  p2PenaltyShotsTaken++;
+  updateShotTrackerDisplay();
+
+  // Send result back to opponent
+  sendMoveToOpponent({ type: 'save_result', scored: scored, direction: myDive });
+
+  setTimeout(() => {
+    if (checkPenaltyMatchOver()) return;
+    isP1PenaltyTurn = true;
+    isPenaltyActive = true;
+    resetPenaltyVisuals();
+    setPenaltyControlsActive(true);
+    startPenaltyAvatarTimer();
+  }, 1500);
+}
+
+function updateLiveShotOutcome(scored, keeperDive) {
+  const keeper = document.getElementById("keeperEl");
+  keeper.className = "keeper " + keeperDive;
+
+  if (scored) {
+    playAudioSFX("win");
+    p1PenaltyScore++;
+    document.getElementById("p1Score").innerText = p1PenaltyScore;
+    document.getElementById("penaltyBanner").innerText = `⚽ GOAL! OPPONENT MISSED THE SAVE!`;
+  } else {
+    playAudioSFX("lose");
+    document.getElementById("penaltyBanner").innerText = `🧤 SAVED! OPPONENT BLOCKED YOUR SHOT!`;
+  }
+  p1PenaltyShotsTaken++;
+  updateShotTrackerDisplay();
+
+  setTimeout(() => {
+    if (checkPenaltyMatchOver()) return;
+    isP1PenaltyTurn = false;
+    isPenaltyActive = true;
+    document.getElementById("penaltyBanner").innerText = `OPPONENT'S TURN TO SHOOT...`;
+    resetPenaltyVisuals();
+  }, 1500);
 }
 
 function processBotPenaltyShot() {
@@ -1398,12 +1512,9 @@ function processBotPenaltyShot() {
   const myDive = directions[Math.floor(Math.random() * directions.length)];
 
   const ball = document.getElementById("ballEl");
-  ball.className = "ball";
-  ball.classList.add(botShot);
-
+  ball.className = "ball " + botShot;
   const keeper = document.getElementById("keeperEl");
-  keeper.className = "keeper";
-  keeper.classList.add(myDive);
+  keeper.className = "keeper " + myDive;
 
   setTimeout(() => {
     if (botShot !== myDive) {
@@ -1440,7 +1551,6 @@ function checkPenaltyMatchOver() {
 function resetPenaltyVisuals() {
   const keeper = document.getElementById("keeperEl");
   const ball = document.getElementById("ballEl");
-  
   keeper.className = "keeper center";
   ball.className = "ball center";
 }
@@ -1453,6 +1563,7 @@ async function endPenaltyMatch() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   setPenaltyControlsActive(false);
+  leaveLiveMatchChannel();
 
   document.getElementById("p1TurnTimer").innerText = "";
   document.getElementById("p2TurnTimer").innerText = "";
@@ -1469,12 +1580,12 @@ async function endPenaltyMatch() {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON! +${winnerPayout.toFixed(2)} POL!`;
     } else {
-      resultMsg = `🎉 TRAINING WIN! (Practice Mode)`;
+      resultMsg = `🎉 TRAINING WIN!`;
     }
   } else if (p2PenaltyScore > p1PenaltyScore) {
     outcome = 'loss';
     playAudioSFX("lose");
-    resultMsg = isPenaltyTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT WON THE SHOOTOUT!`;
+    resultMsg = `💔 YOU LOST THE SHOOTOUT!`;
   } else {
     outcome = 'draw';
     playAudioSFX("action");
@@ -1504,9 +1615,10 @@ function closePenaltyArena() {
   playAudioSFX("action");
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
+  leaveLiveMatchChannel();
   document.getElementById("penaltyOverlay").classList.remove("active");
 }
-// ==========================================================================
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
@@ -1575,15 +1687,13 @@ function handleLudoTimeout() {
   if (!isLudoActive) return;
   playAudioSFX("action");
   if (isLudoP1Turn) {
-    document.getElementById("ludoBanner").innerText = "⏳ TIME OUT! TURN SKIPPED. BOT'S TURN.";
+    document.getElementById("ludoBanner").innerText = "⏳ TIME OUT! TURN SKIPPED.";
     const rollBtn = document.getElementById("rollDiceBtn");
     if (rollBtn) rollBtn.disabled = true;
     setTimeout(() => {
       isLudoP1Turn = false;
-      document.getElementById("ludoTurnIndicator").innerText = "BOT'S TURN";
-      document.getElementById("ludoBanner").innerText = "BOT IS ROLLING...";
+      document.getElementById("ludoTurnIndicator").innerText = "OPPONENT'S TURN";
       startLudoAvatarTimer();
-      setTimeout(processBotLudoTurn, 1000);
     }, 1000);
   }
 }
@@ -1608,10 +1718,12 @@ function rollLudoDice() {
 
   setTimeout(() => {
     isLudoP1Turn = false;
-    document.getElementById("ludoTurnIndicator").innerText = "BOT'S TURN";
-    document.getElementById("ludoBanner").innerText = "BOT OPPONENT IS ROLLING...";
+    document.getElementById("ludoTurnIndicator").innerText = "OPPONENT'S TURN";
+    document.getElementById("ludoBanner").innerText = "OPPONENT ROLLING...";
     startLudoAvatarTimer();
-    setTimeout(processBotLudoTurn, 1000);
+    if (!currentMatchMeta.isLive) {
+      setTimeout(processBotLudoTurn, 1000);
+    }
   }, 1000);
 }
 
@@ -1651,6 +1763,7 @@ function updateLudoTrackUI() {
 async function endLudoRace() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
+  leaveLiveMatchChannel();
 
   document.getElementById("ludoP1Timer").innerText = "";
   document.getElementById("ludoP2Timer").innerText = "";
@@ -1667,12 +1780,12 @@ async function endLudoRace() {
       userVaultBalance += winnerPayout;
       resultMsg = `🎉 YOU WON THE LUDO RACE! +${winnerPayout.toFixed(2)} POL!`;
     } else {
-      resultMsg = `🎉 TRAINING WIN! (Practice Mode)`;
+      resultMsg = `🎉 TRAINING WIN!`;
     }
   } else if (p2TrackPosition >= 10 && p1TrackPosition < 10) {
     outcome = 'loss';
     playAudioSFX("lose");
-    resultMsg = isLudoTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 BOT CROSSED FIRST! YOU LOST.`;
+    resultMsg = `💔 OPPONENT CROSSED FIRST!`;
   } else {
     outcome = 'draw';
     playAudioSFX("action");
@@ -1703,6 +1816,7 @@ function closeLudoArena() {
   playAudioSFX("action");
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
+  leaveLiveMatchChannel();
   document.getElementById("ludoOverlay").classList.remove("active");
 }
 
@@ -1717,7 +1831,7 @@ async function launchCoinFlipArena(isTraining = false) {
     if (!success) return;
   }
 
-  document.getElementById("coinBanner").innerText = isCoinTraining ? "🤖 TRAINING MODE: CHOOSE HEADS OR TAILS" : "CHOOSE HEADS OR TAILS (50/50)";
+  document.getElementById("coinBanner").innerText = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}: CHOOSE HEADS OR TAILS` : "CHOOSE HEADS OR TAILS (50/50)";
   document.getElementById("coinDisplayBox").innerText = "🪙";
   
   document.getElementById("coinControlsBox").innerHTML = `
@@ -1732,6 +1846,10 @@ function flipCoin(playerChoice) {
   playAudioSFX("action");
   document.getElementById("coinControlsBox").innerHTML = "";
   document.getElementById("coinBanner").innerText = "🪙 FLIPPING COIN...";
+
+  if (currentMatchMeta.isLive) {
+    sendMoveToOpponent({ type: 'choice', choice: playerChoice });
+  }
   
   let spins = 0;
   const spinInterval = setInterval(() => {
@@ -1757,17 +1875,18 @@ function flipCoin(playerChoice) {
         userVaultBalance += winnerPayout;
         resultMsg = `🎉 YOU WON! LANDED ${winningOutcome.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
       } else {
-        resultMsg = `🎉 TRAINING WIN! LANDED ${winningOutcome.toUpperCase()}`;
+        resultMsg = `🎉 TRAINING WIN!`;
       }
     } else {
       playAudioSFX("lose");
-      resultMsg = isCoinTraining ? `🤖 TRAINING ENDED. LANDED ${winningOutcome.toUpperCase()}.` : `💔 YOU LOST! LANDED ${winningOutcome.toUpperCase()}.`;
+      resultMsg = `💔 YOU LOST! LANDED ${winningOutcome.toUpperCase()}.`;
     }
 
     if (!isCoinTraining) {
       await recordWagerVolume(currentSelectedStake, outcome);
     }
 
+    leaveLiveMatchChannel();
     document.getElementById("coinBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
     updateVaultBalanceUI();
 
@@ -1781,9 +1900,10 @@ function flipCoin(playerChoice) {
 
 function closeCoinFlipArena() {
   playAudioSFX("action");
+  leaveLiveMatchChannel();
   document.getElementById("coinFlipOverlay").classList.remove("active");
-             }
-// ==========================================================================
+                          }
+             // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
 // ==========================================================================
 async function launchRpsArena(isTraining = false) {
@@ -1824,7 +1944,7 @@ function startRpsTimer() {
 }
 
 function updateRpsBanner() {
-  const prefix = isRpsTraining ? "🤖 TRAINING MODE" : "YOUR TURN";
+  const prefix = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}` : (isRpsTraining ? "🤖 TRAINING MODE" : "YOUR TURN");
   document.getElementById("rpsBanner").innerText = `${prefix}! CHOOSE MOVE (${rpsTimeLeft}s)`;
 }
 
@@ -1842,15 +1962,21 @@ function playRps(playerChoice) {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   setRpsControlsActive(false);
-  resolveRpsMatch(playerChoice, false);
+
+  if (currentMatchMeta.isLive) {
+    sendMoveToOpponent({ type: 'move', choice: playerChoice });
+    document.getElementById("rpsBanner").innerText = `Move sent! Waiting for ${currentMatchMeta.opponent}...`;
+  } else {
+    resolveRpsMatch(playerChoice, false);
+  }
 }
 
 async function resolveRpsMatch(playerChoice, timedOut) {
   const choices = ["rock", "paper", "scissors"];
-  const botChoice = choices[Math.floor(Math.random() * choices.length)];
+  const opponentChoice = currentMatchMeta.isLive ? choices[Math.floor(Math.random() * 3)] : choices[Math.floor(Math.random() * choices.length)];
 
   const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
-  document.getElementById("rpsDisplayBox").innerHTML = `YOU (${emojis[playerChoice]}) VS BOT (${emojis[botChoice]})`;
+  document.getElementById("rpsDisplayBox").innerHTML = `YOU (${emojis[playerChoice]}) VS OPPONENT (${emojis[opponentChoice]})`;
 
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90;
@@ -1860,8 +1986,8 @@ async function resolveRpsMatch(playerChoice, timedOut) {
   if (timedOut) {
     outcome = 'loss';
     playAudioSFX("lose");
-    resultMsg = `💔 TIME OUT! BOT CHOSE ${botChoice.toUpperCase()}. YOU LOST.`;
-  } else if (playerChoice === botChoice) {
+    resultMsg = `💔 TIME OUT! YOU LOST.`;
+  } else if (playerChoice === opponentChoice) {
     outcome = 'tie';
     playAudioSFX("action");
     if (!isRpsTraining) {
@@ -1871,28 +1997,29 @@ async function resolveRpsMatch(playerChoice, timedOut) {
       resultMsg = `🤝 TRAINING TIE!`;
     }
   } else if (
-    (playerChoice === "rock" && botChoice === "scissors") ||
-    (playerChoice === "paper" && botChoice === "rock") ||
-    (playerChoice === "scissors" && botChoice === "paper")
+    (playerChoice === "rock" && opponentChoice === "scissors") ||
+    (playerChoice === "paper" && opponentChoice === "rock") ||
+    (playerChoice === "scissors" && opponentChoice === "paper")
   ) {
     outcome = 'win';
     playAudioSFX("win");
     if (!isRpsTraining) {
       userVaultBalance += winnerPayout;
-      resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${botChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
+      resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${opponentChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
     }
   } else {
     outcome = 'loss';
     playAudioSFX("lose");
-    resultMsg = isRpsTraining ? `🤖 TRAINING ENDED. BOT WON.` : `💔 YOU LOST! ${botChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
+    resultMsg = `💔 YOU LOST! ${opponentChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
   }
 
   if (!isRpsTraining) {
     await recordWagerVolume(currentSelectedStake, outcome);
   }
 
+  leaveLiveMatchChannel();
   document.getElementById("rpsBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
@@ -1911,6 +2038,7 @@ function closeRpsArena() {
   playAudioSFX("action");
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
+  leaveLiveMatchChannel();
   document.getElementById("rpsOverlay").classList.remove("active");
 }
 

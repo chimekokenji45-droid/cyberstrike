@@ -136,7 +136,7 @@ function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
   }
-    // ==========================================================================
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -372,8 +372,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-  }
-    // ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -762,8 +762,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-  // ==========================================================================
+    }
+          // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -827,7 +827,6 @@ async function claimMilestone(targetTier) {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (session && session.user) {
-        // Compile all claimed milestone targets into a comma-separated string
         const claimedTargets = SPRINT_MILESTONES.filter(m => m.claimed).map(m => m.target).join(',');
 
         const { error: updateErr } = await sb
@@ -1165,11 +1164,19 @@ function takeShot(direction) {
   isPenaltyActive = false;
   setPenaltyControlsActive(false);
 
-  document.getElementById("ballEl").className = `ball top-${direction}`;
+  // FIXED: Clears old classes and applies target direction cleanly
+  const ball = document.getElementById("ballEl");
+  ball.className = "ball";
+  ball.classList.add(direction);
+
   const directions = ["left", "center", "right"];
   const keeperDive = directions[Math.floor(Math.random() * directions.length)];
 
-  setTimeout(() => { document.getElementById("keeperEl").className = `keeper jump-${keeperDive} top-${keeperDive}`; }, 100);
+  setTimeout(() => { 
+    const keeper = document.getElementById("keeperEl");
+    keeper.className = "keeper";
+    keeper.classList.add(keeperDive);
+  }, 100);
 
   setTimeout(() => {
     if (direction !== keeperDive) {
@@ -1202,8 +1209,14 @@ function processBotPenaltyShot() {
   const botShot = directions[Math.floor(Math.random() * directions.length)];
   const myDive = directions[Math.floor(Math.random() * directions.length)];
 
-  document.getElementById("ballEl").className = `ball top-${botShot}`;
-  document.getElementById("keeperEl").className = `keeper top-${myDive}`;
+  // FIXED: Clears old classes and applies target direction cleanly
+  const ball = document.getElementById("ballEl");
+  ball.className = "ball";
+  ball.classList.add(botShot);
+
+  const keeper = document.getElementById("keeperEl");
+  keeper.className = "keeper";
+  keeper.classList.add(myDive);
 
   setTimeout(() => {
     if (botShot !== myDive) {
@@ -1238,8 +1251,11 @@ function checkPenaltyMatchOver() {
 }
 
 function resetPenaltyVisuals() {
-  document.getElementById("keeperEl").className = "keeper center";
-  document.getElementById("ballEl").className = "ball center";
+  const keeper = document.getElementById("keeperEl");
+  const ball = document.getElementById("ballEl");
+  
+  keeper.className = "keeper center";
+  ball.className = "ball center";
 }
 
 function setPenaltyControlsActive(active) {
@@ -1302,8 +1318,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-          }
-            // ==========================================================================
+      }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1742,4 +1758,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-      
+    

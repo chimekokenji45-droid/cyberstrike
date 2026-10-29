@@ -135,8 +135,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-   }
-// ==========================================================================
+                                                    }
+   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 
@@ -286,19 +286,21 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    const { data: profile, error: fetchError } = await sb
-      .from('profiles')
-      .select('email, username, vault_balance, total_wagered, faucetpay_email')
-      .or(`username.eq.${identifier},email.eq.${identifier}`)
-      .maybeSingle();
+    // Securely fetch email using the Supabase RPC function (bypasses RLS safely)
+    let authEmail = identifier;
+    if (!identifier.includes("@")) {
+      const { data: foundEmail, error: rpcError } = await sb.rpc("get_email_by_identifier", {
+        identifier: identifier
+      });
 
-    if (fetchError) {
-      statusMsg.innerText = "❌ Database error checking credentials.";
-      return;
+      if (rpcError || !foundEmail) {
+        statusMsg.innerText = "❌ Username not found or database error.";
+        return;
+      }
+      authEmail = foundEmail;
     }
 
-    let authEmail = profile ? profile.email : identifier;
-
+    // Authenticate with Supabase Auth using the resolved email
     const { data: authData, error: loginError } = await sb.auth.signInWithPassword({
       email: authEmail,
       password: password
@@ -308,6 +310,13 @@ async function handleLoginSubmit(e) {
       statusMsg.innerText = "❌ Invalid email/username or password!";
       return;
     }
+
+    // Fetch user profile data once authenticated
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('username, vault_balance, total_wagered, faucetpay_email')
+      .eq('id', authData.user.id)
+      .maybeSingle();
 
     const loggedInUsername = profile?.username || authData.user.user_metadata?.username || identifier;
     currentActiveUserAccount = loggedInUsername;
@@ -390,8 +399,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}
-// ==========================================================================
+                                                }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3: WALLET, WAGERS & TRANSACTIONS)
 // ==========================================================================
 
@@ -786,8 +795,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-                                      }
-  // ==========================================================================
+          }
+                                  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4: MODALS & PENALTY GAME ENGINE)
 // ==========================================================================
 
@@ -1342,8 +1351,8 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   document.getElementById("penaltyOverlay").classList.remove("active");
-                        }
-// ==========================================================================
+    }
+          // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5: LUDO, COIN FLIP, RPS & INIT)
 // ==========================================================================
 
@@ -1782,4 +1791,3 @@ window.addEventListener("DOMContentLoaded", () => {
   startSprintCountdownTimer();
   startLiveBalancePolling();
 });
-        

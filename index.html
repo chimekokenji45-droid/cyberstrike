@@ -307,6 +307,24 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 .cell { flex: 1; height: 30px; background: #121c2b; border: 1px solid var(--border-color); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #5a6e85; transition: all 0.2s; }
 .cell.start { font-size: 8px; background: #1a283a; }
 .cell.finish { font-size: 8px; background: rgba(0, 255, 102, 0.1); color: var(--accent-green); border-color: var(--accent-green); }
+
+/* LUDO TRACK ACTIVE TOKEN HIGHLIGHTS */
+.has-p1 {
+  background-color: var(--accent-cyan, #00f3ff) !important;
+  color: #000 !important;
+  font-weight: 800;
+  border-color: #fff !important;
+  box-shadow: 0 0 12px var(--accent-cyan, #00f3ff);
+}
+
+.has-p2 {
+  background-color: var(--accent-magenta, #ff007f) !important;
+  color: #fff !important;
+  font-weight: 800;
+  border-color: #fff !important;
+  box-shadow: 0 0 12px var(--accent-magenta, #ff007f);
+}
+
 .ludo-controls { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .dice-box { font-size: 22px; font-weight: 900; background: #131f30; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); color: var(--accent-cyan); min-width: 70px; text-align: center; }
 
@@ -356,24 +374,17 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
 
   <!-- TRONLUX-STYLE TOP NAVIGATION BAR -->
   <header class="top-nav-bar">
-    <!-- Left: Hamburger Menu Button -->
     <button class="nav-hamburger-btn" id="hamburgerMenuBtn" onclick="toggleNavDrawer()" title="Menu">
       ☰
     </button>
-
-    <!-- Center: Balance Display Box -->
     <div class="nav-balance-box">
       <img src="https://cryptologos.cc/logos/polygon-matic-logo.png" alt="POL" class="token-logo" />
       <span class="balance-text" id="userBalanceDisplay">0.0000 POL</span>
     </div>
-
-    <!-- Right: Wallet Action Button -->
     <div class="wallet-dropdown-wrapper" id="walletDropdownWrapper">
       <button class="nav-wallet-btn" id="walletActionBtn" onclick="toggleWalletDropdown()" title="Wallet">
         💼
       </button>
-
-      <!-- Wallet Dropdown (Deposit & Withdraw) -->
       <div class="wallet-dropdown-menu" id="walletDropdownMenu">
         <button class="dropdown-item deposit-item" onclick="openDepositModal(); toggleWalletDropdown();">
           📥 Deposit
@@ -396,7 +407,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
 
     <div class="drawer-body">
-      <!-- AUTH / USER INFO -->
       <div id="drawerAuthBox" style="padding: 14px; background: #131e2c; border-radius: 8px; border: 1px solid var(--border-color);">
         <div id="drawerAuthNotLoggedIn">
           <p class="subtitle" style="margin-bottom: 8px;">Not logged in</p>
@@ -409,7 +419,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         </div>
       </div>
 
-      <!-- DRAWER OPTIONS -->
       <div class="drawer-item" onclick="openProfileModal(); toggleNavDrawer();">
         <span>👤 Profile Settings</span>
         <span style="color: var(--accent-cyan);">➔</span>
@@ -425,13 +434,11 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
         <span style="color: var(--accent-cyan);">➔</span>
       </div>
 
-      <!-- SOUND SETTING -->
       <div class="drawer-item" onclick="toggleSoundSFX()">
         <span>🔊 Sound Effects</span>
         <span id="drawerSoundStatus" style="color: var(--accent-cyan);">ON</span>
       </div>
 
-      <!-- PLATFORM INFO -->
       <div class="drawer-item" style="cursor: default;">
         <span>🛡️ Provably Fair</span>
         <span style="color: var(--accent-green); font-size: 11px;">ACTIVE</span>
@@ -439,7 +446,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     </div>
   </aside>
 
-  <!-- HIDDEN AUTH NAV BOXES FOR JS COMPATIBILITY -->
   <div id="authNavBox" style="display: none;">
     <button id="authBtn" onclick="openAuthModal('login')"></button>
   </div>
@@ -687,8 +693,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <div class="copyright-bar">
       <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
     </div>
-  </footer>
-    <!-- MANDATORY AUTH GATEWAY MODAL -->
+          </footer>
+      <!-- MANDATORY AUTH GATEWAY MODAL -->
   <div id="authModal" class="modal-overlay active">
     <div class="modal-card">
       <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="display:none;">✖</button>
@@ -870,13 +876,11 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">📜 TRANSACTION HISTORY</h3>
       <p class="subtitle">View your real-time deposit and withdrawal records</p>
 
-      <!-- SEPARATED TABS -->
       <div style="display: flex; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
         <button id="historyTabDeposits" class="btn btn-primary" style="flex: 1;" onclick="switchHistoryTab('deposits')">📥 DEPOSITS</button>
         <button id="historyTabWithdrawals" class="btn btn-secondary" style="flex: 1;" onclick="switchHistoryTab('withdrawals')">📤 WITHDRAWALS</button>
       </div>
 
-      <!-- HISTORY TABLE -->
       <div style="max-height: 280px; overflow-y: auto;">
         <table style="width: 100%; font-size: 11px; text-align: left; border-collapse: collapse;">
           <thead>
@@ -887,7 +891,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
             </tr>
           </thead>
           <tbody id="historyTableBody">
-            <!-- Rows rendered dynamically by JS -->
           </tbody>
         </table>
       </div>
@@ -911,7 +914,6 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
             </tr>
           </thead>
           <tbody id="leaderboardTableBody">
-            <!-- Leaderboard rows rendered dynamically by JS -->
           </tbody>
         </table>
       </div>
@@ -1098,5 +1100,5 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </script>
   <script src="script.js"></script>
 </body>
-  </html>
-  
+        </html>
+        

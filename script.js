@@ -31,6 +31,7 @@ let currentGameType = '';
 // Realtime Multiplayer State
 let activeMatchChannel = null;
 let currentMatchMeta = { isLive: false, opponent: '', isHost: false };
+let lastPlayerRpsChoice = null;
 
 let penaltyTurnTimer = null;
 let penaltyTimeLeft = 5;
@@ -211,7 +212,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-}// ==========================================================================
+   }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 function initUserSessionUI() {
@@ -455,7 +457,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -867,7 +870,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}// ==========================================================================
+  }
+                             // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1069,7 +1073,8 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-}// ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1229,7 +1234,8 @@ function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
   stopMatchmakingTimers();
-}// ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
@@ -1611,7 +1617,8 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   leaveLiveMatchChannel();
   document.getElementById("penaltyOverlay").classList.remove("active");
-    }// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
@@ -1893,7 +1900,8 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   leaveLiveMatchChannel();
   document.getElementById("coinFlipOverlay").classList.remove("active");
-}// ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
 // ==========================================================================
 async function launchRpsArena(isTraining = false) {
@@ -1952,12 +1960,69 @@ function playRps(playerChoice) {
   isRpsActive = false;
   setRpsControlsActive(false);
 
+  lastPlayerRpsChoice = playerChoice;
+
   if (currentMatchMeta.isLive) {
     sendMoveToOpponent({ type: 'move', choice: playerChoice });
     document.getElementById("rpsBanner").innerText = `Move sent! Waiting for ${currentMatchMeta.opponent}...`;
   } else {
     resolveRpsMatch(playerChoice, false);
   }
+}
+
+async function resolveLiveRpsMatch(opponentChoice) {
+  if (!lastPlayerRpsChoice) return;
+  const playerChoice = lastPlayerRpsChoice;
+
+  const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
+  document.getElementById("rpsDisplayBox").innerHTML = `YOU (${emojis[playerChoice]}) VS ${currentMatchMeta.opponent.toUpperCase()} (${emojis[opponentChoice]})`;
+
+  const totalPool = currentSelectedStake * 2;
+  const winnerPayout = totalPool * 0.90;
+  let resultMsg = "";
+  let outcome = 'win';
+
+  if (playerChoice === opponentChoice) {
+    outcome = 'tie';
+    playAudioSFX("action");
+    if (!isRpsTraining) {
+      userVaultBalance += currentSelectedStake;
+      resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
+    } else {
+      resultMsg = `🤝 TRAINING TIE!`;
+    }
+  } else if (
+    (playerChoice === "rock" && opponentChoice === "scissors") ||
+    (playerChoice === "paper" && opponentChoice === "rock") ||
+    (playerChoice === "scissors" && opponentChoice === "paper")
+  ) {
+    outcome = 'win';
+    playAudioSFX("win");
+    if (!isRpsTraining) {
+      userVaultBalance += winnerPayout;
+      resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${opponentChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
+    } else {
+      resultMsg = `🎉 TRAINING WIN!`;
+    }
+  } else {
+    outcome = 'loss';
+    playAudioSFX("lose");
+    resultMsg = `💔 YOU LOST! ${opponentChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
+  }
+
+  if (!isRpsTraining) {
+    await recordWagerVolume(currentSelectedStake, outcome);
+  }
+
+  leaveLiveMatchChannel();
+  document.getElementById("rpsBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
+  updateVaultBalanceUI();
+
+  document.getElementById("rpsControlsBox").innerHTML = `
+    <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closeRpsArena()">
+      🔄 GAME OVER - RETRY / CHOOSE GAME
+    </button>
+  `;
 }
 
 async function resolveRpsMatch(playerChoice, timedOut) {

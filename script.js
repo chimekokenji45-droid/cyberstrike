@@ -211,7 +211,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-  }
+    }
   // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
@@ -456,8 +456,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-                                            }
-  // ==========================================================================
+                          }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -869,7 +869,7 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-        }
+              }
         // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
@@ -1073,7 +1073,7 @@ async function fetchLeaderboardData() {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
 }
-// ==========================================================================
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1233,9 +1233,9 @@ function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
   stopMatchmakingTimers();
-}
-// ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
+                              }
+                                                     // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER & REALTIME HANDLERS)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
   showCustomAlert(`⚔️ Live match started against ${opponentName} (${gameType.toUpperCase()})! Stake: ${stake} POL`, "MATCH LIVE");
@@ -1280,24 +1280,30 @@ function routeGameArena(gameType, isTraining) {
   }
 }
 
+// --- REALTIME ACTION RECEIVER FOR LIVE PVP ---
 function handleIncomingOpponentAction(data) {
-  if (currentGameType === 'penalty') {
+  if (currentGameType === 'rps' || currentGameType === 'rockpaperscissors' || currentGameType === 'rock_paper_scissors') {
+    if (data.type === 'rps_move') {
+      opponentRpsChoice = data.choice;
+      if (myRpsChoice) {
+        isRpsActive = false;
+        if (rpsTimer) clearInterval(rpsTimer);
+        resolveLiveRpsOutcome(myRpsChoice, opponentRpsChoice, false);
+      } else {
+        const displayBox = document.getElementById("rpsDisplayBox");
+        if (displayBox) displayBox.innerText = `${currentMatchMeta.opponent.toUpperCase()} has chosen! Make your move!`;
+      }
+    }
+  } else if (currentGameType === 'penalty') {
     if (data.type === 'shot') {
       evaluateLiveKeeperDefense(data.direction);
     } else if (data.type === 'save_result') {
       updateLiveShotOutcome(data.scored, data.direction);
     }
-  } else if (currentGameType === 'rps') {
-    if (data.type === 'move') {
-      resolveLiveRpsMatch(data.choice);
-    }
-  } else if (currentGameType === 'coin_flip') {
-    if (data.type === 'choice') {
-      resolveLiveCoinFlip(data.choice);
-    }
   }
 }
 
+// --- PENALTY SHOOTOUT ENGINE (LIVE & TRAINING) ---
 async function launchPenaltyArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1627,7 +1633,7 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   leaveLiveMatchChannel();
   document.getElementById("penaltyOverlay")?.classList.remove("active");
-}
+                                                        }
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
@@ -1943,16 +1949,21 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   leaveLiveMatchChannel();
   document.getElementById("coinFlipOverlay")?.classList.remove("active");
-    }
+        }
+    // ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS LIVE ENGINE & DOM INITIALIZER)
 // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
-// ==========================================================================
+let myRpsChoice = null;
+let opponentRpsChoice = null;
+
 async function launchRpsArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isRpsTraining = isTraining;
+  myRpsChoice = null;
+  opponentRpsChoice = null;
 
-  if (!isTraining) {
+  if (!isTraining && !currentMatchMeta.isLive) {
     const success = await deductStakeForGame(currentSelectedStake);
     if (!success) return;
   }
@@ -2003,73 +2014,87 @@ function handleRpsTimeout() {
   const banner = document.getElementById("rpsBanner");
   if (banner) banner.innerText = "⏳ TIME OUT! MOVE MISSED.";
   setRpsControlsActive(false);
-  setTimeout(() => resolveRpsMatch('rock', true), 1000);
+  
+  // Default to rock on timeout
+  playRps('rock');
 }
 
 function playRps(playerChoice) {
   if (!isRpsActive) return;
   playAudioSFX("action");
   if (rpsTimer) clearInterval(rpsTimer);
-  isRpsActive = false;
+  
+  myRpsChoice = playerChoice;
   setRpsControlsActive(false);
 
+  const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
   const banner = document.getElementById("rpsBanner");
+  const displayBox = document.getElementById("rpsDisplayBox");
+
   if (currentMatchMeta.isLive) {
-    sendMoveToOpponent({ type: 'move', choice: playerChoice });
-    if (banner) banner.innerText = `Move sent! Waiting for ${currentMatchMeta.opponent}...`;
+    sendMoveToOpponent({ type: 'rps_move', choice: playerChoice });
+
+    if (opponentRpsChoice) {
+      // Opponent already made their move; resolve match right now!
+      isRpsActive = false;
+      resolveLiveRpsOutcome(myRpsChoice, opponentRpsChoice, false);
+    } else {
+      // Waiting for opponent's move broadcast
+      if (banner) banner.innerText = `You chose ${emojis[playerChoice]}. Waiting for ${currentMatchMeta.opponent}...`;
+      if (displayBox) displayBox.innerText = `YOU (${emojis[playerChoice]}) VS ${currentMatchMeta.opponent.toUpperCase()} (...)`;
+    }
   } else {
-    resolveRpsMatch(playerChoice, false);
+    // Training mode against bot
+    isRpsActive = false;
+    const choices = ["rock", "paper", "scissors"];
+    const botChoice = choices[Math.floor(Math.random() * choices.length)];
+    resolveLiveRpsOutcome(playerChoice, botChoice, true);
   }
 }
 
-async function resolveRpsMatch(playerChoice, timedOut) {
-  const choices = ["rock", "paper", "scissors"];
-  const opponentChoice = choices[Math.floor(Math.random() * choices.length)];
-
+async function resolveLiveRpsOutcome(p1Choice, p2Choice, isTraining) {
   const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
   const displayBox = document.getElementById("rpsDisplayBox");
+  const opponentName = currentMatchMeta.isLive ? currentMatchMeta.opponent.toUpperCase() : "BOT";
+
   if (displayBox) {
-    displayBox.innerHTML = `YOU (${emojis[playerChoice]}) VS OPPONENT (${emojis[opponentChoice]})`;
+    displayBox.innerHTML = `YOU (${emojis[p1Choice]}) VS ${opponentName} (${emojis[p2Choice]})`;
   }
 
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90;
   let resultMsg = "";
-  let outcome = 'win';
+  let outcome = 'tie';
 
-  if (timedOut) {
-    outcome = 'loss';
-    playAudioSFX("lose");
-    resultMsg = `💔 TIME OUT! YOU LOST.`;
-  } else if (playerChoice === opponentChoice) {
+  if (p1Choice === p2Choice) {
     outcome = 'tie';
     playAudioSFX("action");
-    if (!isRpsTraining) {
+    if (!isTraining && currentMatchMeta.isLive) {
       userVaultBalance += currentSelectedStake;
-      resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
+      resultMsg = `🤝 TIE! BOTH CHOSE ${p1Choice.toUpperCase()}. 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING TIE!`;
     }
   } else if (
-    (playerChoice === "rock" && opponentChoice === "scissors") ||
-    (playerChoice === "paper" && opponentChoice === "rock") ||
-    (playerChoice === "scissors" && opponentChoice === "paper")
+    (p1Choice === "rock" && p2Choice === "scissors") ||
+    (p1Choice === "paper" && p2Choice === "rock") ||
+    (p1Choice === "scissors" && p2Choice === "paper")
   ) {
     outcome = 'win';
     playAudioSFX("win");
-    if (!isRpsTraining) {
+    if (!isTraining && currentMatchMeta.isLive) {
       userVaultBalance += winnerPayout;
-      resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${opponentChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
+      resultMsg = `🎉 YOU WON! ${p1Choice.toUpperCase()} BEATS ${p2Choice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
     }
   } else {
     outcome = 'loss';
     playAudioSFX("lose");
-    resultMsg = `💔 YOU LOST! ${opponentChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
+    resultMsg = `💔 YOU LOST! ${p2Choice.toUpperCase()} BEATS ${p1Choice.toUpperCase()}.`;
   }
 
-  if (!isRpsTraining) {
+  if (!isTraining && currentMatchMeta.isLive) {
     await recordWagerVolume(currentSelectedStake, outcome);
   }
 
@@ -2116,4 +2141,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startLiveBalancePolling();
   initPasswordRecoveryListener();
 });
-      
+     

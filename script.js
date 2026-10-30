@@ -211,8 +211,7 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-                                  }
-                                  // ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 function initUserSessionUI() {
@@ -456,8 +455,7 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-    }
-  // ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -869,8 +867,7 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-  // ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1072,8 +1069,7 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-}
-// ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1233,8 +1229,7 @@ function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
   stopMatchmakingTimers();
-}
-// ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
@@ -1308,7 +1303,6 @@ function handleIncomingOpponentAction(data) {
 // --- PENALTY SHOOTOUT ENGINE (LIVE & TRAINING) ---
 async function launchPenaltyArena(isTraining = false) {
   playAudioSFX("action");
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   isPenaltyTraining = isTraining;
 
   if (!isTraining) {
@@ -1617,13 +1611,11 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   leaveLiveMatchChannel();
   document.getElementById("penaltyOverlay").classList.remove("active");
-      }
-               // ==========================================================================
+    }// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
   playAudioSFX("action");
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   isLudoTraining = isTraining;
 
   if (!isTraining) {
@@ -1823,7 +1815,6 @@ function closeLudoArena() {
 // --- COIN FLIP ENGINE ---
 async function launchCoinFlipArena(isTraining = false) {
   playAudioSFX("action");
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   isCoinTraining = isTraining;
 
   if (!isTraining) {
@@ -1902,13 +1893,11 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   leaveLiveMatchChannel();
   document.getElementById("coinFlipOverlay").classList.remove("active");
-}
-// ==========================================================================
+}// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
 // ==========================================================================
 async function launchRpsArena(isTraining = false) {
   playAudioSFX("action");
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   isRpsTraining = isTraining;
 
   if (!isTraining) {

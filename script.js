@@ -211,8 +211,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-    }
-  // ==========================================================================
+                                  }
+                                  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 function initUserSessionUI() {
@@ -456,8 +456,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-                          }
-      // ==========================================================================
+    }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -869,8 +869,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-              }
-        // ==========================================================================
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1073,7 +1073,7 @@ async function fetchLeaderboardData() {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
 }
-  // ==========================================================================
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1233,15 +1233,19 @@ function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
   stopMatchmakingTimers();
-                              }
-                                                     // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER & REALTIME HANDLERS)
+}
+// ==========================================================================
+// CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
   showCustomAlert(`⚔️ Live match started against ${opponentName} (${gameType.toUpperCase()})! Stake: ${stake} POL`, "MATCH LIVE");
   
+  // Determine host based on alphabetical comparison
   const isHost = currentActiveUserAccount.toLowerCase() < opponentName.toLowerCase();
+  
+  // Initialize Realtime WebSocket channel between the two players
   initializeLiveMatchChannel(gameType, opponentName, isHost);
+  
   routeGameArena(gameType, false);
 }
 
@@ -1282,23 +1286,21 @@ function routeGameArena(gameType, isTraining) {
 
 // --- REALTIME ACTION RECEIVER FOR LIVE PVP ---
 function handleIncomingOpponentAction(data) {
-  if (currentGameType === 'rps' || currentGameType === 'rockpaperscissors' || currentGameType === 'rock_paper_scissors') {
-    if (data.type === 'rps_move') {
-      opponentRpsChoice = data.choice;
-      if (myRpsChoice) {
-        isRpsActive = false;
-        if (rpsTimer) clearInterval(rpsTimer);
-        resolveLiveRpsOutcome(myRpsChoice, opponentRpsChoice, false);
-      } else {
-        const displayBox = document.getElementById("rpsDisplayBox");
-        if (displayBox) displayBox.innerText = `${currentMatchMeta.opponent.toUpperCase()} has chosen! Make your move!`;
-      }
-    }
-  } else if (currentGameType === 'penalty') {
+  if (currentGameType === 'penalty') {
     if (data.type === 'shot') {
+      // Opponent took a shot; evaluate save as goalkeeper
       evaluateLiveKeeperDefense(data.direction);
     } else if (data.type === 'save_result') {
+      // Opponent defended your shot
       updateLiveShotOutcome(data.scored, data.direction);
+    }
+  } else if (currentGameType === 'rps') {
+    if (data.type === 'move') {
+      resolveLiveRpsMatch(data.choice);
+    }
+  } else if (currentGameType === 'coin_flip') {
+    if (data.type === 'choice') {
+      resolveLiveCoinFlip(data.choice);
     }
   }
 }
@@ -1321,32 +1323,24 @@ async function launchPenaltyArena(isTraining = false) {
   isP1PenaltyTurn = true;
   isPenaltyActive = true;
 
-  const p1ScoreEl = document.getElementById("p1Score");
-  const p2ScoreEl = document.getElementById("p2Score");
-  if (p1ScoreEl) p1ScoreEl.innerText = "0";
-  if (p2ScoreEl) p2ScoreEl.innerText = "0";
+  document.getElementById("p1Score").innerText = "0";
+  document.getElementById("p2Score").innerText = "0";
   updateShotTrackerDisplay();
 
-  const controlsBox = document.getElementById("controlsBox");
-  if (controlsBox) {
-    controlsBox.innerHTML = `
-      <button class="btn btn-shoot" onclick="takeShot('left')">👈 LEFT</button>
-      <button class="btn btn-shoot" onclick="takeShot('center')">🎯 CENTER</button>
-      <button class="btn btn-shoot" onclick="takeShot('right')">👉 RIGHT</button>
-    `;
-  }
+  document.getElementById("controlsBox").innerHTML = `
+    <button class="btn btn-shoot" onclick="takeShot('left')">👈 LEFT</button>
+    <button class="btn btn-shoot" onclick="takeShot('center')">🎯 CENTER</button>
+    <button class="btn btn-shoot" onclick="takeShot('right')">👉 RIGHT</button>
+  `;
 
   resetPenaltyVisuals();
   setPenaltyControlsActive(true);
-  document.getElementById("penaltyOverlay")?.classList.add("active");
+  document.getElementById("penaltyOverlay").classList.add("active");
   startPenaltyAvatarTimer();
 }
 
 function updateShotTrackerDisplay() {
-  const roundDisplay = document.getElementById("penaltyRoundDisplay");
-  if (roundDisplay) {
-    roundDisplay.innerText = `SHOTS ${p1PenaltyShotsTaken}/5 - ${p2PenaltyShotsTaken}/5`;
-  }
+  document.getElementById("penaltyRoundDisplay").innerText = `SHOTS ${p1PenaltyShotsTaken}/5 - ${p2PenaltyShotsTaken}/5`;
 }
 
 function startPenaltyAvatarTimer() {
@@ -1369,8 +1363,10 @@ function updatePenaltyTimersUI() {
   const p2TimerEl = document.getElementById("p2TurnTimer");
   const bannerEl = document.getElementById("penaltyBanner");
 
-  if (p1TimerEl) p1TimerEl.innerText = isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
-  if (p2TimerEl) p2TimerEl.innerText = !isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
+  if (p1TimerEl && p2TimerEl) {
+    p1TimerEl.innerText = isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
+    p2TimerEl.innerText = !isP1PenaltyTurn && isPenaltyActive ? `(${penaltyTimeLeft}s)` : "";
+  }
 
   if (isP1PenaltyTurn && isPenaltyActive && bannerEl) {
     const modePrefix = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}` : (isPenaltyTraining ? "🤖 TRAINING MODE" : "YOUR TURN");
@@ -1382,8 +1378,7 @@ function handlePenaltyTimeout() {
   if (!isPenaltyActive) return;
   playAudioSFX("action");
   if (isP1PenaltyTurn) {
-    const banner = document.getElementById("penaltyBanner");
-    if (banner) banner.innerText = "⏳ TIME OUT! SHOT MISSED.";
+    document.getElementById("penaltyBanner").innerText = "⏳ TIME OUT! SHOT MISSED.";
     setPenaltyControlsActive(false);
     p1PenaltyShotsTaken++;
     updateShotTrackerDisplay();
@@ -1393,7 +1388,7 @@ function handlePenaltyTimeout() {
       isP1PenaltyTurn = false;
       isPenaltyActive = true;
       if (currentMatchMeta.isLive) {
-        if (banner) banner.innerText = `WAITING FOR ${currentMatchMeta.opponent.toUpperCase()}'S SHOT...`;
+        document.getElementById("penaltyBanner").innerText = `WAITING FOR ${currentMatchMeta.opponent.toUpperCase()}'S SHOT...`;
       } else {
         startPenaltyAvatarTimer();
         setTimeout(processBotPenaltyShot, 1000);
@@ -1410,31 +1405,31 @@ function takeShot(direction) {
   setPenaltyControlsActive(false);
 
   const ball = document.getElementById("ballEl");
-  if (ball) ball.className = "ball " + direction;
+  ball.className = "ball " + direction;
 
-  const banner = document.getElementById("penaltyBanner");
   if (currentMatchMeta.isLive) {
+    // Send shot to real human opponent over Supabase Realtime channel
     sendMoveToOpponent({ type: 'shot', direction: direction });
-    if (banner) banner.innerText = `⚽ Shot sent! Waiting for ${currentMatchMeta.opponent} to save...`;
+    document.getElementById("penaltyBanner").innerText = `⚽ Shot sent! Waiting for ${currentMatchMeta.opponent} to save...`;
   } else {
+    // Training mode bot reaction
     const directions = ["left", "center", "right"];
     const keeperDive = directions[Math.floor(Math.random() * directions.length)];
 
     setTimeout(() => { 
       const keeper = document.getElementById("keeperEl");
-      if (keeper) keeper.className = "keeper " + keeperDive;
+      keeper.className = "keeper " + keeperDive;
     }, 100);
 
     setTimeout(() => {
       if (direction !== keeperDive) {
         playAudioSFX("win");
         p1PenaltyScore++;
-        const p1ScoreEl = document.getElementById("p1Score");
-        if (p1ScoreEl) p1ScoreEl.innerText = p1PenaltyScore;
-        if (banner) banner.innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
+        document.getElementById("p1Score").innerText = p1PenaltyScore;
+        document.getElementById("penaltyBanner").innerText = `⚽ GOAL! SCORED ${direction.toUpperCase()}!`;
       } else {
         playAudioSFX("lose");
-        if (banner) banner.innerText = `🧤 SAVED! KEEPER BLOCKED!`;
+        document.getElementById("penaltyBanner").innerText = `🧤 SAVED! KEEPER BLOCKED!`;
       }
       p1PenaltyShotsTaken++;
       updateShotTrackerDisplay();
@@ -1443,7 +1438,7 @@ function takeShot(direction) {
         if (checkPenaltyMatchOver()) return;
         isP1PenaltyTurn = false;
         isPenaltyActive = true;
-        if (banner) banner.innerText = "BOT OPPONENT TAKING SHOT...";
+        document.getElementById("penaltyBanner").innerText = "BOT OPPONENT TAKING SHOT...";
         resetPenaltyVisuals();
         startPenaltyAvatarTimer();
         setTimeout(processBotPenaltyShot, 1200);
@@ -1455,25 +1450,24 @@ function takeShot(direction) {
 function evaluateLiveKeeperDefense(opponentShotDirection) {
   const myDive = ["left", "center", "right"][Math.floor(Math.random() * 3)];
   const ball = document.getElementById("ballEl");
-  if (ball) ball.className = "ball " + opponentShotDirection;
+  ball.className = "ball " + opponentShotDirection;
   const keeper = document.getElementById("keeperEl");
-  if (keeper) keeper.className = "keeper " + myDive;
+  keeper.className = "keeper " + myDive;
 
   const scored = opponentShotDirection !== myDive;
-  const banner = document.getElementById("penaltyBanner");
   if (scored) {
     playAudioSFX("goal");
     p2PenaltyScore++;
-    const p2ScoreEl = document.getElementById("p2Score");
-    if (p2ScoreEl) p2ScoreEl.innerText = p2PenaltyScore;
-    if (banner) banner.innerText = `❌ OPPONENT SCORED (${opponentShotDirection.toUpperCase()})!`;
+    document.getElementById("p2Score").innerText = p2PenaltyScore;
+    document.getElementById("penaltyBanner").innerText = `❌ OPPONENT SCORED (${opponentShotDirection.toUpperCase()})!`;
   } else {
     playAudioSFX("miss");
-    if (banner) banner.innerText = `🛡️ YOU SAVED OPPONENT'S SHOT!`;
+    document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED OPPONENT'S SHOT!`;
   }
   p2PenaltyShotsTaken++;
   updateShotTrackerDisplay();
 
+  // Send result back to opponent
   sendMoveToOpponent({ type: 'save_result', scored: scored, direction: myDive });
 
   setTimeout(() => {
@@ -1488,18 +1482,16 @@ function evaluateLiveKeeperDefense(opponentShotDirection) {
 
 function updateLiveShotOutcome(scored, keeperDive) {
   const keeper = document.getElementById("keeperEl");
-  if (keeper) keeper.className = "keeper " + keeperDive;
+  keeper.className = "keeper " + keeperDive;
 
-  const banner = document.getElementById("penaltyBanner");
   if (scored) {
     playAudioSFX("win");
     p1PenaltyScore++;
-    const p1ScoreEl = document.getElementById("p1Score");
-    if (p1ScoreEl) p1ScoreEl.innerText = p1PenaltyScore;
-    if (banner) banner.innerText = `⚽ GOAL! OPPONENT MISSED THE SAVE!`;
+    document.getElementById("p1Score").innerText = p1PenaltyScore;
+    document.getElementById("penaltyBanner").innerText = `⚽ GOAL! OPPONENT MISSED THE SAVE!`;
   } else {
     playAudioSFX("lose");
-    if (banner) banner.innerText = `🧤 SAVED! OPPONENT BLOCKED YOUR SHOT!`;
+    document.getElementById("penaltyBanner").innerText = `🧤 SAVED! OPPONENT BLOCKED YOUR SHOT!`;
   }
   p1PenaltyShotsTaken++;
   updateShotTrackerDisplay();
@@ -1508,7 +1500,7 @@ function updateLiveShotOutcome(scored, keeperDive) {
     if (checkPenaltyMatchOver()) return;
     isP1PenaltyTurn = false;
     isPenaltyActive = true;
-    if (banner) banner.innerText = `OPPONENT'S TURN TO SHOOT...`;
+    document.getElementById("penaltyBanner").innerText = `OPPONENT'S TURN TO SHOOT...`;
     resetPenaltyVisuals();
   }, 1500);
 }
@@ -1520,21 +1512,19 @@ function processBotPenaltyShot() {
   const myDive = directions[Math.floor(Math.random() * directions.length)];
 
   const ball = document.getElementById("ballEl");
-  if (ball) ball.className = "ball " + botShot;
+  ball.className = "ball " + botShot;
   const keeper = document.getElementById("keeperEl");
-  if (keeper) keeper.className = "keeper " + myDive;
+  keeper.className = "keeper " + myDive;
 
   setTimeout(() => {
-    const banner = document.getElementById("penaltyBanner");
     if (botShot !== myDive) {
       playAudioSFX("goal");
       p2PenaltyScore++;
-      const p2ScoreEl = document.getElementById("p2Score");
-      if (p2ScoreEl) p2ScoreEl.innerText = p2PenaltyScore;
-      if (banner) banner.innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
+      document.getElementById("p2Score").innerText = p2PenaltyScore;
+      document.getElementById("penaltyBanner").innerText = `❌ BOT SCORED (${botShot.toUpperCase()})!`;
     } else {
       playAudioSFX("miss");
-      if (banner) banner.innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
+      document.getElementById("penaltyBanner").innerText = `🛡️ YOU SAVED BOT'S SHOT!`;
     }
     p2PenaltyShotsTaken++;
     updateShotTrackerDisplay();
@@ -1561,8 +1551,8 @@ function checkPenaltyMatchOver() {
 function resetPenaltyVisuals() {
   const keeper = document.getElementById("keeperEl");
   const ball = document.getElementById("ballEl");
-  if (keeper) keeper.className = "keeper center";
-  if (ball) ball.className = "ball center";
+  keeper.className = "keeper center";
+  ball.className = "ball center";
 }
 
 function setPenaltyControlsActive(active) {
@@ -1575,10 +1565,8 @@ async function endPenaltyMatch() {
   setPenaltyControlsActive(false);
   leaveLiveMatchChannel();
 
-  const p1Timer = document.getElementById("p1TurnTimer");
-  const p2Timer = document.getElementById("p2TurnTimer");
-  if (p1Timer) p1Timer.innerText = "";
-  if (p2Timer) p2Timer.innerText = "";
+  document.getElementById("p1TurnTimer").innerText = "";
+  document.getElementById("p2TurnTimer").innerText = "";
 
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90;
@@ -1613,18 +1601,14 @@ async function endPenaltyMatch() {
     await recordWagerVolume(currentSelectedStake, outcome);
   }
 
-  const banner = document.getElementById("penaltyBanner");
-  if (banner) banner.innerText = `🎮 GAME OVER! ${resultMsg}`;
+  document.getElementById("penaltyBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
-  const controlsBox = document.getElementById("controlsBox");
-  if (controlsBox) {
-    controlsBox.innerHTML = `
-      <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closePenaltyArena()">
-        🔄 GAME OVER - RETRY / CHOOSE GAME
-      </button>
-    `;
-  }
+  document.getElementById("controlsBox").innerHTML = `
+    <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closePenaltyArena()">
+      🔄 GAME OVER - RETRY / CHOOSE GAME
+    </button>
+  `;
 }
 
 function closePenaltyArena() {
@@ -1632,9 +1616,9 @@ function closePenaltyArena() {
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   leaveLiveMatchChannel();
-  document.getElementById("penaltyOverlay")?.classList.remove("active");
-                                                        }
-// ==========================================================================
+  document.getElementById("penaltyOverlay").classList.remove("active");
+      }
+               // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
@@ -1653,22 +1637,17 @@ async function launchLudoRace(isTraining = false) {
   isLudoActive = true;
 
   updateLudoTrackUI();
-  const p1Pos = document.getElementById("p1TrackPos");
-  const p2Pos = document.getElementById("p2TrackPos");
-  const diceVal = document.getElementById("diceValueDisplay");
-  if (p1Pos) p1Pos.innerText = "0/10";
-  if (p2Pos) p2Pos.innerText = "0/10";
-  if (diceVal) diceVal.innerText = "🎲 -";
+  document.getElementById("p1TrackPos").innerText = "0/10";
+  document.getElementById("p2TrackPos").innerText = "0/10";
+  document.getElementById("diceValueDisplay").innerText = "🎲 -";
 
   const controlsEl = document.querySelector(".ludo-controls");
-  if (controlsEl) {
-    controlsEl.innerHTML = `
-      <div id="diceValueDisplay" class="dice-box">🎲 -</div>
-      <button id="rollDiceBtn" class="btn btn-launch" style="margin-top:0;" onclick="rollLudoDice()">ROLL DICE</button>
-    `;
-  }
+  controlsEl.innerHTML = `
+    <div id="diceValueDisplay" class="dice-box">🎲 -</div>
+    <button id="rollDiceBtn" class="btn btn-launch" style="margin-top:0;" onclick="rollLudoDice()">ROLL DICE</button>
+  `;
 
-  document.getElementById("ludoOverlay")?.classList.add("active");
+  document.getElementById("ludoOverlay").classList.add("active");
   startLudoAvatarTimer();
 }
 
@@ -1693,8 +1672,10 @@ function updateLudoTimersUI() {
   const turnIndEl = document.getElementById("ludoTurnIndicator");
   const bannerEl = document.getElementById("ludoBanner");
 
-  if (p1TimerEl) p1TimerEl.innerText = isLudoP1Turn && isLudoActive ? `(${ludoTimeLeft}s)` : "";
-  if (p2TimerEl) p2TimerEl.innerText = !isLudoP1Turn && isLudoActive ? `(${ludoTimeLeft}s)` : "";
+  if (p1TimerEl && p2TimerEl) {
+    p1TimerEl.innerText = isLudoP1Turn && isLudoActive ? `(${ludoTimeLeft}s)` : "";
+    p2TimerEl.innerText = !isLudoP1Turn && isLudoActive ? `(${ludoTimeLeft}s)` : "";
+  }
 
   if (isLudoP1Turn && isLudoActive) {
     if (turnIndEl) turnIndEl.innerText = `YOUR TURN (${ludoTimeLeft}s)`;
@@ -1706,14 +1687,12 @@ function handleLudoTimeout() {
   if (!isLudoActive) return;
   playAudioSFX("action");
   if (isLudoP1Turn) {
-    const banner = document.getElementById("ludoBanner");
-    if (banner) banner.innerText = "⏳ TIME OUT! TURN SKIPPED.";
+    document.getElementById("ludoBanner").innerText = "⏳ TIME OUT! TURN SKIPPED.";
     const rollBtn = document.getElementById("rollDiceBtn");
     if (rollBtn) rollBtn.disabled = true;
     setTimeout(() => {
       isLudoP1Turn = false;
-      const turnInd = document.getElementById("ludoTurnIndicator");
-      if (turnInd) turnInd.innerText = "OPPONENT'S TURN";
+      document.getElementById("ludoTurnIndicator").innerText = "OPPONENT'S TURN";
       startLudoAvatarTimer();
     }, 1000);
   }
@@ -1723,17 +1702,14 @@ function rollLudoDice() {
   if (!isLudoP1Turn || !isLudoActive) return;
   playAudioSFX("action");
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
-  const rollBtn = document.getElementById("rollDiceBtn");
-  if (rollBtn) rollBtn.disabled = true;
+  document.getElementById("rollDiceBtn").disabled = true;
 
   const p1Roll = Math.floor(Math.random() * 6) + 1;
-  const diceVal = document.getElementById("diceValueDisplay");
-  if (diceVal) diceVal.innerText = `🎲 ${p1Roll}`;
+  document.getElementById("diceValueDisplay").innerText = `🎲 ${p1Roll}`;
   p1TrackPosition = Math.min(10, p1TrackPosition + p1Roll);
   updateLudoTrackUI();
 
-  const banner = document.getElementById("ludoBanner");
-  if (banner) banner.innerText = `YOU ROLLED A ${p1Roll}! MOVED TO STEP ${p1TrackPosition}/10`;
+  document.getElementById("ludoBanner").innerText = `YOU ROLLED A ${p1Roll}! MOVED TO STEP ${p1TrackPosition}/10`;
 
   if (p1TrackPosition >= 10) {
     endLudoRace();
@@ -1742,9 +1718,8 @@ function rollLudoDice() {
 
   setTimeout(() => {
     isLudoP1Turn = false;
-    const turnInd = document.getElementById("ludoTurnIndicator");
-    if (turnInd) turnInd.innerText = "OPPONENT'S TURN";
-    if (banner) banner.innerText = "OPPONENT ROLLING...";
+    document.getElementById("ludoTurnIndicator").innerText = "OPPONENT'S TURN";
+    document.getElementById("ludoBanner").innerText = "OPPONENT ROLLING...";
     startLudoAvatarTimer();
     if (!currentMatchMeta.isLive) {
       setTimeout(processBotLudoTurn, 1000);
@@ -1758,8 +1733,7 @@ function processBotLudoTurn() {
   p2TrackPosition = Math.min(10, p2TrackPosition + p2Roll);
   updateLudoTrackUI();
 
-  const banner = document.getElementById("ludoBanner");
-  if (banner) banner.innerText = `BOT ROLLED A ${p2Roll}! MOVED TO STEP ${p2TrackPosition}/10`;
+  document.getElementById("ludoBanner").innerText = `BOT ROLLED A ${p2Roll}! MOVED TO STEP ${p2TrackPosition}/10`;
 
   if (p2TrackPosition >= 10) {
     endLudoRace();
@@ -1775,10 +1749,8 @@ function processBotLudoTurn() {
 }
 
 function updateLudoTrackUI() {
-  const p1PosEl = document.getElementById("p1TrackPos");
-  const p2PosEl = document.getElementById("p2TrackPos");
-  if (p1PosEl) p1PosEl.innerText = `${p1TrackPosition}/10`;
-  if (p2PosEl) p2PosEl.innerText = `${p2TrackPosition}/10`;
+  document.getElementById("p1TrackPos").innerText = `${p1TrackPosition}/10`;
+  document.getElementById("p2TrackPos").innerText = `${p2TrackPosition}/10`;
 
   for (let i = 1; i <= 10; i++) {
     document.getElementById(`p1-${i}`)?.classList.remove("has-p1");
@@ -1793,10 +1765,8 @@ async function endLudoRace() {
   isLudoActive = false;
   leaveLiveMatchChannel();
 
-  const p1Timer = document.getElementById("ludoP1Timer");
-  const p2Timer = document.getElementById("ludoP2Timer");
-  if (p1Timer) p1Timer.innerText = "";
-  if (p2Timer) p2Timer.innerText = "";
+  document.getElementById("ludoP1Timer").innerText = "";
+  document.getElementById("ludoP2Timer").innerText = "";
 
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90;
@@ -1831,18 +1801,15 @@ async function endLudoRace() {
     await recordWagerVolume(currentSelectedStake, outcome);
   }
 
-  const banner = document.getElementById("ludoBanner");
-  if (banner) banner.innerText = `🎮 GAME OVER! ${resultMsg}`;
+  document.getElementById("ludoBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
   const controlsEl = document.querySelector(".ludo-controls");
-  if (controlsEl) {
-    controlsEl.innerHTML = `
-      <button class="btn btn-launch" style="width: 100%; margin-top:0;" onclick="closeLudoArena()">
-        🔄 GAME OVER - RETRY / CHOOSE GAME
-      </button>
-    `;
-  }
+  controlsEl.innerHTML = `
+    <button class="btn btn-launch" style="width: 100%; margin-top:0;" onclick="closeLudoArena()">
+      🔄 GAME OVER - RETRY / CHOOSE GAME
+    </button>
+  `;
 }
 
 function closeLudoArena() {
@@ -1850,7 +1817,7 @@ function closeLudoArena() {
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
   leaveLiveMatchChannel();
-  document.getElementById("ludoOverlay")?.classList.remove("active");
+  document.getElementById("ludoOverlay").classList.remove("active");
 }
 
 // --- COIN FLIP ENGINE ---
@@ -1864,30 +1831,21 @@ async function launchCoinFlipArena(isTraining = false) {
     if (!success) return;
   }
 
-  const banner = document.getElementById("coinBanner");
-  if (banner) {
-    banner.innerText = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}: CHOOSE HEADS OR TAILS` : "CHOOSE HEADS OR TAILS (50/50)";
-  }
-  const coinDisplay = document.getElementById("coinDisplayBox");
-  if (coinDisplay) coinDisplay.innerText = "🪙";
+  document.getElementById("coinBanner").innerText = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}: CHOOSE HEADS OR TAILS` : "CHOOSE HEADS OR TAILS (50/50)";
+  document.getElementById("coinDisplayBox").innerText = "🪙";
   
-  const coinControls = document.getElementById("coinControlsBox");
-  if (coinControls) {
-    coinControls.innerHTML = `
-      <button class="btn btn-primary" style="padding: 14px; font-size:14px;" onclick="flipCoin('heads')">👑 HEADS</button>
-      <button class="btn btn-launch" style="padding: 14px; font-size:14px; margin-top:0;" onclick="flipCoin('tails')">🦅 TAILS</button>
-    `;
-  }
+  document.getElementById("coinControlsBox").innerHTML = `
+    <button class="btn btn-primary" style="padding: 14px; font-size:14px;" onclick="flipCoin('heads')">👑 HEADS</button>
+    <button class="btn btn-launch" style="padding: 14px; font-size:14px; margin-top:0;" onclick="flipCoin('tails')">🦅 TAILS</button>
+  `;
 
-  document.getElementById("coinFlipOverlay")?.classList.add("active");
+  document.getElementById("coinFlipOverlay").classList.add("active");
 }
 
 function flipCoin(playerChoice) {
   playAudioSFX("action");
-  const coinControls = document.getElementById("coinControlsBox");
-  if (coinControls) coinControls.innerHTML = "";
-  const banner = document.getElementById("coinBanner");
-  if (banner) banner.innerText = "🪙 FLIPPING COIN...";
+  document.getElementById("coinControlsBox").innerHTML = "";
+  document.getElementById("coinBanner").innerText = "🪙 FLIPPING COIN...";
 
   if (currentMatchMeta.isLive) {
     sendMoveToOpponent({ type: 'choice', choice: playerChoice });
@@ -1896,8 +1854,7 @@ function flipCoin(playerChoice) {
   let spins = 0;
   const spinInterval = setInterval(() => {
     playAudioSFX("action");
-    const coinDisplay = document.getElementById("coinDisplayBox");
-    if (coinDisplay) coinDisplay.innerText = spins % 2 === 0 ? "👑" : "🦅";
+    document.getElementById("coinDisplayBox").innerText = spins % 2 === 0 ? "👑" : "🦅";
     spins++;
   }, 150);
 
@@ -1906,9 +1863,7 @@ function flipCoin(playerChoice) {
     const outcomes = ["heads", "tails"];
     const winningOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
 
-    const coinDisplay = document.getElementById("coinDisplayBox");
-    if (coinDisplay) coinDisplay.innerText = winningOutcome === "heads" ? "👑" : "🦅";
-    
+    document.getElementById("coinDisplayBox").innerText = winningOutcome === "heads" ? "👑" : "🦅";
     const totalPool = currentSelectedStake * 2;
     const winnerPayout = totalPool * 0.90;
     let resultMsg = "";
@@ -1932,56 +1887,44 @@ function flipCoin(playerChoice) {
     }
 
     leaveLiveMatchChannel();
-    if (banner) banner.innerText = `🎮 GAME OVER! ${resultMsg}`;
+    document.getElementById("coinBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
     updateVaultBalanceUI();
 
-    if (coinControls) {
-      coinControls.innerHTML = `
-        <button class="btn btn-launch" style="grid-column: span 2; margin-top:0;" onclick="closeCoinFlipArena()">
-          🔄 GAME OVER - RETRY / CHOOSE GAME
-        </button>
-      `;
-    }
+    document.getElementById("coinControlsBox").innerHTML = `
+      <button class="btn btn-launch" style="grid-column: span 2; margin-top:0;" onclick="closeCoinFlipArena()">
+        🔄 GAME OVER - RETRY / CHOOSE GAME
+      </button>
+    `;
   }, 1500);
 }
 
 function closeCoinFlipArena() {
   playAudioSFX("action");
   leaveLiveMatchChannel();
-  document.getElementById("coinFlipOverlay")?.classList.remove("active");
-        }
-    // ==========================================================================
-// CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS LIVE ENGINE & DOM INITIALIZER)
+  document.getElementById("coinFlipOverlay").classList.remove("active");
+}
 // ==========================================================================
-let myRpsChoice = null;
-let opponentRpsChoice = null;
-
+// CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
+// ==========================================================================
 async function launchRpsArena(isTraining = false) {
   playAudioSFX("action");
   window.scrollTo({ top: 0, behavior: 'smooth' });
   isRpsTraining = isTraining;
-  myRpsChoice = null;
-  opponentRpsChoice = null;
 
-  if (!isTraining && !currentMatchMeta.isLive) {
+  if (!isTraining) {
     const success = await deductStakeForGame(currentSelectedStake);
     if (!success) return;
   }
 
   isRpsActive = true;
-  const displayBox = document.getElementById("rpsDisplayBox");
-  if (displayBox) displayBox.innerText = "VS";
-  
-  const controlsBox = document.getElementById("rpsControlsBox");
-  if (controlsBox) {
-    controlsBox.innerHTML = `
-      <button class="btn btn-shoot" onclick="playRps('rock')">🪨 ROCK</button>
-      <button class="btn btn-shoot" onclick="playRps('paper')">📄 PAPER</button>
-      <button class="btn btn-shoot" onclick="playRps('scissors')">✂️ SCISSORS</button>
-    `;
-  }
+  document.getElementById("rpsDisplayBox").innerText = "VS";
+  document.getElementById("rpsControlsBox").innerHTML = `
+    <button class="btn btn-shoot" onclick="playRps('rock')">🪨 ROCK</button>
+    <button class="btn btn-shoot" onclick="playRps('paper')">📄 PAPER</button>
+    <button class="btn btn-shoot" onclick="playRps('scissors')">✂️ SCISSORS</button>
+  `;
 
-  document.getElementById("rpsOverlay")?.classList.add("active");
+  document.getElementById("rpsOverlay").classList.add("active");
   startRpsTimer();
 }
 
@@ -2001,116 +1944,90 @@ function startRpsTimer() {
 }
 
 function updateRpsBanner() {
-  const bannerEl = document.getElementById("rpsBanner");
-  if (bannerEl) {
-    const prefix = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}` : (isRpsTraining ? "🤖 TRAINING MODE" : "YOUR TURN");
-    bannerEl.innerText = `${prefix}! CHOOSE MOVE (${rpsTimeLeft}s)`;
-  }
+  const prefix = currentMatchMeta.isLive ? `VS ${currentMatchMeta.opponent.toUpperCase()}` : (isRpsTraining ? "🤖 TRAINING MODE" : "YOUR TURN");
+  document.getElementById("rpsBanner").innerText = `${prefix}! CHOOSE MOVE (${rpsTimeLeft}s)`;
 }
 
 function handleRpsTimeout() {
   if (!isRpsActive) return;
   playAudioSFX("action");
-  const banner = document.getElementById("rpsBanner");
-  if (banner) banner.innerText = "⏳ TIME OUT! MOVE MISSED.";
+  document.getElementById("rpsBanner").innerText = "⏳ TIME OUT! MOVE MISSED.";
   setRpsControlsActive(false);
-  
-  // Default to rock on timeout
-  playRps('rock');
+  setTimeout(() => resolveRpsMatch('rock', true), 1000);
 }
 
 function playRps(playerChoice) {
   if (!isRpsActive) return;
   playAudioSFX("action");
   if (rpsTimer) clearInterval(rpsTimer);
-  
-  myRpsChoice = playerChoice;
+  isRpsActive = false;
   setRpsControlsActive(false);
 
-  const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
-  const banner = document.getElementById("rpsBanner");
-  const displayBox = document.getElementById("rpsDisplayBox");
-
   if (currentMatchMeta.isLive) {
-    sendMoveToOpponent({ type: 'rps_move', choice: playerChoice });
-
-    if (opponentRpsChoice) {
-      // Opponent already made their move; resolve match right now!
-      isRpsActive = false;
-      resolveLiveRpsOutcome(myRpsChoice, opponentRpsChoice, false);
-    } else {
-      // Waiting for opponent's move broadcast
-      if (banner) banner.innerText = `You chose ${emojis[playerChoice]}. Waiting for ${currentMatchMeta.opponent}...`;
-      if (displayBox) displayBox.innerText = `YOU (${emojis[playerChoice]}) VS ${currentMatchMeta.opponent.toUpperCase()} (...)`;
-    }
+    sendMoveToOpponent({ type: 'move', choice: playerChoice });
+    document.getElementById("rpsBanner").innerText = `Move sent! Waiting for ${currentMatchMeta.opponent}...`;
   } else {
-    // Training mode against bot
-    isRpsActive = false;
-    const choices = ["rock", "paper", "scissors"];
-    const botChoice = choices[Math.floor(Math.random() * choices.length)];
-    resolveLiveRpsOutcome(playerChoice, botChoice, true);
+    resolveRpsMatch(playerChoice, false);
   }
 }
 
-async function resolveLiveRpsOutcome(p1Choice, p2Choice, isTraining) {
-  const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
-  const displayBox = document.getElementById("rpsDisplayBox");
-  const opponentName = currentMatchMeta.isLive ? currentMatchMeta.opponent.toUpperCase() : "BOT";
+async function resolveRpsMatch(playerChoice, timedOut) {
+  const choices = ["rock", "paper", "scissors"];
+  const opponentChoice = currentMatchMeta.isLive ? choices[Math.floor(Math.random() * 3)] : choices[Math.floor(Math.random() * choices.length)];
 
-  if (displayBox) {
-    displayBox.innerHTML = `YOU (${emojis[p1Choice]}) VS ${opponentName} (${emojis[p2Choice]})`;
-  }
+  const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
+  document.getElementById("rpsDisplayBox").innerHTML = `YOU (${emojis[playerChoice]}) VS OPPONENT (${emojis[opponentChoice]})`;
 
   const totalPool = currentSelectedStake * 2;
   const winnerPayout = totalPool * 0.90;
   let resultMsg = "";
-  let outcome = 'tie';
+  let outcome = 'win';
 
-  if (p1Choice === p2Choice) {
+  if (timedOut) {
+    outcome = 'loss';
+    playAudioSFX("lose");
+    resultMsg = `💔 TIME OUT! YOU LOST.`;
+  } else if (playerChoice === opponentChoice) {
     outcome = 'tie';
     playAudioSFX("action");
-    if (!isTraining && currentMatchMeta.isLive) {
+    if (!isRpsTraining) {
       userVaultBalance += currentSelectedStake;
-      resultMsg = `🤝 TIE! BOTH CHOSE ${p1Choice.toUpperCase()}. 100% Stake Refunded.`;
+      resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING TIE!`;
     }
   } else if (
-    (p1Choice === "rock" && p2Choice === "scissors") ||
-    (p1Choice === "paper" && p2Choice === "rock") ||
-    (p1Choice === "scissors" && p2Choice === "paper")
+    (playerChoice === "rock" && opponentChoice === "scissors") ||
+    (playerChoice === "paper" && opponentChoice === "rock") ||
+    (playerChoice === "scissors" && opponentChoice === "paper")
   ) {
     outcome = 'win';
     playAudioSFX("win");
-    if (!isTraining && currentMatchMeta.isLive) {
+    if (!isRpsTraining) {
       userVaultBalance += winnerPayout;
-      resultMsg = `🎉 YOU WON! ${p1Choice.toUpperCase()} BEATS ${p2Choice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
+      resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${opponentChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
     }
   } else {
     outcome = 'loss';
     playAudioSFX("lose");
-    resultMsg = `💔 YOU LOST! ${p2Choice.toUpperCase()} BEATS ${p1Choice.toUpperCase()}.`;
+    resultMsg = `💔 YOU LOST! ${opponentChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
   }
 
-  if (!isTraining && currentMatchMeta.isLive) {
+  if (!isRpsTraining) {
     await recordWagerVolume(currentSelectedStake, outcome);
   }
 
   leaveLiveMatchChannel();
-  const banner = document.getElementById("rpsBanner");
-  if (banner) banner.innerText = `🎮 GAME OVER! ${resultMsg}`;
+  document.getElementById("rpsBanner").innerText = `🎮 GAME OVER! ${resultMsg}`;
   updateVaultBalanceUI();
 
-  const controlsBox = document.getElementById("rpsControlsBox");
-  if (controlsBox) {
-    controlsBox.innerHTML = `
-      <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closeRpsArena()">
-        🔄 GAME OVER - RETRY / CHOOSE GAME
-      </button>
-    `;
-  }
+  document.getElementById("rpsControlsBox").innerHTML = `
+    <button class="btn btn-launch" style="grid-column: span 3; margin-top:0;" onclick="closeRpsArena()">
+      🔄 GAME OVER - RETRY / CHOOSE GAME
+    </button>
+  `;
 }
 
 function setRpsControlsActive(active) {
@@ -2122,7 +2039,7 @@ function closeRpsArena() {
   if (rpsTimer) clearInterval(rpsTimer);
   isRpsActive = false;
   leaveLiveMatchChannel();
-  document.getElementById("rpsOverlay")?.classList.remove("active");
+  document.getElementById("rpsOverlay").classList.remove("active");
 }
 
 // --- DOM INITIALIZER ---
@@ -2141,4 +2058,3 @@ window.addEventListener("DOMContentLoaded", () => {
   startLiveBalancePolling();
   initPasswordRecoveryListener();
 });
-     

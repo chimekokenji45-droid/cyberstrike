@@ -15,7 +15,8 @@ function getSupabase() {
 let userVaultBalance = parseFloat(localStorage.getItem("cyberstrike_vault_balance")) || 0.0;
 let totalRefEarned = 0.0;
 let weeklyWageredPOL = 0.0;
-let currentSelectedStake = 1.0;
+// FIX: Safely initialize currentSelectedStake to prevent NaN propagation
+let currentSelectedStake = parseFloat(localStorage.getItem("cyberstrike_selected_stake")) || 1.0;
 let currentHistoryTab = "deposits";
 
 let soundEnabled = localStorage.getItem("cyberstrike_sfx_enabled") !== "false";
@@ -33,17 +34,14 @@ let activeMatchChannel = null;
 let currentMatchMeta = { isLive: false, opponent: '', isHost: false };
 let lastPlayerRpsChoice = null;
 let lastPlayerCoinChoice = null;
-// FIX #1: Coin flip dual-resolution tracking variables
 let lastCoinOutcome = null;
 let lastOpponentCoinChoice = null;
 
-// FIX #3: Double-finalise guard flags
 let rpsResolved = false;
 let penaltyResolved = false;
 let ludoResolved = false;
 let coinResolved = false;
 
-// FIX #5: Opponent-turn watchdog variables & helpers
 let opponentWatchdog = null;
 function startOpponentWatchdog(game, onTimeout) {
   clearOpponentWatchdog();
@@ -94,8 +92,8 @@ const SPRINT_MILESTONES = [
   { target: 200000, reward: 15000.0, claimed: false }
 ];
 
-// FIX #2: Server-side credit helper
 async function serverCreditResult(outcome, stake) {
+  stake = parseFloat(stake) || parseFloat(currentSelectedStake) || 1.0;
   const res = await fetch('/api/credit-result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -108,7 +106,6 @@ async function serverCreditResult(outcome, stake) {
   }
 }
 
-// --- REALTIME MULTIPLAYER CHANNEL MANAGER ---
 function initializeLiveMatchChannel(gameType, opponentUsername, isHost) {
   const sb = getSupabase();
   if (!sb) return;
@@ -161,7 +158,6 @@ function updateVaultBalanceUI() {
   if (refEarnedEl) refEarnedEl.innerText = `${totalRefEarned.toFixed(4)} POL`;
 }
 
-// FIX #8: Lazy audioCtx creation
 let audioCtx = null;
 
 function playAudioSFX(type) {
@@ -248,7 +244,6 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
     msgEl.innerText = message;
     document.getElementById("notificationModal").classList.add("active");
   } else {
-    // FIX #8: Replace alert fallback with console.warn
     console.warn('[CYBERSTRIKE]', message);
   }
 }
@@ -256,7 +251,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-}// ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 function initUserSessionUI() {
@@ -473,7 +469,6 @@ async function handleResetPasswordSubmit(e) {
   }
 }
 
-// FIX #7: Module-level guard for password recovery listener attachment
 let _recoveryListenerAttached = false;
 function initPasswordRecoveryListener() {
   if (_recoveryListenerAttached) return;
@@ -504,7 +499,8 @@ function logoutUser() {
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-}// ==========================================================================
+    }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -559,7 +555,6 @@ async function fetchUserProfileFromSupabase() {
         });
       }
 
-      // FIX #6: Weekly sprint reset client-side fallback
       const now = new Date();
       const getISOWeek = (d) => {
         const date = new Date(d.getTime());
@@ -574,7 +569,6 @@ async function fetchUserProfileFromSupabase() {
         weeklyWageredPOL = 0.0;
         SPRINT_MILESTONES.forEach(m => m.claimed = false);
         localStorage.setItem("cyberstrike_last_sprint_week", currentWeek);
-        // FIX: Ideally reset via Edge Function / pg_cron every Monday 00:00 UTC. Client-side fallback executed.
       } else if (!lastSprintWeek) {
         localStorage.setItem("cyberstrike_last_sprint_week", currentWeek);
       }
@@ -587,7 +581,6 @@ async function fetchUserProfileFromSupabase() {
   }
 }
 
-// FIX #7: Mutex flag for stake deduction
 let _stakeDeducting = false;
 
 async function deductStakeForGame(stakeAmount) {
@@ -595,12 +588,15 @@ async function deductStakeForGame(stakeAmount) {
   _stakeDeducting = true;
 
   try {
+    // FIX: Sanitize and validate stakeAmount to prevent NaN/undefined issues
+    stakeAmount = parseFloat(stakeAmount) || parseFloat(currentSelectedStake) || 1.0;
+    if (isNaN(stakeAmount) || stakeAmount <= 0) stakeAmount = 1.0;
+
     if (userVaultBalance < stakeAmount) {
       showCustomAlert("Insufficient POL Balance in Vault!", "INSUFFICIENT BALANCE");
       return false;
     }
 
-    // FIX #2: Replace direct Supabase update with server endpoint call
     const response = await fetch('/api/deduct-stake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -638,14 +634,12 @@ async function recordWagerVolume(stakeAmount, outcome) {
     const userId = session.user.id;
 
     if (outcome !== 'draw' && outcome !== 'tie') {
-      // FIX #2: Replace read->add->write with RPC call add_wager
       const { data: rpcData, error: rpcError } = await sb.rpc('add_wager', { p_user: userId, p_amount: stakeAmount });
       if (!rpcError && rpcData !== null && rpcData !== undefined) {
         weeklyWageredPOL = parseFloat(rpcData);
         updateWagerSprintUI();
       }
 
-      // Note: Referrer commission logic should also move to Edge Function
       const referrerUsername = localStorage.getItem("cyberstrike_referrer");
       if (referrerUsername && referrerUsername.toLowerCase() !== currentActiveUserAccount.toLowerCase()) {
         const refCommission = stakeAmount * 0.01;
@@ -674,7 +668,9 @@ function selectStake(btnElement) {
   playAudioSFX("stake");
   document.querySelectorAll(".stake-btn").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
-  currentSelectedStake = parseFloat(btnElement.getAttribute("data-stake"));
+  // FIX: Safely parse data-stake with fallback to 1.0
+  currentSelectedStake = parseFloat(btnElement.getAttribute("data-stake")) || 1.0;
+  localStorage.setItem("cyberstrike_selected_stake", currentSelectedStake);
   
   const totalPoolEl = document.getElementById("summaryTotalPool");
   const winnerPayoutEl = document.getElementById("summaryWinnerPayout");
@@ -787,7 +783,6 @@ function copyReferralLink() {
 function updateFaucetPayCustom() {
   const amtInput = document.getElementById("depositAmountInput");
   const customField = document.getElementById("faucetPayCustomField");
-  // FIX #7: Guard null elements
   if (!amtInput || !customField) return;
   customField.value = JSON.stringify({
     account_id: currentActiveUserAccount,
@@ -927,7 +922,9 @@ async function executePolWithdrawal() {
   } catch (err) {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
-      }}// ==========================================================================
+  }
+          }
+                                  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1042,7 +1039,7 @@ async function fetchTransactionHistory(type) {
       return;
     }
 
-    // FIX #8: TODO: replace client-side .filter() with .eq('type', ...)
+    // TODO: replace client-side .filter() with .eq('type', ...)
     const filteredData = data.filter(tx => {
       const txType = (tx.type || "").toLowerCase();
       const amt = parseFloat(tx.amount || 0);
@@ -1130,7 +1127,8 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-                          }// ==========================================================================
+  }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1140,6 +1138,8 @@ function startMatchmakingQueue(gameType, stakeAmount) {
     return;
   }
 
+  // FIX: Validate stakeAmount before queueing
+  stakeAmount = parseFloat(stakeAmount) || parseFloat(currentSelectedStake) || 1.0;
   if (userVaultBalance < stakeAmount) {
     showCustomAlert("Insufficient POL Balance in Vault for this stake!", "INSUFFICIENT BALANCE");
     return;
@@ -1289,19 +1289,17 @@ function openMatchmakingModal(gameType, stake) {
 function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
-  stopMatchmakingTimers();}// ==========================================================================
+  stopMatchmakingTimers();
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
   currentGameType = gameType;
   showCustomAlert(`⚔️ Live match started against ${opponentName} (${gameType.toUpperCase()})! Stake: ${stake} POL`, "MATCH LIVE");
   
-  // Determine host based on alphabetical comparison
   const isHost = currentActiveUserAccount.toLowerCase() < opponentName.toLowerCase();
-  
-  // Initialize Realtime WebSocket channel between the two players
   initializeLiveMatchChannel(gameType, opponentName, isHost);
-  
   routeGameArena(gameType, false);
 }
 
@@ -1341,14 +1339,11 @@ function routeGameArena(gameType, isTraining) {
   }
 }
 
-// --- REALTIME ACTION RECEIVER FOR LIVE PVP ---
 function handleIncomingOpponentAction(data) {
   if (currentGameType === 'penalty') {
     if (data.type === 'shot') {
-      // Opponent took a shot; evaluate save as goalkeeper
       evaluateLiveKeeperDefense(data.direction);
     } else if (data.type === 'save_result') {
-      // Opponent defended your shot
       updateLiveShotOutcome(data.scored, data.direction);
     }
   } else if (currentGameType === 'rps') {
@@ -1356,7 +1351,6 @@ function handleIncomingOpponentAction(data) {
       resolveLiveRpsMatch(data.choice);
     }
   } else if (currentGameType === 'coin_flip' || currentGameType === 'coinflip') {
-    // FIX #1: Coin flip dual-resolution action receiver handling
     if (data.type === 'choice') {
       lastOpponentCoinChoice = data.choice;
       if (currentMatchMeta.isHost && lastCoinOutcome) {
@@ -1368,12 +1362,13 @@ function handleIncomingOpponentAction(data) {
   }
 }
 
-// --- PENALTY SHOOTOUT ENGINE (LIVE & TRAINING) ---
 async function launchPenaltyArena(isTraining = false) {
   playAudioSFX("action");
   isPenaltyTraining = isTraining;
-  penaltyResolved = false; // FIX #3: Reset double-finalise guard
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  penaltyResolved = false;
+  // FIX: Ensure currentSelectedStake is valid before launching
+  currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
+  const stake = currentSelectedStake;
 
   if (!isTraining) {
     const success = await deductStakeForGame(stake);
@@ -1472,11 +1467,9 @@ function takeShot(direction) {
   ball.className = "ball " + direction;
 
   if (currentMatchMeta.isLive) {
-    // Send shot to real human opponent over Supabase Realtime channel
     sendMoveToOpponent({ type: 'shot', direction: direction });
     document.getElementById("penaltyBanner").innerText = `⚽ Shot sent! Waiting for ${currentMatchMeta.opponent} to save...`;
   } else {
-    // Training mode bot reaction
     const directions = ["left", "center", "right"];
     const keeperDive = directions[Math.floor(Math.random() * directions.length)];
 
@@ -1512,7 +1505,7 @@ function takeShot(direction) {
 }
 
 function evaluateLiveKeeperDefense(opponentShotDirection) {
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog upon action
+  clearOpponentWatchdog();
   const myDive = ["left", "center", "right"][Math.floor(Math.random() * 3)];
   const ball = document.getElementById("ballEl");
   ball.className = "ball " + opponentShotDirection;
@@ -1532,7 +1525,6 @@ function evaluateLiveKeeperDefense(opponentShotDirection) {
   p2PenaltyShotsTaken++;
   updateShotTrackerDisplay();
 
-  // Send result back to opponent
   sendMoveToOpponent({ type: 'save_result', scored: scored, direction: myDive });
 
   setTimeout(() => {
@@ -1546,7 +1538,7 @@ function evaluateLiveKeeperDefense(opponentShotDirection) {
 }
 
 function updateLiveShotOutcome(scored, keeperDive) {
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog upon action
+  clearOpponentWatchdog();
   const keeper = document.getElementById("keeperEl");
   keeper.className = "keeper " + keeperDive;
 
@@ -1568,7 +1560,6 @@ function updateLiveShotOutcome(scored, keeperDive) {
     isPenaltyActive = true;
     document.getElementById("penaltyBanner").innerText = `OPPONENT'S TURN TO SHOOT...`;
     resetPenaltyVisuals();
-    // FIX #5: Start opponent-turn watchdog
     if (currentMatchMeta.isLive) {
       startOpponentWatchdog('penalty', () => {
         p2PenaltyScore++;
@@ -1589,7 +1580,7 @@ function updateLiveShotOutcome(scored, keeperDive) {
 }
 
 function processBotPenaltyShot() {
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog
+  clearOpponentWatchdog();
   if (!isPenaltyActive) return;
   const directions = ["left", "center", "right"];
   const botShot = directions[Math.floor(Math.random() * directions.length)];
@@ -1624,7 +1615,6 @@ function processBotPenaltyShot() {
   }, 400);
 }
 
-// FIX #4: Penalty early termination logic
 function checkPenaltyMatchOver() {
   const p1Rem = 5 - p1PenaltyShotsTaken;
   const p2Rem = 5 - p2PenaltyShotsTaken;
@@ -1646,18 +1636,18 @@ function setPenaltyControlsActive(active) {
 }
 
 async function endPenaltyMatch() {
-  if (penaltyResolved) return; // FIX #3: Double-finalise guard
+  if (penaltyResolved) return;
   penaltyResolved = true;
   if (penaltyTurnTimer) clearInterval(penaltyTurnTimer);
   isPenaltyActive = false;
   setPenaltyControlsActive(false);
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog
+  clearOpponentWatchdog();
   leaveLiveMatchChannel();
 
   document.getElementById("p1TurnTimer").innerText = "";
   document.getElementById("p2TurnTimer").innerText = "";
 
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  const stake = currentSelectedStake;
   const totalPool = stake * 2;
   const winnerPayout = totalPool * 0.90;
   let resultMsg = "";
@@ -1667,7 +1657,7 @@ async function endPenaltyMatch() {
     outcome = 'win';
     playAudioSFX("win");
     if (!isPenaltyTraining) {
-      await serverCreditResult('win', stake); // FIX #2: Server credit helper
+      await serverCreditResult('win', stake);
       resultMsg = `🎉 YOU WON! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
@@ -1675,13 +1665,13 @@ async function endPenaltyMatch() {
   } else if (p2PenaltyScore > p1PenaltyScore) {
     outcome = 'loss';
     playAudioSFX("lose");
-    await serverCreditResult('loss', stake); // FIX #2: Server credit helper
+    await serverCreditResult('loss', stake);
     resultMsg = `💔 YOU LOST THE SHOOTOUT!`;
   } else {
     outcome = 'draw';
     playAudioSFX("action");
     if (!isPenaltyTraining) {
-      await serverCreditResult('draw', stake); // FIX #2: Server credit helper
+      await serverCreditResult('draw', stake);
       resultMsg = `🤝 DRAW MATCH! 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING DRAW!`;
@@ -1708,14 +1698,18 @@ function closePenaltyArena() {
   isPenaltyActive = false;
   clearOpponentWatchdog();
   leaveLiveMatchChannel();
-  document.getElementById("penaltyOverlay").classList.remove("active");}// ==========================================================================
+  document.getElementById("penaltyOverlay").classList.remove("active");
+}
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
   playAudioSFX("action");
   isLudoTraining = isTraining;
-  ludoResolved = false; // FIX #3: Reset double-finalise guard
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  ludoResolved = false;
+  // FIX: Ensure currentSelectedStake is valid before launching
+  currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
+  const stake = currentSelectedStake;
 
   if (!isTraining) {
     const success = await deductStakeForGame(stake);
@@ -1807,7 +1801,6 @@ function rollLudoDice() {
     return;
   }
 
-  // FIX #5: Start opponent-turn watchdog for live ludo
   if (currentMatchMeta.isLive) {
     startOpponentWatchdog('ludo', () => {
       p2TrackPosition = 10;
@@ -1829,7 +1822,7 @@ function rollLudoDice() {
 }
 
 function processBotLudoTurn() {
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog
+  clearOpponentWatchdog();
   if (!isLudoActive) return;
   const p2Roll = Math.floor(Math.random() * 6) + 1;
   p2TrackPosition = Math.min(10, p2TrackPosition + p2Roll);
@@ -1863,17 +1856,17 @@ function updateLudoTrackUI() {
 }
 
 async function endLudoRace() {
-  if (ludoResolved) return; // FIX #3: Double-finalise guard
+  if (ludoResolved) return;
   ludoResolved = true;
   if (ludoTurnTimer) clearInterval(ludoTurnTimer);
   isLudoActive = false;
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog
+  clearOpponentWatchdog();
   leaveLiveMatchChannel();
 
   document.getElementById("ludoP1Timer").innerText = "";
   document.getElementById("ludoP2Timer").innerText = "";
 
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  const stake = currentSelectedStake;
   const totalPool = stake * 2;
   const winnerPayout = totalPool * 0.90;
   let resultMsg = "";
@@ -1883,7 +1876,7 @@ async function endLudoRace() {
     outcome = 'win';
     playAudioSFX("win");
     if (!isLudoTraining) {
-      await serverCreditResult('win', stake); // FIX #2: Server credit helper
+      await serverCreditResult('win', stake);
       resultMsg = `🎉 YOU WON THE LUDO RACE! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
@@ -1891,13 +1884,13 @@ async function endLudoRace() {
   } else if (p2TrackPosition >= 10 && p1TrackPosition < 10) {
     outcome = 'loss';
     playAudioSFX("lose");
-    await serverCreditResult('loss', stake); // FIX #2: Server credit helper
+    await serverCreditResult('loss', stake);
     resultMsg = `💔 OPPONENT CROSSED FIRST!`;
   } else {
     outcome = 'draw';
     playAudioSFX("action");
     if (!isLudoTraining) {
-      await serverCreditResult('draw', stake); // FIX #2: Server credit helper
+      await serverCreditResult('draw', stake);
       resultMsg = `🤝 DRAW RACE! 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING DRAW!`;
@@ -1928,12 +1921,13 @@ function closeLudoArena() {
   document.getElementById("ludoOverlay").classList.remove("active");
 }
 
-// --- COIN FLIP ENGINE ---
 async function launchCoinFlipArena(isTraining = false) {
   playAudioSFX("action");
   isCoinTraining = isTraining;
-  coinResolved = false; // FIX #3: Reset double-finalise guard
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  coinResolved = false;
+  // FIX: Ensure currentSelectedStake is valid before launching
+  currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
+  const stake = currentSelectedStake;
 
   if (!isTraining) {
     const success = await deductStakeForGame(stake);
@@ -1957,7 +1951,6 @@ function flipCoin(playerChoice) {
   document.getElementById("coinControlsBox").innerHTML = "";
   document.getElementById("coinBanner").innerText = "🪙 FLIPPING COIN...";
 
-  // FIX #1: Host generates outcome and stores it
   const outcomes = ["heads", "tails"];
   const winningOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
   lastCoinOutcome = winningOutcome;
@@ -1985,16 +1978,15 @@ function flipCoin(playerChoice) {
 }
 
 function resolveLiveCoinFlip(opponentChoice) {
-  // Guest handles choice through coin_result message from host
 }
 
 function applyLiveCoinResult(winningOutcome, opponentChoice) {
-  clearOpponentWatchdog(); // FIX #5: Clear watchdog
+  clearOpponentWatchdog();
   finalizeCoinFlipOutcome(lastPlayerCoinChoice || 'heads', winningOutcome, currentSelectedStake);
 }
 
 async function finalizeCoinFlipOutcome(playerChoice, winningOutcome, stake = currentSelectedStake) {
-  if (coinResolved) return; // FIX #3: Double-finalise guard
+  if (coinResolved) return;
   coinResolved = true;
 
   document.getElementById("coinDisplayBox").innerText = winningOutcome === "heads" ? "👑" : "🦅";
@@ -2006,14 +1998,14 @@ async function finalizeCoinFlipOutcome(playerChoice, winningOutcome, stake = cur
   if (outcome === 'win') {
     playAudioSFX("win");
     if (!isCoinTraining) {
-      await serverCreditResult('win', stake); // FIX #2: Server credit helper
+      await serverCreditResult('win', stake);
       resultMsg = `🎉 YOU WON! LANDED ${winningOutcome.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
     }
   } else {
     playAudioSFX("lose");
-    await serverCreditResult('loss', stake); // FIX #2: Server credit helper
+    await serverCreditResult('loss', stake);
     resultMsg = `💔 YOU LOST! LANDED ${winningOutcome.toUpperCase()}.`;
   }
 
@@ -2036,14 +2028,18 @@ function closeCoinFlipArena() {
   playAudioSFX("action");
   clearOpponentWatchdog();
   leaveLiveMatchChannel();
-  document.getElementById("coinFlipOverlay").classList.remove("active");}// ==========================================================================
+  document.getElementById("coinFlipOverlay").classList.remove("active");
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
 // ==========================================================================
 async function launchRpsArena(isTraining = false) {
   playAudioSFX("action");
   isRpsTraining = isTraining;
-  rpsResolved = false; // FIX #3: Reset double-finalise guard
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  rpsResolved = false;
+  // FIX: Ensure currentSelectedStake is valid before launching
+  currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
+  const stake = currentSelectedStake;
 
   if (!isTraining) {
     const success = await deductStakeForGame(stake);
@@ -2108,11 +2104,11 @@ function playRps(playerChoice) {
 }
 
 async function resolveLiveRpsMatch(opponentChoice) {
-  if (rpsResolved) return; // FIX #3: Double-finalise guard
+  if (rpsResolved) return;
   rpsResolved = true;
   if (!lastPlayerRpsChoice) return;
   const playerChoice = lastPlayerRpsChoice;
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
+  const stake = currentSelectedStake;
 
   const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
   document.getElementById("rpsDisplayBox").innerHTML = `YOU (${emojis[playerChoice]}) VS ${currentMatchMeta.opponent.toUpperCase()} (${emojis[opponentChoice]})`;
@@ -2126,7 +2122,7 @@ async function resolveLiveRpsMatch(opponentChoice) {
     outcome = 'tie';
     playAudioSFX("action");
     if (!isRpsTraining) {
-      await serverCreditResult('tie', stake); // FIX #2: Server credit helper
+      await serverCreditResult('tie', stake);
       resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING TIE!`;
@@ -2139,7 +2135,7 @@ async function resolveLiveRpsMatch(opponentChoice) {
     outcome = 'win';
     playAudioSFX("win");
     if (!isRpsTraining) {
-      await serverCreditResult('win', stake); // FIX #2: Server credit helper
+      await serverCreditResult('win', stake);
       resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${opponentChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
@@ -2147,7 +2143,7 @@ async function resolveLiveRpsMatch(opponentChoice) {
   } else {
     outcome = 'loss';
     playAudioSFX("lose");
-    await serverCreditResult('loss', stake); // FIX #2: Server credit helper
+    await serverCreditResult('loss', stake);
     resultMsg = `💔 YOU LOST! ${opponentChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
   }
 
@@ -2167,10 +2163,9 @@ async function resolveLiveRpsMatch(opponentChoice) {
 }
 
 async function resolveRpsMatch(playerChoice, timedOut) {
-  if (rpsResolved) return; // FIX #3: Double-finalise guard
+  if (rpsResolved) return;
   rpsResolved = true;
-  const stake = currentSelectedStake; // FIX #8: Snapshot stake
-  // FIX #7: Simplify dead isLive ternary to single random choice
+  const stake = currentSelectedStake;
   const opponentChoice = ["rock", "paper", "scissors"][Math.floor(Math.random() * 3)];
 
   const emojis = { rock: "🪨", paper: "📄", scissors: "✂️" };
@@ -2184,13 +2179,13 @@ async function resolveRpsMatch(playerChoice, timedOut) {
   if (timedOut) {
     outcome = 'loss';
     playAudioSFX("lose");
-    await serverCreditResult('loss', stake); // FIX #2: Server credit helper
+    await serverCreditResult('loss', stake);
     resultMsg = `💔 TIME OUT! YOU LOST.`;
   } else if (playerChoice === opponentChoice) {
     outcome = 'tie';
     playAudioSFX("action");
     if (!isRpsTraining) {
-      await serverCreditResult('tie', stake); // FIX #2: Server credit helper
+      await serverCreditResult('tie', stake);
       resultMsg = `🤝 TIE! BOTH CHOSE ${playerChoice.toUpperCase()}. 100% Stake Refunded.`;
     } else {
       resultMsg = `🤝 TRAINING TIE!`;
@@ -2203,7 +2198,7 @@ async function resolveRpsMatch(playerChoice, timedOut) {
     outcome = 'win';
     playAudioSFX("win");
     if (!isRpsTraining) {
-      await serverCreditResult('win', stake); // FIX #2: Server credit helper
+      await serverCreditResult('win', stake);
       resultMsg = `🎉 YOU WON! ${playerChoice.toUpperCase()} BEATS ${opponentChoice.toUpperCase()}! +${winnerPayout.toFixed(2)} POL!`;
     } else {
       resultMsg = `🎉 TRAINING WIN!`;
@@ -2211,7 +2206,7 @@ async function resolveRpsMatch(playerChoice, timedOut) {
   } else {
     outcome = 'loss';
     playAudioSFX("lose");
-    await serverCreditResult('loss', stake); // FIX #2: Server credit helper
+    await serverCreditResult('loss', stake);
     resultMsg = `💔 YOU LOST! ${opponentChoice.toUpperCase()} BEATS ${playerChoice.toUpperCase()}.`;
   }
 
@@ -2242,7 +2237,6 @@ function closeRpsArena() {
   document.getElementById("rpsOverlay").classList.remove("active");
 }
 
-// --- DOM INITIALIZER ---
 window.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("soundToggleBtn");
   const drawerSoundStatus = document.getElementById("drawerSoundStatus");

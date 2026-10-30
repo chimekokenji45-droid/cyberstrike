@@ -454,8 +454,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <button id="depositBtn"></button>
     <button id="withdrawBtn"></button>
     <button id="soundToggleBtn"></button>
-  </div>
-    <!-- MAIN DASHBOARD CONTAINER -->
+  </div> <!-- MAIN DASHBOARD CONTAINER -->
   <main class="container" id="mainDashboard" style="display: none;">
     
     <!-- LEFT COLUMN -->
@@ -508,7 +507,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchPenaltyArena(true)">🤖 BOT</button>
-            <button class="btn btn-launch" style="padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="launchPenaltyArena(false)">PLAY 1V1 PENALTY</button>
+            <button class="btn btn-launch" style="padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="startMatchmakingQueue('penalty', currentSelectedStake)">PLAY 1V1 PENALTY</button>
           </div>
         </div>
       </section>
@@ -537,7 +536,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchLudoRace(true)">🤖 BOT</button>
-            <button class="btn btn-launch btn-ludo" style="padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="launchLudoRace(false)">PLAY 1V1 LUDO</button>
+            <button class="btn btn-launch btn-ludo" style="padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="startMatchmakingQueue('ludo', currentSelectedStake)">PLAY 1V1 LUDO</button>
           </div>
         </div>
       </section>
@@ -566,7 +565,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchCoinFlipArena(true)">🤖 BOT</button>
-            <button class="btn btn-launch" style="background:#f39c12; padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="launchCoinFlipArena(false)">PLAY 1V1 COIN</button>
+            <button class="btn btn-launch" style="background:#f39c12; padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="startMatchmakingQueue('coin_flip', currentSelectedStake)">PLAY 1V1 COIN</button>
           </div>
         </div>
       </section>
@@ -595,7 +594,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-launch btn-training" style="padding: 10px 14px; font-size: 11px;" onclick="launchRpsArena(true)">🤖 BOT</button>
-            <button class="btn btn-launch" style="background:#e74c3c; padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="launchRpsArena(false)">PLAY 1V1 RPS</button>
+            <button class="btn btn-launch" style="background:#e74c3c; padding: 10px 16px; font-size: 12px; margin-top:0;" onclick="startMatchmakingQueue('rps', currentSelectedStake)">PLAY 1V1 RPS</button>
           </div>
         </div>
       </section>
@@ -677,9 +676,7 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
       </div>
     </section>
 
-  </main>
-
-  <!-- FOOTER -->
+  </main> <!-- FOOTER -->
   <footer class="footer-container" id="mainFooter" style="display: none;">
     <div class="fairness-card">
       <div class="fairness-header">
@@ -693,8 +690,8 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
     <div class="copyright-bar">
       <p>© 2026 <strong>CYBERSTRIKE ARENA</strong>. All Rights Reserved.</p>
     </div>
-          </footer>
-                                                                      <!-- MANDATORY AUTH GATEWAY MODAL -->
+  </footer>
+  <!-- MANDATORY AUTH GATEWAY MODAL -->
   <div id="authModal" class="modal-overlay active">
     <div class="modal-card">
       <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="display:none;">✖</button>
@@ -1100,5 +1097,4 @@ body { background-color: var(--bg-dark); color: var(--text-main); min-height: 10
   </script>
   <script src="script.js"></script>
 </body>
-  </html>
-    
+</html>

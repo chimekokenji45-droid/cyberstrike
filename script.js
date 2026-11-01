@@ -5,9 +5,30 @@ const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zLldbp2CcA_wqo5X24kURA_kyBEN2S-";
 let supabaseClient = null;
 
+// FIX: Bulletproof getSupabase() with automatic fallback CDN injection
 function getSupabase() {
-  if (!supabaseClient && window.supabase) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if (!supabaseClient) {
+    if (window.supabase) {
+      try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } catch (err) {
+        console.error("Error initializing Supabase client:", err);
+      }
+    } else {
+      console.warn("Primary Supabase CDN missing. Injecting backup script...");
+      const backupScript = document.createElement('script');
+      backupScript.src = "https://unpkg.com/@supabase/supabase-js@2";
+      backupScript.async = false;
+      document.head.appendChild(backupScript);
+      
+      if (window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (err) {
+          console.error("Error initializing backup Supabase client:", err);
+        }
+      }
+    }
   }
   return supabaseClient;
 }
@@ -15,7 +36,6 @@ function getSupabase() {
 let userVaultBalance = parseFloat(localStorage.getItem("cyberstrike_vault_balance")) || 0.0;
 let totalRefEarned = 0.0;
 let weeklyWageredPOL = 0.0;
-// FIX: Safely initialize currentSelectedStake to prevent NaN propagation
 let currentSelectedStake = parseFloat(localStorage.getItem("cyberstrike_selected_stake")) || 1.0;
 let currentHistoryTab = "deposits";
 
@@ -251,7 +271,9 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-}
+    }
+
+
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================

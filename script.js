@@ -385,7 +385,7 @@ async function handleRegisterSubmit(e) {
 
 async function handleLoginSubmit(e) {
   e.preventDefault();
-  const identifier = document.getElementById("loginUsername").value.trim().toLowerCase();
+  const identifier = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value;
   const statusMsg = document.getElementById("authStatusMsg");
 
@@ -398,43 +398,55 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    const { data: profile, error: fetchError } = await sb
-      .from('profiles')
-      .select('email, username, vault_balance, total_wagered, faucetpay_email')
-      .or(`username.eq.${identifier},email.eq.${identifier}`)
-      .maybeSingle();
+    let authEmail = identifier.toLowerCase();
 
-    if (fetchError) {
-      statusMsg.innerText = "❌ Database error checking credentials.";
-      return;
+    // If the input is a username instead of an email, look up their email from the profiles table
+    if (!identifier.includes('@')) {
+      const { data: profile, error: fetchError } = await sb
+        .from('profiles')
+        .select('email, username, vault_balance, total_wagered, faucetpay_email')
+        .ilike('username', identifier)
+        .maybeSingle();
+
+      if (!fetchError && profile && profile.email) {
+        authEmail = profile.email;
+      } else {
+        statusMsg.innerText = "❌ Username not found. Please log in with your email address.";
+        return;
+      }
     }
 
-    let authEmail = profile ? profile.email : identifier;
-
+    // Authenticate directly with Supabase Auth using the resolved email
     const { data: authData, error: loginError } = await sb.auth.signInWithPassword({
       email: authEmail,
       password: password
     });
 
     if (loginError) {
-      statusMsg.innerText = "❌ Invalid email/username or password!";
+      statusMsg.innerText = "❌ Invalid email or password!";
       return;
     }
 
-    const loggedInUsername = profile?.username || authData.user.user_metadata?.username || identifier;
-    currentActiveUserAccount = loggedInUsername;
-    currentActiveFaucetEmail = profile?.faucetpay_email || authData.user.email;
-    userVaultBalance = profile ? parseFloat(profile.vault_balance || 0.0) : 0.0;
-    weeklyWageredPOL = profile ? parseFloat(profile.total_wagered || 0.0) : 0.0;
+    // Fetch user profile data safely using their Auth ID
+    const { data: userProfile } = await sb
+      .from('profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .maybeSingle();
 
-    localStorage.setItem("cyberstrike_user", loggedInUsername);
+    currentActiveUserAccount = userProfile?.username || authData.user.user_metadata?.username || identifier;
+    currentActiveFaucetEmail = userProfile?.faucetpay_email || authData.user.email;
+    userVaultBalance = userProfile ? parseFloat(userProfile.vault_balance || 0.0) : 0.0;
+    weeklyWageredPOL = userProfile ? parseFloat(userProfile.total_wagered || 0.0) : 0.0;
+
+    localStorage.setItem("cyberstrike_user", currentActiveUserAccount);
     localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
 
     playAudioSFX("win");
     updateVaultBalanceUI();
     updateWagerSprintUI();
     initUserSessionUI();
-    showCustomAlert(`🔓 Welcome back, ${loggedInUsername}! Vault loaded.`, "LOGIN SUCCESSFUL");
+    showCustomAlert(`🔓 Welcome back, ${currentActiveUserAccount}! Vault loaded.`, "LOGIN SUCCESSFUL");
 
   } catch (err) {
     statusMsg.innerText = "❌ Authentication error: " + err.message;
@@ -500,7 +512,7 @@ function logoutUser() {
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
     }
-      // ==========================================================================
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -923,8 +935,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-          }
-                                  // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1127,8 +1139,8 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-  }
-    // ==========================================================================
+      }
+        // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1290,8 +1302,8 @@ function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
   stopMatchmakingTimers();
-    }
-    // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
 function launchLivePvPMatch(gameType, opponentName, stake) {
@@ -1699,8 +1711,8 @@ function closePenaltyArena() {
   clearOpponentWatchdog();
   leaveLiveMatchChannel();
   document.getElementById("penaltyOverlay").classList.remove("active");
-}
-  // ==========================================================================
+    }
+                                                       // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
@@ -2029,8 +2041,8 @@ function closeCoinFlipArena() {
   clearOpponentWatchdog();
   leaveLiveMatchChannel();
   document.getElementById("coinFlipOverlay").classList.remove("active");
-}
-// ==========================================================================
+    }
+    // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
 // ==========================================================================
 async function launchRpsArena(isTraining = false) {
@@ -2252,3 +2264,4 @@ window.addEventListener("DOMContentLoaded", () => {
   startLiveBalancePolling();
   initPasswordRecoveryListener();
 });
+    

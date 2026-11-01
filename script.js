@@ -271,9 +271,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-    }
-
-
+}
+  
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================

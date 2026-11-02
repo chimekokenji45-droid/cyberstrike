@@ -1,47 +1,38 @@
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 1 OF 8: CONFIG, STATE, REALTIME & AUDIO)
 // ==========================================================================
+
+// SAFE STORAGE HELPERS (Prevents WhatsApp/Telegram/Facebook WebView crashes)
+function safeGetItem(key) {
+  try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+function safeSetItem(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) {}
+}
+function safeRemoveItem(key) {
+  try { localStorage.removeItem(key); } catch (e) {}
+}
+
 const SUPABASE_URL = "https://nvcwjpxceoiyrhwhyzuv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zLldbp2CcA_wqo5X24kURA_kyBEN2S-";
 let supabaseClient = null;
 
-// FIX: Bulletproof getSupabase() with automatic fallback CDN injection
 function getSupabase() {
-  if (!supabaseClient) {
-    if (window.supabase) {
-      try {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      } catch (err) {
-        console.error("Error initializing Supabase client:", err);
-      }
-    } else {
-      console.warn("Primary Supabase CDN missing. Injecting backup script...");
-      const backupScript = document.createElement('script');
-      backupScript.src = "https://unpkg.com/@supabase/supabase-js@2";
-      backupScript.async = false;
-      document.head.appendChild(backupScript);
-      
-      if (window.supabase) {
-        try {
-          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } catch (err) {
-          console.error("Error initializing backup Supabase client:", err);
-        }
-      }
-    }
+  if (!supabaseClient && window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   return supabaseClient;
 }
 
-let userVaultBalance = parseFloat(localStorage.getItem("cyberstrike_vault_balance")) || 0.0;
+let userVaultBalance = parseFloat(safeGetItem("cyberstrike_vault_balance")) || 0.0;
 let totalRefEarned = 0.0;
 let weeklyWageredPOL = 0.0;
-let currentSelectedStake = parseFloat(localStorage.getItem("cyberstrike_selected_stake")) || 1.0;
+let currentSelectedStake = parseFloat(safeGetItem("cyberstrike_selected_stake")) || 1.0;
 let currentHistoryTab = "deposits";
 
-let soundEnabled = localStorage.getItem("cyberstrike_sfx_enabled") !== "false";
-let currentActiveUserAccount = localStorage.getItem("cyberstrike_user") || null;
-let currentActiveFaucetEmail = localStorage.getItem("cyberstrike_faucet_email") || "";
+let soundEnabled = safeGetItem("cyberstrike_sfx_enabled") !== "false";
+let currentActiveUserAccount = safeGetItem("cyberstrike_user") || null;
+let currentActiveFaucetEmail = safeGetItem("cyberstrike_faucet_email") || "";
 let lastLocalBalanceUpdate = 0;
 
 let matchmakingInterval = null;
@@ -173,7 +164,7 @@ function leaveLiveMatchChannel() {
 function updateVaultBalanceUI() {
   const balDisplay = document.getElementById("userBalanceDisplay");
   if (balDisplay) balDisplay.innerText = `${userVaultBalance.toFixed(4)} POL`;
-  localStorage.setItem("cyberstrike_vault_balance", userVaultBalance);
+  safeSetItem("cyberstrike_vault_balance", userVaultBalance);
   const refEarnedEl = document.getElementById("totalRefEarnedDisplay");
   if (refEarnedEl) refEarnedEl.innerText = `${totalRefEarned.toFixed(4)} POL`;
 }
@@ -248,7 +239,7 @@ function playAudioSFX(type) {
 
 function toggleSoundSFX() {
   soundEnabled = !soundEnabled;
-  localStorage.setItem("cyberstrike_sfx_enabled", soundEnabled);
+  safeSetItem("cyberstrike_sfx_enabled", soundEnabled);
   const btn = document.getElementById("soundToggleBtn");
   const drawerSoundStatus = document.getElementById("drawerSoundStatus");
   if (btn) btn.innerText = soundEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
@@ -271,8 +262,8 @@ function showCustomAlert(message, title = "CYBERSTRIKE SYSTEM") {
 function closeNotificationModal() {
   playAudioSFX("action");
   document.getElementById("notificationModal").classList.remove("active");
-    }
-  // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 2 OF 8: AUTHENTICATION & SESSIONS)
 // ==========================================================================
 function initUserSessionUI() {
@@ -390,8 +381,8 @@ async function handleRegisterSubmit(e) {
     userVaultBalance = 0.0;
     weeklyWageredPOL = 0.0;
 
-    localStorage.setItem("cyberstrike_user", username);
-    localStorage.setItem("cyberstrike_faucet_email", faucetEmail);
+    safeSetItem("cyberstrike_user", username);
+    safeSetItem("cyberstrike_faucet_email", faucetEmail);
 
     playAudioSFX("win");
     updateVaultBalanceUI();
@@ -405,7 +396,7 @@ async function handleRegisterSubmit(e) {
 
 async function handleLoginSubmit(e) {
   e.preventDefault();
-  const identifier = document.getElementById("loginUsername").value.trim();
+  const identifier = document.getElementById("loginUsername").value.trim().toLowerCase();
   const password = document.getElementById("loginPassword").value;
   const statusMsg = document.getElementById("authStatusMsg");
 
@@ -418,55 +409,43 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    let authEmail = identifier.toLowerCase();
+    const { data: profile, error: fetchError } = await sb
+      .from('profiles')
+      .select('email, username, vault_balance, total_wagered, faucetpay_email')
+      .or(`username.eq.${identifier},email.eq.${identifier}`)
+      .maybeSingle();
 
-    // If the input is a username instead of an email, look up their email from the profiles table
-    if (!identifier.includes('@')) {
-      const { data: profile, error: fetchError } = await sb
-        .from('profiles')
-        .select('email, username, vault_balance, total_wagered, faucetpay_email')
-        .ilike('username', identifier)
-        .maybeSingle();
-
-      if (!fetchError && profile && profile.email) {
-        authEmail = profile.email;
-      } else {
-        statusMsg.innerText = "❌ Username not found. Please log in with your email address.";
-        return;
-      }
+    if (fetchError) {
+      statusMsg.innerText = "❌ Database error checking credentials.";
+      return;
     }
 
-    // Authenticate directly with Supabase Auth using the resolved email
+    let authEmail = profile ? profile.email : identifier;
+
     const { data: authData, error: loginError } = await sb.auth.signInWithPassword({
       email: authEmail,
       password: password
     });
 
     if (loginError) {
-      statusMsg.innerText = "❌ Invalid email or password!";
+      statusMsg.innerText = "❌ Invalid email/username or password!";
       return;
     }
 
-    // Fetch user profile data safely using their Auth ID
-    const { data: userProfile } = await sb
-      .from('profiles')
-      .select('*')
-      .eq('id', authData.user.id)
-      .maybeSingle();
+    const loggedInUsername = profile?.username || authData.user.user_metadata?.username || identifier;
+    currentActiveUserAccount = loggedInUsername;
+    currentActiveFaucetEmail = profile?.faucetpay_email || authData.user.email;
+    userVaultBalance = profile ? parseFloat(profile.vault_balance || 0.0) : 0.0;
+    weeklyWageredPOL = profile ? parseFloat(profile.total_wagered || 0.0) : 0.0;
 
-    currentActiveUserAccount = userProfile?.username || authData.user.user_metadata?.username || identifier;
-    currentActiveFaucetEmail = userProfile?.faucetpay_email || authData.user.email;
-    userVaultBalance = userProfile ? parseFloat(userProfile.vault_balance || 0.0) : 0.0;
-    weeklyWageredPOL = userProfile ? parseFloat(userProfile.total_wagered || 0.0) : 0.0;
-
-    localStorage.setItem("cyberstrike_user", currentActiveUserAccount);
-    localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
+    safeSetItem("cyberstrike_user", loggedInUsername);
+    safeSetItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
 
     playAudioSFX("win");
     updateVaultBalanceUI();
     updateWagerSprintUI();
     initUserSessionUI();
-    showCustomAlert(`🔓 Welcome back, ${currentActiveUserAccount}! Vault loaded.`, "LOGIN SUCCESSFUL");
+    showCustomAlert(`🔓 Welcome back, ${loggedInUsername}! Vault loaded.`, "LOGIN SUCCESSFUL");
 
   } catch (err) {
     statusMsg.innerText = "❌ Authentication error: " + err.message;
@@ -522,17 +501,17 @@ function logoutUser() {
   if (sb) sb.auth.signOut();
   currentActiveUserAccount = null;
   currentActiveFaucetEmail = "";
-  localStorage.removeItem("cyberstrike_user");
-  localStorage.removeItem("cyberstrike_faucet_email");
-  localStorage.removeItem("cyberstrike_vault_balance");
+  safeRemoveItem("cyberstrike_user");
+  safeRemoveItem("cyberstrike_faucet_email");
+  safeRemoveItem("cyberstrike_vault_balance");
   userVaultBalance = 0.0;
   weeklyWageredPOL = 0.0;
   initUserSessionUI();
   updateVaultBalanceUI();
   updateWagerSprintUI();
   showCustomAlert("🚪 You have logged out.", "LOGGED OUT");
-      }
-      // ==========================================================================
+    }
+  // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 3 OF 8: WALLET, WAGERS & SPRINT)
 // ==========================================================================
 async function fetchUserProfileFromSupabase() {
@@ -575,7 +554,7 @@ async function fetchUserProfileFromSupabase() {
       }
       if (profile.faucetpay_email) {
         currentActiveFaucetEmail = profile.faucetpay_email;
-        localStorage.setItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
+        safeSetItem("cyberstrike_faucet_email", currentActiveFaucetEmail);
       }
       
       if (profile.claimed_milestones) {
@@ -596,13 +575,13 @@ async function fetchUserProfileFromSupabase() {
         return `${date.getFullYear()}-W${Math.round((((date.getTime() - week1.getTime()) / 86400000) - 3 + (week1.getDay() + 6) % 7) / 7) + 1}`;
       };
       const currentWeek = getISOWeek(now);
-      const lastSprintWeek = localStorage.getItem("cyberstrike_last_sprint_week");
+      const lastSprintWeek = safeGetItem("cyberstrike_last_sprint_week");
       if (lastSprintWeek && lastSprintWeek !== currentWeek) {
         weeklyWageredPOL = 0.0;
         SPRINT_MILESTONES.forEach(m => m.claimed = false);
-        localStorage.setItem("cyberstrike_last_sprint_week", currentWeek);
+        safeSetItem("cyberstrike_last_sprint_week", currentWeek);
       } else if (!lastSprintWeek) {
-        localStorage.setItem("cyberstrike_last_sprint_week", currentWeek);
+        safeSetItem("cyberstrike_last_sprint_week", currentWeek);
       }
 
       updateVaultBalanceUI();
@@ -620,7 +599,6 @@ async function deductStakeForGame(stakeAmount) {
   _stakeDeducting = true;
 
   try {
-    // FIX: Sanitize and validate stakeAmount to prevent NaN/undefined issues
     stakeAmount = parseFloat(stakeAmount) || parseFloat(currentSelectedStake) || 1.0;
     if (isNaN(stakeAmount) || stakeAmount <= 0) stakeAmount = 1.0;
 
@@ -672,7 +650,7 @@ async function recordWagerVolume(stakeAmount, outcome) {
         updateWagerSprintUI();
       }
 
-      const referrerUsername = localStorage.getItem("cyberstrike_referrer");
+      const referrerUsername = safeGetItem("cyberstrike_referrer");
       if (referrerUsername && referrerUsername.toLowerCase() !== currentActiveUserAccount.toLowerCase()) {
         const refCommission = stakeAmount * 0.01;
 
@@ -700,9 +678,8 @@ function selectStake(btnElement) {
   playAudioSFX("stake");
   document.querySelectorAll(".stake-btn").forEach(b => b.classList.remove("active"));
   btnElement.classList.add("active");
-  // FIX: Safely parse data-stake with fallback to 1.0
   currentSelectedStake = parseFloat(btnElement.getAttribute("data-stake")) || 1.0;
-  localStorage.setItem("cyberstrike_selected_stake", currentSelectedStake);
+  safeSetItem("cyberstrike_selected_stake", currentSelectedStake);
   
   const totalPoolEl = document.getElementById("summaryTotalPool");
   const winnerPayoutEl = document.getElementById("summaryWinnerPayout");
@@ -789,7 +766,7 @@ function captureReferrerFromURL() {
   const urlParams = new URLSearchParams(window.location.search);
   const refUser = urlParams.get("ref");
   if (refUser && refUser.toLowerCase() !== currentActiveUserAccount?.toLowerCase()) {
-    localStorage.setItem("cyberstrike_referrer", refUser);
+    safeSetItem("cyberstrike_referrer", refUser);
   }
 }
 
@@ -955,8 +932,8 @@ async function executePolWithdrawal() {
     if (statusEl) statusEl.innerText = "❌ Network error connecting to FaucetPay gateway.";
     if (confirmBtn) confirmBtn.disabled = false;
   }
-}
-// ==========================================================================
+      }
+          // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 4 OF 8: MODALS - PROFILE, HISTORY, LEADERBOARD)
 // ==========================================================================
 function openProfileModal() {
@@ -1071,7 +1048,6 @@ async function fetchTransactionHistory(type) {
       return;
     }
 
-    // TODO: replace client-side .filter() with .eq('type', ...)
     const filteredData = data.filter(tx => {
       const txType = (tx.type || "").toLowerCase();
       const amt = parseFloat(tx.amount || 0);
@@ -1159,8 +1135,8 @@ async function fetchLeaderboardData() {
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:16px; color:var(--accent-magenta);">Failed to fetch leaderboard.</td></tr>`;
   }
-    }
-  // ==========================================================================
+        }
+      // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 5 OF 8: MATCHMAKING QUEUE & 30S TIMER)
 // ==========================================================================
 function startMatchmakingQueue(gameType, stakeAmount) {
@@ -1170,7 +1146,6 @@ function startMatchmakingQueue(gameType, stakeAmount) {
     return;
   }
 
-  // FIX: Validate stakeAmount before queueing
   stakeAmount = parseFloat(stakeAmount) || parseFloat(currentSelectedStake) || 1.0;
   if (userVaultBalance < stakeAmount) {
     showCustomAlert("Insufficient POL Balance in Vault for this stake!", "INSUFFICIENT BALANCE");
@@ -1322,7 +1297,7 @@ function closeMatchmakingModal() {
   const modal = document.getElementById("matchmakingModal");
   if (modal) modal.classList.remove("active");
   stopMatchmakingTimers();
-      }
+}
 // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 6 OF 8: ROUTER, REALTIME & PENALTY ENGINE)
 // ==========================================================================
@@ -1398,7 +1373,6 @@ async function launchPenaltyArena(isTraining = false) {
   playAudioSFX("action");
   isPenaltyTraining = isTraining;
   penaltyResolved = false;
-  // FIX: Ensure currentSelectedStake is valid before launching
   currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
   const stake = currentSelectedStake;
 
@@ -1731,15 +1705,14 @@ function closePenaltyArena() {
   clearOpponentWatchdog();
   leaveLiveMatchChannel();
   document.getElementById("penaltyOverlay").classList.remove("active");
-                            }
-// ==========================================================================
+    }
+                                                                            // ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 7 OF 8: LUDO RACE & COIN FLIP ENGINES)
 // ==========================================================================
 async function launchLudoRace(isTraining = false) {
   playAudioSFX("action");
   isLudoTraining = isTraining;
   ludoResolved = false;
-  // FIX: Ensure currentSelectedStake is valid before launching
   currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
   const stake = currentSelectedStake;
 
@@ -1957,7 +1930,6 @@ async function launchCoinFlipArena(isTraining = false) {
   playAudioSFX("action");
   isCoinTraining = isTraining;
   coinResolved = false;
-  // FIX: Ensure currentSelectedStake is valid before launching
   currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
   const stake = currentSelectedStake;
 
@@ -2009,9 +1981,6 @@ function flipCoin(playerChoice) {
   }, 1500);
 }
 
-function resolveLiveCoinFlip(opponentChoice) {
-}
-
 function applyLiveCoinResult(winningOutcome, opponentChoice) {
   clearOpponentWatchdog();
   finalizeCoinFlipOutcome(lastPlayerCoinChoice || 'heads', winningOutcome, currentSelectedStake);
@@ -2061,15 +2030,14 @@ function closeCoinFlipArena() {
   clearOpponentWatchdog();
   leaveLiveMatchChannel();
   document.getElementById("coinFlipOverlay").classList.remove("active");
-                             }
-      // ==========================================================================
+}
+// ==========================================================================
 // CYBERSTRIKE CORE SCRIPT (PART 8 OF 8: RPS ENGINE & DOM INITIALIZER)
 // ==========================================================================
 async function launchRpsArena(isTraining = false) {
   playAudioSFX("action");
   isRpsTraining = isTraining;
   rpsResolved = false;
-  // FIX: Ensure currentSelectedStake is valid before launching
   currentSelectedStake = parseFloat(currentSelectedStake) || 1.0;
   const stake = currentSelectedStake;
 
@@ -2284,4 +2252,3 @@ window.addEventListener("DOMContentLoaded", () => {
   startLiveBalancePolling();
   initPasswordRecoveryListener();
 });
-    
